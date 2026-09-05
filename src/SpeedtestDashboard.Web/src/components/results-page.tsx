@@ -1,18 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AreaChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Area,
-} from 'recharts'
-import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -22,7 +10,7 @@ import {
   Clock3,
   ExternalLink,
   Gauge,
-  History,
+  ListChecks,
   LoaderCircle,
   MapPin,
   Radio,
@@ -38,13 +26,12 @@ import {
   type HistoryListItem,
   type HistoryStatus,
 } from '../lib/history'
-import { getStatistics, statisticsQueryKey, type StatisticsProvider, type StatisticsRange } from '../lib/statistics'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
 type TimeRange = '24h' | '7d' | '30d' | 'all'
 
-export function HistoryPage() {
+export function ResultsPage() {
   const queryClient = useQueryClient()
   const [provider, setProvider] = useState('all')
   const [status, setStatus] = useState<'all' | HistoryStatus>('all')
@@ -66,11 +53,6 @@ export function HistoryPage() {
     queryKey: historyQueryKey(filters),
     queryFn: ({ signal }) => getHistory(filters, signal),
   })
-  const chartStatistics = useQuery({
-    queryKey: statisticsQueryKey(range as StatisticsRange, provider === 'all' ? undefined : provider as StatisticsProvider),
-    queryFn: ({ signal }) => getStatistics(range as StatisticsRange, provider === 'all' ? undefined : provider as StatisticsProvider, signal),
-    enabled: status === 'all' || status === 'completed',
-  })
   const detail = useQuery({
     queryKey: ['history-detail', selectedId],
     queryFn: ({ signal }) => getHistoryDetail(selectedId!, signal),
@@ -91,22 +73,14 @@ export function HistoryPage() {
     setPreviousCursors([])
     setSelectedId(null)
   }
-  const chartData = useMemo(() => (chartStatistics.data?.chart ?? []).map((item) => ({
-    label: compactTime(item.bucketStartUtc),
-    download: item.downloadMbps ?? undefined,
-    upload: item.uploadMbps ?? undefined,
-    latency: item.latencyMilliseconds ?? undefined,
-    jitter: item.jitterMilliseconds ?? undefined,
-  })), [chartStatistics.data?.chart])
-
   return (
     <div className="page-enter">
       <header className="mb-7 border-b border-line pb-6 lg:mb-9">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">History</h1>
-        <p className="mt-2 text-sm text-ink-muted">Latest 100 matching tests.</p>
+        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Results</h1>
+        <p className="mt-2 text-sm text-ink-muted">Individual speed-test runs and their captured measurements.</p>
       </header>
 
-      <section aria-label="History filters" className="grid gap-3 border-b border-line pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
+      <section aria-label="Results filters" className="grid gap-3 border-b border-line pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
         <FilterSelect label="Provider" value={provider} onChange={(value) => { setProvider(value); resetPagination() }}>
           <option value="all">All providers</option>
           <option value="ookla">Ookla</option>
@@ -137,54 +111,18 @@ export function HistoryPage() {
       </section>
 
       {history.isLoading ? (
-        <div className="grid min-h-72 place-items-center text-sm text-ink-muted"><LoaderCircle className="mb-3 size-5 animate-spin" />Loading history</div>
+        <div className="grid min-h-72 place-items-center text-sm text-ink-muted"><LoaderCircle className="mb-3 size-5 animate-spin" />Loading results</div>
       ) : history.isError ? (
-        <div role="alert" className="my-8 border-y border-line py-10 text-sm text-ink-muted">History could not be loaded.</div>
+        <div role="alert" className="my-8 border-y border-line py-10 text-sm text-ink-muted">Results could not be loaded.</div>
       ) : !history.data || history.data.items.length === 0 ? (
-        <EmptyHistory />
+        <EmptyResults />
       ) : (
-        <>
-          {(status === 'all' || status === 'completed') && <div className="mt-8 grid gap-7 xl:grid-cols-2">
-            <ChartPanel title="Historical throughput" note="Mbps · completed tests · median guide">
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={chartData} accessibilityLayer margin={{ left: -8, right: 8, top: 12 }}>
-                  <defs>
-                    <linearGradient id="download-fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-chart-primary)" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="var(--color-chart-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} stroke="var(--color-line)" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
-                  <YAxis unit=" Mbps" width={68} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  {chartStatistics.data?.download?.median != null && <ReferenceLine y={chartStatistics.data.download.median} stroke="var(--color-chart-primary)" strokeDasharray="5 5" strokeOpacity={0.65} />}
-                  <Area type="monotone" dataKey="download" name="Download" unit=" Mbps" stroke="var(--color-chart-primary)" fill="url(#download-fill)" strokeWidth={2.4} connectNulls={false} />
-                  <Line type="monotone" dataKey="upload" name="Upload" unit=" Mbps" stroke="var(--color-chart-secondary)" strokeWidth={2.2} dot={false} connectNulls={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartPanel>
-            <ChartPanel title="Idle latency" note="Milliseconds · completed tests · median guide">
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={chartData} accessibilityLayer margin={{ left: -12, right: 8, top: 12 }}>
-                  <CartesianGrid vertical={false} stroke="var(--color-line)" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
-                  <YAxis unit=" ms" width={60} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  {chartStatistics.data?.latency?.median != null && <ReferenceLine y={chartStatistics.data.latency.median} stroke="var(--color-chart-primary)" strokeDasharray="5 5" strokeOpacity={0.65} />}
-                  <Line type="monotone" dataKey="latency" name="Latency" unit=" ms" stroke="var(--color-chart-primary)" strokeWidth={2.4} dot={{ r: 2.5 }} connectNulls={false} />
-                  <Line type="monotone" dataKey="jitter" name="Jitter" unit=" ms" stroke="var(--color-ink-muted)" strokeDasharray="4 4" dot={false} connectNulls={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartPanel>
-          </div>}
-
-          <section aria-labelledby="records-heading" className="mt-8 border-t border-line pt-6">
+        <section aria-labelledby="records-heading" className="mt-8">
             <div className="mb-5 flex items-end justify-between">
-              <h2 id="records-heading" className="text-2xl font-semibold tracking-[-0.035em]">Results</h2>
+              <h2 id="records-heading" className="text-2xl font-semibold tracking-[-0.035em]">Test runs</h2>
               <span className="text-xs font-semibold text-ink-muted">{history.data?.items.length ?? 0} on this page</span>
             </div>
-            <HistoryRecords
+            <ResultsRecords
               items={history.data?.items ?? []}
               selectedId={selectedId}
               onSelect={(id) => {
@@ -213,15 +151,14 @@ export function HistoryPage() {
                 setCursor(history.data?.nextCursor ?? null)
               }}>Next<ArrowRight className="size-4" /></Button>
             </div>
-          </section>
-        </>
+        </section>
       )}
 
     </div>
   )
 }
 
-type HistoryDetailPanelProps = {
+type ResultDetailPanelProps = {
   detail: Awaited<ReturnType<typeof getHistoryDetail>> | undefined
   loading: boolean
   confirmingDelete: boolean
@@ -232,11 +169,11 @@ type HistoryDetailPanelProps = {
   onDelete: () => void
 }
 
-function HistoryRecords({ items, selectedId, onSelect, detailProps }: {
+function ResultsRecords({ items, selectedId, onSelect, detailProps }: {
   items: HistoryListItem[]
   selectedId: number | null
   onSelect: (id: number) => void
-  detailProps: HistoryDetailPanelProps
+  detailProps: ResultDetailPanelProps
 }) {
   return (
     <>
@@ -249,7 +186,7 @@ function HistoryRecords({ items, selectedId, onSelect, detailProps }: {
             <button
               type="button"
               aria-expanded={selectedId === item.id}
-              aria-controls={`history-detail-desktop-${item.id}`}
+              aria-controls={`result-detail-desktop-${item.id}`}
               className={cn('grid min-h-16 w-full grid-cols-[9rem_6rem_minmax(10rem,1fr)_6.5rem_6.5rem_5.5rem_minmax(8rem,.7fr)_7.5rem] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-canvas', selectedId === item.id && 'bg-ink/5')}
               onClick={() => onSelect(item.id)}
             >
@@ -262,7 +199,7 @@ function HistoryRecords({ items, selectedId, onSelect, detailProps }: {
               <span className="truncate text-xs text-ink-muted">{item.ipv4Address ?? item.ipv6Address ?? 'Not available'}</span>
               <span className="flex items-center justify-between gap-2"><StatusLabel status={item.status} /><ChevronDown className={cn('size-4 shrink-0 text-ink-muted transition-transform', selectedId === item.id && 'rotate-180')} /></span>
             </button>
-            {selectedId === item.id && <div id={`history-detail-desktop-${item.id}`}><HistoryDetailPanel {...detailProps} /></div>}
+            {selectedId === item.id && <div id={`result-detail-desktop-${item.id}`}><ResultDetailPanel {...detailProps} /></div>}
           </div>
         ))}
       </div>
@@ -272,14 +209,14 @@ function HistoryRecords({ items, selectedId, onSelect, detailProps }: {
             <button
               type="button"
               aria-expanded={selectedId === item.id}
-              aria-controls={`history-detail-mobile-${item.id}`}
+              aria-controls={`result-detail-mobile-${item.id}`}
               className={cn('min-h-11 w-full p-4 text-left', selectedId === item.id && 'bg-ink/5')}
               onClick={() => onSelect(item.id)}
             >
               <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-ink-muted">{formatDate(item.completedAtUtc)}</span><p className="mt-1 font-semibold">{item.serverName ?? `${item.providerId} test`}</p>{distinctLocation(item) && <p className="mt-1 flex items-center gap-1 text-xs text-ink-muted"><MapPin className="size-3" />{item.serverLocation}</p>}</div><span className="flex items-center gap-2"><StatusLabel status={item.status} /><ChevronDown className={cn('size-4 shrink-0 text-ink-muted transition-transform', selectedId === item.id && 'rotate-180')} /></span></div>
               <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3"><MiniMetric label="Down" value={item.downloadMbps} unit="Mbps" /><MiniMetric label="Up" value={item.uploadMbps} unit="Mbps" /><MiniMetric label="Latency" value={item.latencyMilliseconds} unit="ms" /></div>
             </button>
-            {selectedId === item.id && <div id={`history-detail-mobile-${item.id}`}><HistoryDetailPanel {...detailProps} /></div>}
+            {selectedId === item.id && <div id={`result-detail-mobile-${item.id}`}><ResultDetailPanel {...detailProps} /></div>}
           </div>
         ))}
       </div>
@@ -287,7 +224,7 @@ function HistoryRecords({ items, selectedId, onSelect, detailProps }: {
   )
 }
 
-function HistoryDetailPanel({ detail, loading, confirmingDelete, deleting, deleteError, onConfirmDelete, onCancelDelete, onDelete }: HistoryDetailPanelProps) {
+function ResultDetailPanel({ detail, loading, confirmingDelete, deleting, deleteError, onConfirmDelete, onCancelDelete, onDelete }: ResultDetailPanelProps) {
   const identity = detail?.egressIdentity
   return (
     <section aria-label="Test details" className="border-t border-line bg-canvas px-4 py-6 sm:px-6">
@@ -307,7 +244,7 @@ function HistoryDetailPanel({ detail, loading, confirmingDelete, deleting, delet
         {detail.failure && <div className="mt-6 text-sm"><p className="font-semibold">{detail.failure.message}</p><code className="mt-1 block text-xs text-danger">{detail.failure.code}</code></div>}
         <div className="mt-7 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
           {detail.result?.resultUrl ? <a href={detail.result.resultUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-signal underline decoration-signal/35 underline-offset-4">View verified result <ExternalLink className="size-4" /></a> : <span className="text-sm text-ink-muted">No external result link</span>}
-          {confirmingDelete ? <div role="group" aria-label="Confirm history deletion" className="flex flex-wrap items-center gap-2"><span className="mr-1 text-sm text-ink-muted">Delete this record permanently?</span><Button className="min-h-11 bg-danger text-white hover:bg-danger/90" disabled={deleting} onClick={onDelete}>{deleting ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}Delete</Button><Button variant="ghost" className="min-h-11" onClick={onCancelDelete}>Keep</Button></div> : <Button variant="ghost" className="min-h-11" onClick={onConfirmDelete}><Trash2 className="size-4" />Delete record</Button>}
+          {confirmingDelete ? <div role="group" aria-label="Confirm result deletion" className="flex flex-wrap items-center gap-2"><span className="mr-1 text-sm text-ink-muted">Delete this record permanently?</span><Button className="min-h-11 bg-danger text-white hover:bg-danger/90" disabled={deleting} onClick={onDelete}>{deleting ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}Delete</Button><Button variant="ghost" className="min-h-11" onClick={onCancelDelete}>Keep</Button></div> : <Button variant="ghost" className="min-h-11" onClick={onConfirmDelete}><Trash2 className="size-4" />Delete record</Button>}
         </div>
         {deleteError && <p role="alert" className="mt-3 text-sm text-danger">The record could not be deleted.</p>}
       </>}
@@ -315,17 +252,14 @@ function HistoryDetailPanel({ detail, loading, confirmingDelete, deleting, delet
   )
 }
 
-function EmptyHistory() { return <section className="my-8 grid min-h-72 place-items-center border-y border-line py-12 text-center"><div><History className="mx-auto size-6 text-signal" /><h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em]">No matching tests</h2><p className="mt-2 text-sm text-ink-muted">Change the filters or run a speed test.</p></div></section> }
+function EmptyResults() { return <section className="my-8 grid min-h-72 place-items-center border-y border-line py-12 text-center"><div><ListChecks className="mx-auto size-6 text-signal" /><h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em]">No matching results</h2><p className="mt-2 text-sm text-ink-muted">Change the filters or run a speed test.</p></div></section> }
 function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) { return <label><span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">{label}</span><select value={value} className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-semibold outline-none focus:border-signal" onChange={(event) => onChange(event.target.value)}>{children}</select></label> }
-function ChartPanel({ title, note, children }: { title: string; note: string; children: React.ReactNode }) { return <section className="min-w-0 rounded-[1.25rem] border border-line bg-paper p-4 sm:p-6"><div className="mb-2"><h2 className="text-xl font-semibold tracking-[-0.03em]">{title}</h2><p className="mt-1 text-xs text-ink-muted">{note}</p></div>{children}</section> }
 function StatusLabel({ status }: { status: HistoryStatus }) { const Icon = status === 'completed' ? CheckCircle2 : XCircle; return <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold capitalize', status === 'completed' ? 'bg-ok/10 text-ok' : status === 'cancelled' ? 'bg-ink/6 text-ink-muted' : 'bg-danger-soft text-danger')}><Icon className="size-3" />{status}</span> }
 function MetricText({ value, unit }: { value: number | null; unit: string }) { return <span className="tabular-nums">{value === null ? <span className="text-ink-muted">Not available</span> : <>{formatMetric(value)} <span className="text-xs text-ink-muted">{unit}</span></>}</span> }
 function MiniMetric({ label, value, unit }: { label: string; value: number | null; unit: string }) { return <div><p className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-muted">{label}</p><p className="mt-1 text-sm font-semibold tabular-nums">{value === null ? 'N/A' : `${formatMetric(value)} ${unit}`}</p></div> }
 function DetailMetric({ icon: Icon, label, value, unit }: { icon: typeof Gauge; label: string; value: number | null; unit: string }) { return <div className="bg-paper p-4"><p className="flex items-center gap-1.5 text-xs text-ink-muted"><Icon className="size-3" />{label}</p><p className="mt-4 font-semibold tabular-nums">{value === null ? 'Not available' : `${formatMetric(value)} ${unit}`}</p></div> }
 function Detail({ label, value, secondary }: { label: string; value: string; secondary?: string | null }) { return <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-[0.13em] text-ink-muted">{label}</dt><dd className="mt-2 break-words text-sm font-semibold capitalize">{value}</dd>{secondary && <dd className="mt-1 text-xs text-ink-muted">{secondary}</dd>}</div> }
 function rangeStart(range: TimeRange) { if (range === 'all') return undefined; const hours = range === '24h' ? 24 : range === '7d' ? 24 * 7 : 24 * 30; return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString() }
-function compactTime(value: string) { return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }).format(new Date(value)) }
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
 function formatMetric(value: number) { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value) }
 function distinctLocation(item: HistoryListItem) { return Boolean(item.serverLocation && item.serverLocation !== item.serverName) }
-const tooltipStyle = { border: '1px solid var(--color-line)', borderRadius: '12px', background: 'var(--color-paper)', color: 'var(--color-ink)', fontSize: '12px' }

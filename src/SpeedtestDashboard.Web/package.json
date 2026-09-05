@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint src",
     "check": "tsc -b && oxlint src",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "audit:dependencies": "npm audit --audit-level=low",
     "check:package-age": "node ../../scripts/check-package-age.mjs",
     "verify:dependencies": "npm run check:package-age && npm run audit:dependencies",

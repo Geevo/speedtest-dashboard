@@ -69,7 +69,7 @@ export async function getHistoryDetail(id: number, signal?: AbortSignal): Promis
 
 export async function deleteHistory(id: number): Promise<void> {
   const response = await apiFetch(`/api/history/${id}`, { method: 'DELETE' })
-  if (!response.ok) throw new Error('The history record could not be deleted.')
+  if (!response.ok) throw new Error('The result could not be deleted.')
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -77,6 +77,6 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { Accept: 'application/json', ...init?.headers },
   })
-  if (!response.ok) throw new Error('History could not be loaded.')
+  if (!response.ok) throw new Error('Results could not be loaded.')
   return response.json() as Promise<T>
 }

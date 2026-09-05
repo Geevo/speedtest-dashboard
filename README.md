@@ -3,18 +3,18 @@
 Speedtest Dashboard is a self-hosted network utility for measuring the connection of the machine or container running its backend. Public-IP lookups and speed tests originate from the ASP.NET Core service - not from the browser - so the dashboard reports the egress path that matters for a server, VPN gateway, or homelab workload.
 
 > [!IMPORTANT]
-> Version 0.10 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. A separate, optional instance-wide API key authenticates machine clients against `/api/v1`, and the Schedules page runs one-off or recurring tests automatically. An observed IP address identifies egress; it is not proof that a VPN is active.
+> Version 0.11 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. A separate, optional instance-wide API key authenticates machine clients against `/api/v1`, and the Schedules page runs one-off or recurring tests automatically. An observed IP address identifies egress; it is not proof that a VPN is active.
 
 The project is a new implementation inspired by the useful user-facing flows in [`moranbw/speedtest-app`](https://github.com/moranbw/speedtest-app): remote-machine testing, optional server selection, results, and straightforward container deployment. It does not copy that project's Node/Material UI architecture.
 
 ## Milestone status
 
-Milestones 1 through 10 are implemented:
+Milestones 1 through 11 are implemented:
 
 - .NET 10 solution with API, Core, and Infrastructure projects
 - React 19, Vite, and TypeScript frontend
 - Tailwind CSS 4, shadcn-style components, and Lucide icons
-- TanStack Query API/history integration and bounded Recharts history views
+- TanStack Query API integration, a record-focused Results view, and bounded Recharts analytics on Statistics
 - responsive dashboard shell with collapsible desktop navigation and a mobile drawer
 - `GET /api/health`, RFC 7807 errors for unknown API routes, forwarded-header support, and baseline response/request hardening
 - production SPA static hosting from ASP.NET Core
@@ -33,7 +33,7 @@ Milestones 1 through 10 are implemented:
 - a responsive Ookla workflow with searchable server selection, honest active stages, cancellation, and complete result presentation
 - EF Core 10 SQLite migrations, durable terminal jobs/results, WAL initialization, and restart reconciliation
 - cursor-paginated History list/detail/delete APIs with provider, terminal-status, and UTC range filters
-- persisted Overview latest/recent data and a responsive History page with throughput and latency charts plus inline expandable result detail
+- persisted Overview latest/recent data and a responsive Results page with filters, pagination, and inline expandable result detail
 - neutral light, dark, and system-default themes with a locally persisted explicit preference
 - pinned LibreSpeed CLI source packaging, structured public-server discovery, automatic/explicit selection, normalized Mbps results, and the shared provider/History workflow
 - roadmap cleanup that keeps the generic provider architecture while limiting the current product surface to implemented integrations
@@ -44,6 +44,7 @@ Milestones 1 through 10 are implemented:
 - `/api/v1` Network Identity, provider inspection, test creation/status/cancellation, and History reads that reuse the existing bounded queue, job store, and History store; caller-supplied `Idempotency-Key` support for test creation; and read/write rate limiting independent of the queue's own bounded-capacity `429`
 - persistent one-off and recurring (interval/daily/weekly) speed-test schedules with explicit IANA time zones, daylight-saving-correct recurrence math, and a Schedules dashboard page
 - one `ScheduleWorker` background service that submits due schedules through the same queue-admission path as manual and machine test creation, with skip-not-retry handling for a full queue, an already-active previous run, or a since-invalidated provider/server, and no replay of occurrences missed while the application was offline
+- History-derived Statistics with summary metrics, P95 latency/jitter, previous-period trends, provider comparison, and bounded throughput/latency charts
 
 Ookla and LibreSpeed are the two production speed-test providers. Both stay registered when their optional CLIs are absent. Ookla license acceptance is disabled by default; LibreSpeed requires no application-level acceptance flag. Terminal history is durable when `/data` is persisted, while the bounded execution queue remains in memory.
 
@@ -83,7 +84,7 @@ Machine API:     one instance-wide API key (see "Machine API and /api/v1" below)
 
 For password-loss recovery, stop the application and back up `/data`. Restore a known-good backup, or use an offline SQLite administration tool to set `DashboardSettings.AuthenticationEnabled` to `0`. Restart, open Settings anonymously, and verify the existing credentials to turn login back on. History is not user-owned and remains intact. Never edit the live database or remove only password-hash fields.
 
-Persisted speed-test History feeds the built-in Statistics view for test counts, success rate, metric summaries, trends, and bounded time-series charts. Additional provider or protocol integrations may be considered later.
+In the user interface, **Results** means individual test records and **Statistics** means aggregate analysis and trends. Persisted backend History feeds both views. `/results` is the canonical records route; `/history` redirects there for old bookmarks. The backend `/api/history` routes retain their established names. Additional provider or protocol integrations may be considered later.
 
 ## Machine API and /api/v1
 

@@ -49,7 +49,7 @@ export function StatisticsPage() {
   return (
     <div className="page-enter">
       <header className="mb-7 border-b border-line pb-6 lg:mb-9">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-signal">Persisted history</p>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-signal">Persisted results</p>
         <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Statistics</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">A practical view of speed, responsiveness, and test reliability.</p>
       </header>

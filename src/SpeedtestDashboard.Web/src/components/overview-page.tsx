@@ -71,7 +71,7 @@ export function OverviewPage() {
 
       <section aria-labelledby="recent-heading" className="mt-12">
         <h2 id="recent-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Recent tests</h2>
-        {recent.data?.items.length ? <div className="border-y border-line">{recent.data.items.map((item) => <RecentRow key={item.id} item={item} />)}</div> : <p className="border-y border-line py-8 text-sm text-ink-muted">No test history.</p>}
+        {recent.data?.items.length ? <div className="border-y border-line">{recent.data.items.map((item) => <RecentRow key={item.id} item={item} />)}</div> : <p className="border-y border-line py-8 text-sm text-ink-muted">No saved results.</p>}
       </section>
     </div>
   )

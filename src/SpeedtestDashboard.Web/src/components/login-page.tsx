@@ -49,7 +49,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionRespons
             Your network,<br />measured here.
           </p>
           <p className="mt-6 max-w-sm text-sm leading-6 text-canvas/65">
-            Sign in to view this instance&apos;s egress identity, run tests, and inspect local history.
+            Sign in to view this instance&apos;s egress identity, run tests, and inspect saved results.
           </p>
         </div>
         <p className="text-xs text-canvas/45">Cookie-secured local session</p>
