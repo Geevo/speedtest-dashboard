@@ -1,12 +1,16 @@
-import { useState, type FormEvent } from 'react'
-import { KeyRound, Laptop, Moon, ShieldCheck, ShieldOff, Sun } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { KeyRound, Laptop, Moon, ShieldCheck, ShieldOff, Sun, Terminal } from 'lucide-react'
 import type { ThemePreference } from '../hooks/use-theme'
 import {
   ApiError,
   changePassword,
   disableLogin,
   enableLogin,
+  getApiKey,
+  regenerateApiKey,
+  revokeApiKey,
   setDisabledWarningVisible,
+  type ApiKeyResponse,
   type SessionResponse,
 } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -55,6 +59,7 @@ export function SettingsPage({ theme, onThemeChange, session, onSessionChange }:
       </section>
       <AuthenticationSection session={session} onSessionChange={onSessionChange} />
       {session.mode === 'local' && <PasswordSection />}
+      <ApiKeySection />
     </div>
   )
 }
@@ -266,6 +271,104 @@ function PasswordSection() {
         {status && <StatusMessage status={status} />}
         <Button type="submit" disabled={saving}>{saving ? 'Changing…' : 'Change password'}</Button>
       </form>
+    </section>
+  )
+}
+
+function ApiKeySection() {
+  const [state, setState] = useState<ApiKeyResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getApiKey(controller.signal)
+      .then(setState)
+      .catch(() => setStatus({ ok: false, message: 'The API key status could not be loaded.' }))
+      .finally(() => setLoading(false))
+    return () => controller.abort()
+  }, [])
+
+  const generate = async () => {
+    setBusy(true)
+    setStatus(null)
+    setCopied(false)
+    try {
+      setState(await regenerateApiKey())
+    } catch (reason) {
+      setStatus({ ok: false, message: reason instanceof ApiError ? reason.message : 'The API key could not be generated.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const revoke = async () => {
+    setBusy(true)
+    setStatus(null)
+    try {
+      await revokeApiKey()
+      setState({ enabled: false, key: null, createdAtUtc: null, lastUsedAtUtc: null })
+    } catch (reason) {
+      setStatus({ ok: false, message: reason instanceof ApiError ? reason.message : 'The API key could not be revoked.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copy = async () => {
+    if (!state?.key) return
+    try {
+      await navigator.clipboard.writeText(state.key)
+      setCopied(true)
+    } catch {
+      setStatus({ ok: false, message: 'The key could not be copied to the clipboard.' })
+    }
+  }
+
+  return (
+    <section aria-labelledby="api-key-heading" className="border-t border-line py-8">
+      <div className="flex items-start gap-3">
+        <Terminal className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+        <div>
+          <h2 id="api-key-heading" className="text-xl font-semibold tracking-[-0.03em]">API access</h2>
+          <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+            One instance-wide key authenticates machine clients against the stable <code>/api/v1</code> surface. It has no roles or scopes, and it can be viewed again at any time.
+          </p>
+        </div>
+      </div>
+
+      {status && <div className="mt-4"><StatusMessage status={status} /></div>}
+
+      {!loading && state && !state.enabled && (
+        <div className="mt-6 max-w-xl">
+          <p className="text-sm text-ink-muted">API access is disabled.</p>
+          <Button type="button" className="mt-3" disabled={busy} onClick={() => void generate()}>
+            {busy ? 'Generating…' : 'Generate API key'}
+          </Button>
+        </div>
+      )}
+
+      {!loading && state && state.enabled && (
+        <div className="mt-6 max-w-xl space-y-4">
+          <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
+            <dt className="font-semibold text-ink-muted">Status</dt>
+            <dd>Enabled</dd>
+            <dt className="font-semibold text-ink-muted">API key</dt>
+            <dd className="break-all font-mono text-xs">{state.key}</dd>
+          </dl>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="ghost" onClick={() => void copy()}>{copied ? 'Copied' : 'Copy'}</Button>
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void generate()}>
+              {busy ? 'Regenerating…' : 'Regenerate'}
+            </Button>
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void revoke()}>
+              {busy ? 'Revoking…' : 'Revoke'}
+            </Button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

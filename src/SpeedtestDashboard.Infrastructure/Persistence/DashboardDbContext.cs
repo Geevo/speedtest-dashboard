@@ -12,6 +12,8 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
     public DbSet<SpeedTestJobEntity> SpeedTestJobs => Set<SpeedTestJobEntity>();
     public DbSet<SpeedTestResultEntity> SpeedTestResults => Set<SpeedTestResultEntity>();
     public DbSet<DashboardSettingsEntity> DashboardSettings => Set<DashboardSettingsEntity>();
+    public DbSet<ApiCredentialEntity> ApiCredentials => Set<ApiCredentialEntity>();
+    public DbSet<ApiIdempotencyRecordEntity> ApiIdempotencyRecords => Set<ApiIdempotencyRecordEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +34,20 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
         {
             builder.ToTable("DashboardSettings");
             builder.HasKey(settings => settings.Id);
+        });
+        modelBuilder.Entity<ApiCredentialEntity>(builder =>
+        {
+            builder.ToTable("ApiCredentials");
+            builder.HasKey(credential => credential.Id);
+            builder.Property(credential => credential.ProtectedSecret).HasMaxLength(2000).IsRequired();
+        });
+        modelBuilder.Entity<ApiIdempotencyRecordEntity>(builder =>
+        {
+            builder.ToTable("ApiIdempotencyRecords");
+            builder.HasKey(record => record.Key);
+            builder.Property(record => record.Key).HasMaxLength(128);
+            builder.Property(record => record.RequestHash).HasMaxLength(64).IsRequired();
+            builder.HasIndex(record => record.CreatedAtUtc);
         });
         modelBuilder.ApplyConfiguration(new SpeedTestJobEntityConfiguration());
         modelBuilder.ApplyConfiguration(new SpeedTestResultEntityConfiguration());

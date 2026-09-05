@@ -1,3 +1,4 @@
+using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Core.Network;
 
 namespace SpeedtestDashboard.Api.Endpoints;
@@ -10,6 +11,15 @@ public static class NetworkEndpoints
             .WithName("GetNetworkIdentity")
             .WithTags("Network")
             .Produces<NetworkIdentityResponse>()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        endpoints.MapGet("/api/v1/network", GetNetworkIdentityAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetNetworkIdentityV1")
+            .WithTags("API v1")
+            .Produces<NetworkIdentityResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return endpoints;

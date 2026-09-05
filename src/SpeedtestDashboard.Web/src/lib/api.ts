@@ -179,6 +179,30 @@ export async function setDisabledWarningVisible(showDisabledWarning: boolean): P
   return response.json() as Promise<SessionResponse>
 }
 
+export type ApiKeyResponse = {
+  enabled: boolean
+  key: string | null
+  createdAtUtc: string | null
+  lastUsedAtUtc: string | null
+}
+
+export async function getApiKey(signal?: AbortSignal): Promise<ApiKeyResponse> {
+  const response = await apiFetch('/api/api-key', { headers: { Accept: 'application/json' }, signal })
+  if (!response.ok) throw await apiError(response, 'The API key status could not be loaded.')
+  return response.json() as Promise<ApiKeyResponse>
+}
+
+export async function regenerateApiKey(): Promise<ApiKeyResponse> {
+  const response = await apiFetch('/api/api-key/regenerate', { method: 'POST' })
+  if (!response.ok) throw await apiError(response, 'The API key could not be generated.')
+  return response.json() as Promise<ApiKeyResponse>
+}
+
+export async function revokeApiKey(): Promise<void> {
+  const response = await apiFetch('/api/api-key', { method: 'DELETE' })
+  if (!response.ok) throw await apiError(response, 'The API key could not be revoked.')
+}
+
 export async function apiFetch(url: string, init: RequestInit = {}, handleUnauthorized = true): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase()
   const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method)

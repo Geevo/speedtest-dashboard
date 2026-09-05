@@ -3,13 +3,13 @@
 Speedtest Dashboard is a self-hosted network utility for measuring the connection of the machine or container running its backend. Public-IP lookups and speed tests originate from the ASP.NET Core service - not from the browser - so the dashboard reports the egress path that matters for a server, VPN gateway, or homelab workload.
 
 > [!IMPORTANT]
-> Version 0.8 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. An observed IP address identifies egress; it is not proof that a VPN is active.
+> Version 0.9 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. A separate, optional instance-wide API key authenticates machine clients against `/api/v1`. An observed IP address identifies egress; it is not proof that a VPN is active.
 
 The project is a new implementation inspired by the useful user-facing flows in [`moranbw/speedtest-app`](https://github.com/moranbw/speedtest-app): remote-machine testing, optional server selection, results, and straightforward container deployment. It does not copy that project's Node/Material UI architecture.
 
 ## Milestone status
 
-Milestones 1 through 8 are implemented:
+Milestones 1 through 9 are implemented:
 
 - .NET 10 solution with API, Core, and Infrastructure projects
 - React 19, Vite, and TypeScript frontend
@@ -40,6 +40,8 @@ Milestones 1 through 8 are implemented:
 - one local operator account backed by ASP.NET Core Identity, a secure HttpOnly cookie session, login lockout, and no public registration
 - fallback authorization for dashboard APIs, antiforgery validation for unsafe cookie-authenticated requests, and an anonymous health endpoint
 - first-run anonymous access, Settings-managed optional login, durable Data Protection keys below `/data`, password change, logout, and a hideable anonymous-access notice
+- one optional instance-wide API key, protected at rest with Data Protection and viewable/copyable/regenerable/revocable from Settings, authenticating machine clients with `Authorization: Bearer` against a stable `/api/v1` surface
+- `/api/v1` Network Identity, provider inspection, test creation/status/cancellation, and History reads that reuse the existing bounded queue, job store, and History store; caller-supplied `Idempotency-Key` support for test creation; and read/write rate limiting independent of the queue's own bounded-capacity `429`
 
 Ookla and LibreSpeed are the two production speed-test providers. Both stay registered when their optional CLIs are absent. Ookla license acceptance is disabled by default; LibreSpeed requires no application-level acceptance flag. Terminal history is durable when `/data` is persisted, while the bounded execution queue remains in memory.
 
@@ -70,16 +72,44 @@ Production Local mode rejects login over HTTP and emits Secure cookies. Terminat
 
 While login protection is off, ordinary dashboard writes do not require antiforgery because there is no ambient authentication credential. The Settings operations that enable login or change the notice preference are still antiforgery-protected. The dashboard displays an anonymous-access notice by default; **Show anonymous-access notice** in Settings can hide or restore it for the whole instance.
 
-Human browser sessions and future machine access remain separate:
+Human browser sessions and machine access remain separate:
 
 ```text
 Human dashboard: secure cookie session
-Future machine API: one instance-wide API key (not implemented)
+Machine API:     one instance-wide API key (see "Machine API and /api/v1" below)
 ```
 
 For password-loss recovery, stop the application and back up `/data`. Restore a known-good backup, or use an offline SQLite administration tool to set `DashboardSettings.AuthenticationEnabled` to `0`. Restart, open Settings anonymously, and verify the existing credentials to turn login back on. History is not user-owned and remains intact. Never edit the live database or remove only password-hash fields.
 
-Later milestones cover expected-egress evaluation, scheduling through the existing bounded queue, and richer test telemetry and application observability. Expected-egress rules will build on independent IPv4/IPv6 identity and report `expected`, `mismatch`, `unknown`, or `unconfigured`; they will not claim generic VPN detection. Additional provider or protocol integrations may be considered later.
+Later milestones cover scheduling through the existing bounded queue and richer test telemetry and application observability. Additional provider or protocol integrations may be considered later.
+
+## Machine API and /api/v1
+
+Speedtest Dashboard supports zero or one instance-wide API key for machine clients. It belongs to the instance, not a user: there are no roles, scopes, a permission matrix, multiple keys, or a required expiration. The Settings **API access** section lets the authenticated operator generate, view, copy, regenerate, or revoke it; unlike a typical one-time secret, the full key is deliberately viewable again at any time so an operator who lost it does not need to regenerate and update every client. Generating or viewing the key follows the same authentication rule as the rest of Settings - if login protection is off, no additional password prompt is added.
+
+The key is generated as `std_<43-character base64url secret>` from 256 bits of random entropy. It is protected at rest with ASP.NET Core Data Protection (purpose `SpeedtestDashboard.ApiCredential.v1`, using the same key ring under `/data/dataprotection` as the login cookie) and stored only in SQLite; the raw or protected value is never written to environment variables, filesystem configuration, or browser storage, and API-key responses use `Cache-Control: no-store`. The key and any bearer token presented in a request are never logged.
+
+Machine clients authenticate with `Authorization: Bearer <api-key>` - never a query parameter or cookie - against a dedicated `ApiKey` scheme that is entirely independent of dashboard login: a signed-in dashboard cookie does not authenticate `/api/v1`, and an API key does not sign in the dashboard. A missing, malformed, wrong, or revoked key all return a uniform 401 that does not reveal which check failed. Regenerating the key immediately invalidates the previous one; revoking it removes the credential so every `/api/v1` request returns 401 until a new key is generated. `LastUsedAtUtc` updates after a successful request, throttled to at most once per minute to bound database writes. `/api/v1` requests carry no ambient browser credential, so they do not require the `X-CSRF-TOKEN` antiforgery header; cookie-authenticated dashboard writes still do. The dashboard does not enable additional CORS for `/api/v1` - machine clients do not run in a browser.
+
+`/api/v1` is a stable, separate surface below the existing dashboard API, which is unchanged and remains what the React app calls:
+
+| Method and route | Contract |
+| --- | --- |
+| `GET /api/v1/network` | The same `NetworkIdentityResponse` as the dashboard; independent IPv4/IPv6, informational only, no VPN detection or policy evaluation. |
+| `GET /api/v1/providers` | Provider summaries with capabilities and health, excluding executable paths, CLI arguments, and license secrets. |
+| `GET /api/v1/providers/{providerId}` | One provider summary or 404. |
+| `GET /api/v1/providers/{providerId}/servers` | The same validated server-discovery contract as the dashboard. |
+| `POST /api/v1/tests` | The same provider-neutral `{ providerId, serverId }` request as the dashboard, reusing the existing bounded queue and job store. Returns `202 Accepted` with a job ID and `/api/v1/tests/...` status/URL. Supports a caller-supplied `Idempotency-Key` header. |
+| `GET /api/v1/tests/{id}` | Current job state, including the result once terminal. Polling only; SSE is not exposed in this milestone. |
+| `POST /api/v1/tests/{id}/cancel` | Requests cancellation through the same cancellation registry as the dashboard. |
+| `GET /api/v1/history` | The same cursor-paginated `provider`/`status`/`fromUtc`/`toUtc`/`cursor`/`limit` query as the dashboard History list. |
+| `GET /api/v1/history/{id}` | Full normalized historical result. |
+
+History deletion and authentication/API-key administration are intentionally not exposed through `/api/v1` in this milestone.
+
+`Idempotency-Key` is capped at 128 characters and retained for 24 hours. A repeated `POST /api/v1/tests` with the same key and the same `{ providerId, serverId }` returns the already-created job instead of enqueuing a second one. The same key with different request data returns `409 Conflict` rather than silently using either payload. This is a small, bounded convenience - not a general distributed-idempotency system - so an expired key is treated as unused and a fresh request under it creates a new job.
+
+`/api/v1` applies its own rate limiter, separate from and in addition to the existing bounded test queue: generous limits on reads, stricter limits on test creation. A limiter rejection returns `429` with `Retry-After`, the same as a full queue's `429`, but the two are independent - raising the rate limit does not raise the number of concurrent bandwidth tests, and a request that clears the rate limiter can still be rejected by a full queue.
 
 ## Speed-test execution engine
 
@@ -96,7 +126,7 @@ The process runner uses `ProcessStartInfo.ArgumentList` with `UseShellExecute=fa
 > [!IMPORTANT]
 > Ookla Speedtest CLI is proprietary software separate from this MIT-licensed application. Ookla describes the official CLI as intended for personal, non-commercial use. Before enabling it, review Ookla's [EULA](https://www.speedtest.net/about/eula), [Terms of Use](https://www.speedtest.net/about/terms), and [Privacy Policy](https://www.speedtest.net/about/privacy). This project does not accept those terms for you and does not include an Ookla binary in source control.
 
-The provider is registered even when the CLI is absent or acceptance is not configured. This keeps `/api/health` healthy and lets the Ookla page explain the administrative state. Functional commands are license-gated through server configuration; there is deliberately no browser acceptance button because the application has no authenticated, persistent settings model.
+The provider is registered even when the CLI is absent or acceptance is not configured. This keeps `/api/health` healthy and lets the Ookla page explain the administrative state. Functional commands are license-gated through server configuration; there is deliberately no browser acceptance button. Ookla legal acceptance remains deployment configuration. It is deliberately not stored or toggled through the dashboard.
 
 To build a local image containing the pinned official CLI package:
 
@@ -202,17 +232,17 @@ podman run --detach --name speedtest-dashboard \
 
 Open the dashboard anonymously, then use Settings if you want to require a login. Put the service behind HTTPS before entering credentials. For direct HTTP on a deliberately trusted LAN, the example explicitly sets `Authentication__AllowInsecureHttp=true`; remove it when an HTTPS reverse proxy supplies the effective request scheme.
 
-The container image is disposable and `/data` is the durability boundary. Retain a named volume or bind mount at `/data` across replacement. It contains `speedtest.db`, possible `speedtest.db-wal`/`speedtest.db-shm` files, and `/data/dataprotection/*`. The latter preserves login cookies across container replacement. SQLite contains the Identity password hash and History, while the Data Protection key ring contains sensitive cryptographic material and is not claimed to be encrypted at rest on Linux. Protect volume permissions and backups accordingly.
+The container image is disposable and `/data` is the durability boundary. Retain a named volume or bind mount at `/data` across replacement. It contains `speedtest.db`, possible `speedtest.db-wal`/`speedtest.db-shm` files, and `/data/dataprotection/*`. The latter preserves login cookies and the protected API key across container replacement. SQLite contains History, authentication state (the Identity password hash), and the protected API credential, while the Data Protection key ring contains sensitive cryptographic material and is not claimed to be encrypted at rest on Linux. Protect volume permissions and backups accordingly. Replacing the container without retaining `/data` loses History, authentication state, and any generated API key; that is an accepted consequence of treating the container as disposable, not a bug.
 
-### Upgrading from 0.7.x
+### Upgrading from 0.7.x or 0.8.x
 
-Before the first 0.8.x start:
+Before the first 0.9.x start:
 
 1. Back up and retain the existing `/data` volume.
-2. Start 0.8.x so the forward migrations preserve History and add authentication settings.
-3. Open the dashboard; it continues with anonymous access after upgrade.
-4. Optionally open Settings and turn on Login protection to create the local operator account.
-5. Never remove `/data`; it contains History, account state, preferences, and Data Protection keys.
+2. Start 0.9.x so the forward migrations preserve History and authentication settings, and add the (initially empty) API credential table.
+3. Open the dashboard; it continues with anonymous access and no API key after upgrade.
+4. Optionally open Settings to turn on Login protection and/or generate an API key.
+5. Never remove `/data`; it contains History, account state, preferences, the API credential, and Data Protection keys.
 
 ## SQLite persistence and History
 
@@ -290,7 +320,7 @@ npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
 npm audit --prefix src/SpeedtestDashboard.Web
 npm run check --prefix src/SpeedtestDashboard.Web
 npm run build --prefix src/SpeedtestDashboard.Web
-podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-7 .
+podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-9 .
 ```
 
 Use `podman build --format docker` for the final command when Docker is unavailable. Podman's default OCI image format does not store Docker-compatible image health-check metadata; the Docker format preserves it while remaining runnable by Podman.

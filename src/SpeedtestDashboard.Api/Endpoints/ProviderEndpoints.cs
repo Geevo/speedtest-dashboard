@@ -1,3 +1,4 @@
+using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
 
@@ -23,6 +24,34 @@ public static class ProviderEndpoints
             .WithTags("Providers")
             .Produces<IReadOnlyList<SpeedTestServerResponse>>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapGet("/api/v1/providers", GetProvidersAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetProvidersV1")
+            .WithTags("API v1")
+            .Produces<IReadOnlyList<ProviderResponse>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        endpoints.MapGet("/api/v1/providers/{providerId}", GetProviderAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetProviderV1")
+            .WithTags("API v1")
+            .Produces<ProviderResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/providers/{providerId}/servers", GetServersAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetProviderServersV1")
+            .WithTags("API v1")
+            .Produces<IReadOnlyList<SpeedTestServerResponse>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 

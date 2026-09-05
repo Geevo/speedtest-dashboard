@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Providers;
@@ -31,6 +32,25 @@ public static class HistoryEndpoints
             .WithTags("History")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/history", ListAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetSpeedTestHistoryV1")
+            .WithTags("API v1")
+            .Produces<HistoryListResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        endpoints.MapGet("/api/v1/history/{id:long}", GetAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetSpeedTestHistoryRecordV1")
+            .WithTags("API v1")
+            .Produces<HistoryDetailResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return endpoints;
     }
 

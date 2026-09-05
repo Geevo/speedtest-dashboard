@@ -1,15 +1,21 @@
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Options;
+using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.ApiKeys;
 
 namespace SpeedtestDashboard.Api.Endpoints;
 
 public static class TestEndpoints
 {
+    private const int MaximumIdempotencyKeyLength = 128;
+
     public static IEndpointRouteBuilder MapTestEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/tests", CreateTestAsync)
@@ -42,6 +48,37 @@ public static class TestEndpoints
             .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        endpoints.MapPost("/api/v1/tests", CreateTestV1Async)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.WriteRateLimiterPolicy)
+            .WithName("CreateSpeedTestV1")
+            .WithTags("API v1")
+            .Produces<CreateTestResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        endpoints.MapGet("/api/v1/tests/{jobId:guid}", GetTestAsync)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetSpeedTestV1")
+            .WithTags("API v1")
+            .Produces<SpeedTestJobResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPost("/api/v1/tests/{jobId:guid}/cancel", CancelTest)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.WriteRateLimiterPolicy)
+            .WithName("CancelSpeedTestV1")
+            .WithTags("API v1")
+            .Produces<SpeedTestJobResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         return endpoints;
     }
 
@@ -54,35 +91,115 @@ public static class TestEndpoints
         HttpContext context,
         CancellationToken cancellationToken)
     {
+        var outcome = await TryCreateTestAsync(request, registry, jobStore, queue, options, context, cancellationToken);
+        if (!outcome.Succeeded)
+        {
+            return outcome.Error!;
+        }
+
+        var response = CreateTestResponse.From(outcome.Job!);
+        return Results.Accepted(response.ResourceUrl, response);
+    }
+
+    private static async Task<IResult> CreateTestV1Async(
+        CreateTestRequest request,
+        HttpRequest httpRequest,
+        ISpeedTestProviderRegistry registry,
+        ISpeedTestJobStore jobStore,
+        ISpeedTestHistoryStore history,
+        ISpeedTestQueue queue,
+        IOptions<SpeedTestOptions> options,
+        IApiIdempotencyStore idempotencyStore,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        const string basePath = "/api/v1/tests";
+
+        var idempotencyKey = httpRequest.Headers.TryGetValue("Idempotency-Key", out var headerValues)
+            ? headerValues.ToString()
+            : null;
+        if (idempotencyKey is { Length: > MaximumIdempotencyKeyLength })
+        {
+            return ProblemResponses.BadRequest(
+                "invalid_idempotency_key",
+                $"Idempotency-Key must be at most {MaximumIdempotencyKeyLength} characters.");
+        }
+
+        string? requestHash = null;
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            requestHash = ComputeRequestHash(request);
+            var existing = await idempotencyStore.TryGetAsync(idempotencyKey, cancellationToken);
+            if (existing is not null)
+            {
+                if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
+                {
+                    return ProblemResponses.Conflict(
+                        "idempotency_key_conflict",
+                        "This idempotency key was already used with a different request.");
+                }
+
+                var existingJob = await FindJobAsync(existing.JobId, jobStore, history, cancellationToken);
+                if (existingJob is not null)
+                {
+                    var cachedResponse = CreateTestResponse.From(existingJob, basePath);
+                    return Results.Accepted(cachedResponse.ResourceUrl, cachedResponse);
+                }
+            }
+        }
+
+        var outcome = await TryCreateTestAsync(request, registry, jobStore, queue, options, context, cancellationToken);
+        if (!outcome.Succeeded)
+        {
+            return outcome.Error!;
+        }
+
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            await idempotencyStore.SaveAsync(idempotencyKey, requestHash!, outcome.Job!.Id, cancellationToken);
+        }
+
+        var response = CreateTestResponse.From(outcome.Job!, basePath);
+        return Results.Accepted(response.ResourceUrl, response);
+    }
+
+    private static async Task<CreateTestOutcome> TryCreateTestAsync(
+        CreateTestRequest request,
+        ISpeedTestProviderRegistry registry,
+        ISpeedTestJobStore jobStore,
+        ISpeedTestQueue queue,
+        IOptions<SpeedTestOptions> options,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
         if (!TryMapRequest(request, out var speedTestRequest, out var validationMessage))
         {
-            return ProblemResponses.BadRequest(SpeedTestFailureCodes.InvalidRequest, validationMessage);
+            return CreateTestOutcome.Failure(ProblemResponses.BadRequest(SpeedTestFailureCodes.InvalidRequest, validationMessage));
         }
 
         if (!registry.TryGet(speedTestRequest.ProviderId, out var provider))
         {
-            return ProblemResponses.NotFound(
+            return CreateTestOutcome.Failure(ProblemResponses.NotFound(
                 SpeedTestFailureCodes.ProviderNotFound,
-                "The requested speed-test provider is not registered.");
+                "The requested speed-test provider is not registered."));
         }
 
         if (speedTestRequest.ServerId is not null &&
             !provider.Capabilities.HasFlag(ProviderCapabilities.ServerSelection))
         {
-            return ProblemResponses.Conflict(
+            return CreateTestOutcome.Failure(ProblemResponses.Conflict(
                 SpeedTestFailureCodes.CapabilityNotSupported,
-                "This provider does not support explicit server selection.");
+                "This provider does not support explicit server selection."));
         }
-
 
         if (provider is ISpeedTestRequestValidator validator)
         {
             var validation = validator.ValidateRequest(speedTestRequest);
             if (!validation.IsValid)
             {
-                return ProblemResponses.BadRequest(
+                return CreateTestOutcome.Failure(ProblemResponses.BadRequest(
                     validation.Code ?? SpeedTestFailureCodes.InvalidRequest,
-                    validation.Message ?? "The provider-specific request is invalid.");
+                    validation.Message ?? "The provider-specific request is invalid."));
             }
         }
 
@@ -107,9 +224,9 @@ public static class TestEndpoints
 
         if (health.State == ProviderHealthState.Unavailable)
         {
-            return ProblemResponses.Conflict(
+            return CreateTestOutcome.Failure(ProblemResponses.Conflict(
                 SpeedTestFailureCodes.ProviderUnavailable,
-                "The requested speed-test provider is unavailable.");
+                "The requested speed-test provider is unavailable."));
         }
 
         SpeedTestJob job;
@@ -119,9 +236,9 @@ public static class TestEndpoints
         }
         catch (SpeedTestPersistenceException)
         {
-            return ProblemResponses.Internal(
+            return CreateTestOutcome.Failure(ProblemResponses.Internal(
                 SpeedTestFailureCodes.PersistenceFailed,
-                "The speed-test job could not be saved to durable storage.");
+                "The speed-test job could not be saved to durable storage."));
         }
 
         if (!queue.TryEnqueue(job.Id))
@@ -132,19 +249,19 @@ public static class TestEndpoints
             }
             catch (SpeedTestPersistenceException)
             {
-                return ProblemResponses.Internal(
+                return CreateTestOutcome.Failure(ProblemResponses.Internal(
                     SpeedTestFailureCodes.PersistenceFailed,
-                    "The rejected speed-test job could not be removed from durable storage.");
+                    "The rejected speed-test job could not be removed from durable storage."));
             }
-            return ProblemResponses.TooManyRequests(
+
+            return CreateTestOutcome.Failure(ProblemResponses.TooManyRequests(
                 SpeedTestFailureCodes.QueueFull,
                 "The speed-test queue is full. Try again shortly.",
                 options.Value.QueueFullRetryAfterSeconds,
-                context);
+                context));
         }
 
-        var response = CreateTestResponse.From(job);
-        return Results.Accepted(response.ResourceUrl, response);
+        return CreateTestOutcome.Success(job);
     }
 
     private static async Task<IResult> GetTestAsync(
@@ -153,18 +270,14 @@ public static class TestEndpoints
         ISpeedTestHistoryStore history,
         CancellationToken cancellationToken)
     {
-        if (jobStore.TryGet(jobId, out var activeOrRecentJob))
-        {
-            return Results.Ok(SpeedTestJobResponse.From(activeOrRecentJob));
-        }
-
-        var persistedJob = await history.GetTerminalJobAsync(jobId, cancellationToken);
-        return persistedJob is null
+        var job = await FindJobAsync(jobId, jobStore, history, cancellationToken);
+        return job is null
             ? ProblemResponses.NotFound("job_not_found", "The requested speed-test job was not found.")
-            : Results.Ok(SpeedTestJobResponse.From(persistedJob));
+            : Results.Ok(SpeedTestJobResponse.From(job));
     }
 
     private static IResult CancelTest(
+        HttpContext context,
         Guid jobId,
         ISpeedTestJobStore jobStore,
         ISpeedTestCancellationRegistry cancellationRegistry)
@@ -200,7 +313,8 @@ public static class TestEndpoints
         }
 
         cancellationRegistry.TryCancel(jobId);
-        return Results.Accepted($"/api/tests/{jobId}", SpeedTestJobResponse.From(cancelledJob));
+        var basePath = context.Request.Path.StartsWithSegments("/api/v1") ? "/api/v1/tests" : "/api/tests";
+        return Results.Accepted($"{basePath}/{jobId}", SpeedTestJobResponse.From(cancelledJob));
     }
 
     private static IResult GetTestEvents(
@@ -239,6 +353,27 @@ public static class TestEndpoints
         }
     }
 
+    private static async Task<SpeedTestJob?> FindJobAsync(
+        Guid jobId,
+        ISpeedTestJobStore jobStore,
+        ISpeedTestHistoryStore history,
+        CancellationToken cancellationToken)
+    {
+        if (jobStore.TryGet(jobId, out var activeOrRecentJob))
+        {
+            return activeOrRecentJob;
+        }
+
+        return await history.GetTerminalJobAsync(jobId, cancellationToken);
+    }
+
+    private static string ComputeRequestHash(CreateTestRequest request)
+    {
+        var canonical = $"{request.ProviderId?.Trim().ToLowerInvariant()} {request.ServerId?.Trim() ?? string.Empty}";
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        return Convert.ToHexString(bytes);
+    }
+
     private static bool TryMapRequest(
         CreateTestRequest request,
         out SpeedTestRequest mapped,
@@ -262,6 +397,15 @@ public static class TestEndpoints
         mapped = new SpeedTestRequest(providerId, serverId);
         return true;
     }
+
+    private readonly record struct CreateTestOutcome(SpeedTestJob? Job, IResult? Error)
+    {
+        public bool Succeeded => Job is not null;
+
+        public static CreateTestOutcome Success(SpeedTestJob job) => new(job, null);
+
+        public static CreateTestOutcome Failure(IResult error) => new(null, error);
+    }
 }
 
 public sealed record CreateTestRequest(
@@ -278,15 +422,15 @@ public sealed record CreateTestResponse(
     string ResourceUrl,
     string EventsUrl)
 {
-    public static CreateTestResponse From(SpeedTestJob job) => new(
+    public static CreateTestResponse From(SpeedTestJob job, string basePath = "/api/tests") => new(
         job.Id,
         job.Request.ProviderId.Value,
         JobStatus(job.Status),
         job.Stage,
         job.Version,
         job.CreatedAtUtc,
-        $"/api/tests/{job.Id}",
-        $"/api/tests/{job.Id}/events");
+        $"{basePath}/{job.Id}",
+        $"{basePath}/{job.Id}/events");
 
     private static string JobStatus(SpeedTestJobStatus status) => status == SpeedTestJobStatus.ProcessingResult
         ? "processingResult"

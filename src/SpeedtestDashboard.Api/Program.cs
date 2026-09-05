@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Api.Endpoints;
 using SpeedtestDashboard.Core;
 using SpeedtestDashboard.Infrastructure;
+using SpeedtestDashboard.Infrastructure.ApiKeys;
 using SpeedtestDashboard.Infrastructure.Network;
 using SpeedtestDashboard.Infrastructure.Persistence;
 
@@ -13,6 +15,8 @@ builder.Services.AddNetworkIdentity(builder.Configuration);
 builder.Services.AddDashboardPersistence(builder.Configuration);
 builder.Services.AddSpeedTestOrchestration(builder.Configuration);
 builder.Services.AddDashboardAuthentication(builder.Configuration);
+builder.Services.AddApiKeyPersistence();
+builder.Services.AddApiKeyAuthentication();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -72,6 +76,7 @@ app.MapGet("/api/health", (HttpContext context) =>
 .AllowAnonymous();
 
 app.MapAuthenticationEndpoints();
+app.MapApiKeyEndpoints();
 app.MapNetworkEndpoints();
 app.MapProviderEndpoints();
 app.MapTestEndpoints();
