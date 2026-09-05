@@ -1,4 +1,5 @@
 import type { NetworkIdentityResponse } from './api'
+import { apiFetch } from './api'
 import type { SpeedTestJobStatus, SpeedTestResult } from './speed-tests'
 
 export type HistoryStatus = Extract<SpeedTestJobStatus, 'completed' | 'failed' | 'cancelled'>
@@ -67,12 +68,12 @@ export async function getHistoryDetail(id: number, signal?: AbortSignal): Promis
 }
 
 export async function deleteHistory(id: number): Promise<void> {
-  const response = await fetch(`/api/history/${id}`, { method: 'DELETE' })
+  const response = await apiFetch(`/api/history/${id}`, { method: 'DELETE' })
   if (!response.ok) throw new Error('The history record could not be deleted.')
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     ...init,
     headers: { Accept: 'application/json', ...init?.headers },
   })

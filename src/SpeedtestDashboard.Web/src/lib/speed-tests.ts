@@ -1,4 +1,4 @@
-import { ApiError, type NetworkIdentityResponse } from './api'
+import { apiFetch, ApiError, authExpiredEvent, type NetworkIdentityResponse } from './api'
 
 export type ProviderCapability =
   | 'serverDiscovery'
@@ -150,7 +150,12 @@ export function subscribeToSpeedTest(
   }
 
   source.onerror = onError
-  return () => source.close()
+  const closeForExpiredSession = () => source.close()
+  window.addEventListener(authExpiredEvent, closeForExpiredSession)
+  return () => {
+    window.removeEventListener(authExpiredEvent, closeForExpiredSession)
+    source.close()
+  }
 }
 
 function asyncError(response: Response) {
@@ -166,7 +171,7 @@ function asyncError(response: Response) {
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set('Accept', 'application/json')
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     ...init,
     headers,
   })

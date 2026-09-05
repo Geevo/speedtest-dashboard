@@ -8,10 +8,12 @@ import {
   Menu,
   RadioTower,
   Settings,
+  LogOut,
+  UserRound,
   X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { getHealth } from '../lib/api'
+import { getHealth, type SessionResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
@@ -21,6 +23,8 @@ type AppShellProps = {
   activeItem: NavigationItem
   onNavigate: (item: NavigationItem) => void
   children: ReactNode
+  session: SessionResponse
+  onSignOut: () => Promise<void>
 }
 
 const primaryNavigation = [
@@ -33,7 +37,7 @@ const providerNavigation = [
   { id: 'librespeed' as const, label: 'LibreSpeed', icon: RadioTower },
 ]
 
-export function AppShell({ activeItem, onNavigate, children }: AppShellProps) {
+export function AppShell({ activeItem, onNavigate, children, session, onSignOut }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const health = useQuery({
@@ -86,6 +90,22 @@ export function AppShell({ activeItem, onNavigate, children }: AppShellProps) {
           active={activeItem === 'settings'}
           onNavigate={navigate}
         />
+        {session.mode === 'local' && session.user && (
+          <div className={cn('mx-1 mt-3 flex items-center gap-2 border-t border-line pt-3', collapsed && 'lg:justify-center')}>
+            <UserRound className={cn('size-4 shrink-0 text-ink-muted', collapsed && 'lg:hidden')} aria-hidden="true" />
+            <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', collapsed && 'lg:hidden')}>{session.user.username}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9"
+              aria-label="Sign out"
+              title="Sign out"
+              onClick={() => void onSignOut()}
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </div>
+        )}
         <div
           className={cn('mx-2 mt-3 flex items-center gap-2 border-t border-line px-1 pt-4 text-xs text-ink-muted', collapsed && 'lg:justify-center')}
           title={health.isSuccess ? 'API online' : health.isError ? 'API unavailable' : 'Checking API'}
@@ -146,6 +166,11 @@ export function AppShell({ activeItem, onNavigate, children }: AppShellProps) {
           </Button>
           <span className="text-sm font-bold">Speedtest</span>
         </header>
+        {session.mode === 'none' && session.showDisabledWarning && (
+          <div role="status" className="border-b border-line bg-signal-soft px-4 py-2.5 text-center text-xs font-semibold text-ink sm:px-7">
+            Authentication disabled · Dashboard access is not protected by the application
+          </div>
+        )}
         <main className="mx-auto min-h-screen max-w-[1280px] px-4 py-8 sm:px-7 lg:px-12 lg:py-14">
           {children}
         </main>
