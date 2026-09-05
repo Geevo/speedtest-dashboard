@@ -14,6 +14,9 @@ services:
       - speedtest-data:/data
     environment:
       ReverseProxy__TrustForwardedHeaders: "false"
+      # This example is exposed directly over HTTP for a trusted homelab LAN.
+      # Omit this override when access arrives through an HTTPS reverse proxy.
+      Authentication__AllowInsecureHttp: "true"
       # Optional Network Identity tuning (defaults shown):
       # NetworkIdentity__SuccessCacheSeconds: "300"
       # NetworkIdentity__FailureCacheSeconds: "30"

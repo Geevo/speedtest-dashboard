@@ -2,14 +2,14 @@
 
 Speedtest Dashboard is a self-hosted network utility for measuring the connection of the machine or container running its backend. Public-IP lookups and speed tests originate from the ASP.NET Core service - not from the browser - so the dashboard reports the egress path that matters for a server, VPN gateway, or homelab workload.
 
-> [!WARNING]
-> The initial release has no authentication. Deploy it only on a trusted private network or behind an access-controlled reverse proxy. An observed IP address identifies egress; it is not proof that a VPN is active.
+> [!IMPORTANT]
+> Version 0.8 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. An observed IP address identifies egress; it is not proof that a VPN is active.
 
 The project is a new implementation inspired by the useful user-facing flows in [`moranbw/speedtest-app`](https://github.com/moranbw/speedtest-app): remote-machine testing, optional server selection, results, and straightforward container deployment. It does not copy that project's Node/Material UI architecture.
 
 ## Milestone status
 
-Milestones 1 through 7 are implemented:
+Milestones 1 through 8 are implemented:
 
 - .NET 10 solution with API, Core, and Infrastructure projects
 - React 19, Vite, and TypeScript frontend
@@ -37,6 +37,9 @@ Milestones 1 through 7 are implemented:
 - neutral light, dark, and system-default themes with a locally persisted explicit preference
 - pinned LibreSpeed CLI source packaging, structured public-server discovery, automatic/explicit selection, normalized Mbps results, and the shared provider/History workflow
 - roadmap cleanup that keeps the generic provider architecture while limiting the current product surface to implemented integrations
+- one local operator account backed by ASP.NET Core Identity, a secure HttpOnly cookie session, login lockout, and no public registration
+- fallback authorization for dashboard APIs, antiforgery validation for unsafe cookie-authenticated requests, and an anonymous health endpoint
+- first-run anonymous access, Settings-managed optional login, durable Data Protection keys below `/data`, password change, logout, and a hideable anonymous-access notice
 
 Ookla and LibreSpeed are the two production speed-test providers. Both stay registered when their optional CLIs are absent. Ookla license acceptance is disabled by default; LibreSpeed requires no application-level acceptance flag. Terminal history is durable when `/data` is persisted, while the bounded execution queue remains in memory.
 
@@ -51,9 +54,30 @@ The repository intentionally uses three backend projects rather than a large cer
 
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the proposed contracts, database model, process-safety design, and milestone acceptance criteria.
 
-## Roadmap direction
+## Authentication
 
-Authentication and authorization are next. Human dashboard access will use secure cookie-authenticated server sessions; future machine access will use separate API keys and stable contracts below `/api/v1`. Browser-local JWT access tokens are not the default dashboard design.
+Speedtest Dashboard is a single-operator homelab application. A fresh instance opens anonymously so it works immediately without filesystem secrets or mandatory account setup. Settings initially offers a **Set up login** action instead of showing an unavailable switch. Creating the one local operator account enables login protection and signs the current browser in. Once that account exists, a **Login protection** switch controls whether the instance requires it; turning protection off requires the current password and returns the instance to anonymous access, while turning it back on verifies the existing credentials.
+
+There are no roles, invitations, user-management pages, email flows, or public registration. Browser authentication uses an ASP.NET Core Identity cookie - not a JWT in browser storage. When login protection is on, dashboard APIs require the local session except `GET /api/health`, `GET /api/auth/session`, `GET /api/auth/csrf`, and `POST /api/auth/login`.
+
+The Settings form accepts a 3–64 character username made from letters, digits, dots, underscores, or hyphens. Passwords must be 6–128 characters with no control characters. Digits, uppercase, lowercase, and punctuation are not individually required. Credentials use ASP.NET Core Identity hashing and are stored only in the SQLite database under `/data`.
+
+Failed login attempts lock the account for 15 minutes after five failures. A separate source-IP limiter allows ten login requests per minute. Sessions are non-persistent browser cookies with a 12-hour sliding lifetime, `HttpOnly`, `SameSite=Lax`, and `Secure` by default. The operator can change the password under Settings; the current browser remains signed in while the Identity security stamp invalidates other cookies within two minutes. Sign out is a CSRF-protected POST.
+
+Cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` operations require the `X-CSRF-TOKEN` antiforgery header. The SPA obtains the framework-issued token from `/api/auth/csrf`, keeps it only in memory, and refreshes it after login or password change. Auth/session responses use `Cache-Control: no-store`. API authentication failures are 401/403 responses, never HTML redirects, and same-origin SSE uses the cookie without credentials in its URL.
+
+Production Local mode rejects login over HTTP and emits Secure cookies. Terminate TLS at a reverse proxy and configure forwarded headers only for a trusted proxy path. For direct use on an isolated, deliberately trusted homelab network, `Authentication__AllowInsecureHttp=true` permits HTTP and non-Secure cookies; the deployment is then responsible for preventing credential interception.
+
+While login protection is off, ordinary dashboard writes do not require antiforgery because there is no ambient authentication credential. The Settings operations that enable login or change the notice preference are still antiforgery-protected. The dashboard displays an anonymous-access notice by default; **Show anonymous-access notice** in Settings can hide or restore it for the whole instance.
+
+Human browser sessions and future machine access remain separate:
+
+```text
+Human dashboard: secure cookie session
+Future machine API: one instance-wide API key (not implemented)
+```
+
+For password-loss recovery, stop the application and back up `/data`. Restore a known-good backup, or use an offline SQLite administration tool to set `DashboardSettings.AuthenticationEnabled` to `0`. Restart, open Settings anonymously, and verify the existing credentials to turn login back on. History is not user-owned and remains intact. Never edit the live database or remove only password-hash fields.
 
 Later milestones cover expected-egress evaluation, scheduling through the existing bounded queue, and richer test telemetry and application observability. Expected-egress rules will build on independent IPv4/IPv6 identity and report `expected`, `mismatch`, `unknown`, or `unconfigured`; they will not claim generic VPN detection. Additional provider or protocol integrations may be considered later.
 
@@ -140,6 +164,8 @@ Create a writable development data directory and run the API with an explicit lo
 ```bash
 mkdir -p .data
 Storage__DatabasePath="$PWD/.data/speedtest.db" \
+Authentication__DataProtectionPath="$PWD/.data/dataprotection" \
+Authentication__AllowInsecureHttp=true \
   dotnet run --project src/SpeedtestDashboard.Api --urls http://localhost:5080
 ```
 
@@ -167,13 +193,26 @@ podman build --format docker -t speedtest-dashboard:local .
 podman run --detach --name speedtest-dashboard \
   --publish 8080:8080 \
   --volume speedtest-data:/data:Z \
+  --env Authentication__AllowInsecureHttp=true \
   --read-only \
   --tmpfs /tmp:rw,size=64m,mode=1777 \
   --security-opt no-new-privileges \
   speedtest-dashboard:local
 ```
 
-Open `http://localhost:8080`. Durable history is stored in `/data/speedtest.db`; deleting or replacing a container preserves it only when `/data` is a retained named volume or bind mount.
+Open the dashboard anonymously, then use Settings if you want to require a login. Put the service behind HTTPS before entering credentials. For direct HTTP on a deliberately trusted LAN, the example explicitly sets `Authentication__AllowInsecureHttp=true`; remove it when an HTTPS reverse proxy supplies the effective request scheme.
+
+The container image is disposable and `/data` is the durability boundary. Retain a named volume or bind mount at `/data` across replacement. It contains `speedtest.db`, possible `speedtest.db-wal`/`speedtest.db-shm` files, and `/data/dataprotection/*`. The latter preserves login cookies across container replacement. SQLite contains the Identity password hash and History, while the Data Protection key ring contains sensitive cryptographic material and is not claimed to be encrypted at rest on Linux. Protect volume permissions and backups accordingly.
+
+### Upgrading from 0.7.x
+
+Before the first 0.8.x start:
+
+1. Back up and retain the existing `/data` volume.
+2. Start 0.8.x so the forward migrations preserve History and add authentication settings.
+3. Open the dashboard; it continues with anonymous access after upgrade.
+4. Optionally open Settings and turn on Login protection to create the local operator account.
+5. Never remove `/data`; it contains History, account state, preferences, and Data Protection keys.
 
 ## SQLite persistence and History
 
