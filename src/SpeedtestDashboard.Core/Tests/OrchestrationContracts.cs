@@ -43,3 +43,39 @@ public interface ISpeedTestCancellationRegistry
 
     bool TryCancel(Guid jobId);
 }
+
+public enum SpeedTestSubmissionOutcome
+{
+    Created,
+    InvalidRequest,
+    ProviderNotFound,
+    CapabilityNotSupported,
+    ProviderUnavailable,
+    PersistenceFailed,
+    QueueFull
+}
+
+public sealed record SpeedTestSubmissionResult(
+    SpeedTestSubmissionOutcome Outcome,
+    SpeedTestJob? Job,
+    string? FailureCode,
+    string? FailureMessage,
+    int? RetryAfterSeconds)
+{
+    public static SpeedTestSubmissionResult Created(SpeedTestJob job) =>
+        new(SpeedTestSubmissionOutcome.Created, job, null, null, null);
+
+    public static SpeedTestSubmissionResult Failed(
+        SpeedTestSubmissionOutcome outcome, string code, string message, int? retryAfterSeconds = null) =>
+        new(outcome, null, code, message, retryAfterSeconds);
+}
+
+/// <summary>
+/// The single admission path onto the bounded <see cref="ISpeedTestQueue"/>. Manual dashboard
+/// creation, the machine API, and the schedule worker all submit through this service so a
+/// speed test is only ever started by the existing queue and worker, never directly.
+/// </summary>
+public interface ISpeedTestSubmissionService
+{
+    Task<SpeedTestSubmissionResult> SubmitAsync(SpeedTestRequest request, CancellationToken cancellationToken);
+}

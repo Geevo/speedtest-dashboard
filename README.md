@@ -3,13 +3,13 @@
 Speedtest Dashboard is a self-hosted network utility for measuring the connection of the machine or container running its backend. Public-IP lookups and speed tests originate from the ASP.NET Core service - not from the browser - so the dashboard reports the egress path that matters for a server, VPN gateway, or homelab workload.
 
 > [!IMPORTANT]
-> Version 0.9 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. A separate, optional instance-wide API key authenticates machine clients against `/api/v1`. An observed IP address identifies egress; it is not proof that a VPN is active.
+> Version 0.10 starts with anonymous dashboard access. A homelab operator can optionally enable the single local login from Settings; credential entry requires HTTPS unless insecure HTTP is explicitly enabled for a deliberately trusted LAN. A separate, optional instance-wide API key authenticates machine clients against `/api/v1`, and the Schedules page runs one-off or recurring tests automatically. An observed IP address identifies egress; it is not proof that a VPN is active.
 
 The project is a new implementation inspired by the useful user-facing flows in [`moranbw/speedtest-app`](https://github.com/moranbw/speedtest-app): remote-machine testing, optional server selection, results, and straightforward container deployment. It does not copy that project's Node/Material UI architecture.
 
 ## Milestone status
 
-Milestones 1 through 9 are implemented:
+Milestones 1 through 10 are implemented:
 
 - .NET 10 solution with API, Core, and Infrastructure projects
 - React 19, Vite, and TypeScript frontend
@@ -42,6 +42,8 @@ Milestones 1 through 9 are implemented:
 - first-run anonymous access, Settings-managed optional login, durable Data Protection keys below `/data`, password change, logout, and a hideable anonymous-access notice
 - one optional instance-wide API key, protected at rest with Data Protection and viewable/copyable/regenerable/revocable from Settings, authenticating machine clients with `Authorization: Bearer` against a stable `/api/v1` surface
 - `/api/v1` Network Identity, provider inspection, test creation/status/cancellation, and History reads that reuse the existing bounded queue, job store, and History store; caller-supplied `Idempotency-Key` support for test creation; and read/write rate limiting independent of the queue's own bounded-capacity `429`
+- persistent one-off and recurring (interval/daily/weekly) speed-test schedules with explicit IANA time zones, daylight-saving-correct recurrence math, and a Schedules dashboard page
+- one `ScheduleWorker` background service that submits due schedules through the same queue-admission path as manual and machine test creation, with skip-not-retry handling for a full queue, an already-active previous run, or a since-invalidated provider/server, and no replay of occurrences missed while the application was offline
 
 Ookla and LibreSpeed are the two production speed-test providers. Both stay registered when their optional CLIs are absent. Ookla license acceptance is disabled by default; LibreSpeed requires no application-level acceptance flag. Terminal history is durable when `/data` is persisted, while the bounded execution queue remains in memory.
 
@@ -81,7 +83,7 @@ Machine API:     one instance-wide API key (see "Machine API and /api/v1" below)
 
 For password-loss recovery, stop the application and back up `/data`. Restore a known-good backup, or use an offline SQLite administration tool to set `DashboardSettings.AuthenticationEnabled` to `0`. Restart, open Settings anonymously, and verify the existing credentials to turn login back on. History is not user-owned and remains intact. Never edit the live database or remove only password-hash fields.
 
-Later milestones cover scheduling through the existing bounded queue and richer test telemetry and application observability. Additional provider or protocol integrations may be considered later.
+Later milestones cover richer test telemetry and application observability. Additional provider or protocol integrations may be considered later.
 
 ## Machine API and /api/v1
 
@@ -120,6 +122,24 @@ Accepted jobs use an in-memory lifecycle (`queued`, `starting`, `running`, `proc
 `GET /api/tests/{id}` returns the in-memory snapshot for current work and falls back to persisted terminal state after a restart. `GET /api/tests/{id}/events` sends an immediate snapshot followed by typed, monotonically versioned SSE state/result/error events and heartbeat events for process-local jobs. The frontend helper falls back to five-second polling only after repeated stream failures. Old SSE streams are not replayed. On startup, persisted non-terminal work is failed once with `application_restarted`; it is never re-enqueued or allowed to consume bandwidth automatically.
 
 The process runner uses `ProcessStartInfo.ArgumentList` with `UseShellExecute=false`, concurrently drains stdout and stderr, enforces separate and absolute output limits, distinguishes timeout/cancellation/output overflow/start failure, and terminates the child process tree when required. Shell executables are rejected. Raw process output is never returned through the job or SSE APIs.
+
+## Scheduling
+
+The Schedules page manages persistent one-off and recurring speed tests. A schedule picks a provider and optional server exactly like a manual test - the same request validation applies - and stores an explicit IANA time zone (for example `Europe/London` or `America/New_York`) rather than assuming the browser's or server's local zone. `NextRunAtUtc` and `LastRunAtUtc` are always UTC; the dashboard renders them in the schedule's own time zone.
+
+Recurrence is one of four kinds: **one-off** at a chosen date and time; **interval**, every 1–10080 minutes; **daily**, at a time of day; or **weekly**, on a chosen day and time of day. There is no general cron expression support. A one-off schedule's next-run date is computed once and cleared when its due occurrence is durably claimed, so it never runs twice. Interval schedules stay anchored to their original cadence even when a poll is late. Daily and weekly recurrence convert through `TimeZoneInfo`: a time that falls in a spring-forward gap resolves minute-by-minute to the first valid instant after it, including zones with non-hour transitions, and a time that occurs twice during a fall-back is resolved to the zone's standard-time interpretation - both deterministic, not best-effort.
+
+One `ScheduleWorker` background service polls for due schedules (default every 30 seconds; configurable but not busy-looping) and submits each one through the exact same `ISpeedTestSubmissionService` used by manual dashboard creation and `POST /api/v1/tests`. The scheduler never calls a provider directly and never bypasses the bounded `SpeedTestQueue` or its single active bandwidth test; a scheduled job is a normal job the existing worker executes and normal History records once it completes.
+
+Before checking a provider or submitting a job, the worker atomically claims the expected due occurrence in SQLite and advances `NextRunAtUtc`. A concurrent edit, disable, or prior worker claim makes that compare-and-swap fail before queue admission. The internal pending run is then finalized as queued, skipped, or failed; a pending claim left by an interrupted process is recovered as `application_offline` on startup. This ordering prevents a schedule-recording failure from queuing the same bandwidth test again on the next poll.
+
+A due occurrence is skipped - recorded with a stable failure code and advanced to the next occurrence - rather than retried immediately when: the queue is full (`queue_full`); the schedule's previous job is still running (`previous_run_active`, preventing duplicate concurrent jobs from the same schedule); or the saved provider or server has since become unavailable or invalid (`provider_unavailable`, `invalid_server`). None of these delete the schedule or its configuration.
+
+If the application was offline when one or more occurrences were due, startup reconciliation loads each affected schedule once, records a single skipped run with failure code `application_offline`, and recalculates the next future occurrence - it does not enqueue a test during reconciliation and does not replay the occurrences that were missed. An expired one-off schedule is marked missed the same way and never runs.
+
+Disabling a schedule stops it from executing while keeping its configuration; re-enabling recalculates a future `NextRunAtUtc` rather than immediately running whatever was missed while it was off. Editing a schedule always recalculates `NextRunAtUtc`; past schedule-run history is never mutated. Deleting a schedule stops future runs but does not delete History, jobs, or its own run history.
+
+`GET /api/schedules`, `GET /api/schedules/{id}`, `POST /api/schedules`, `PUT /api/schedules/{id}`, `DELETE /api/schedules/{id}`, and `POST /api/schedules/{id}/enable`/`disable` are dashboard endpoints under the existing cookie/CSRF rules. `GET /api/v1/schedules` and `GET /api/v1/schedules/{id}` expose the same data read-only under the API key; schedule creation and editing remain dashboard-only in this milestone. Scheduled test execution is not HTTP traffic and is not subject to the `/api/v1` rate limits - it is bound only by the same queue capacity and single-active-test rule as everything else.
 
 ## Ookla licensing and configuration
 
@@ -232,17 +252,17 @@ podman run --detach --name speedtest-dashboard \
 
 Open the dashboard anonymously, then use Settings if you want to require a login. Put the service behind HTTPS before entering credentials. For direct HTTP on a deliberately trusted LAN, the example explicitly sets `Authentication__AllowInsecureHttp=true`; remove it when an HTTPS reverse proxy supplies the effective request scheme.
 
-The container image is disposable and `/data` is the durability boundary. Retain a named volume or bind mount at `/data` across replacement. It contains `speedtest.db`, possible `speedtest.db-wal`/`speedtest.db-shm` files, and `/data/dataprotection/*`. The latter preserves login cookies and the protected API key across container replacement. SQLite contains History, authentication state (the Identity password hash), and the protected API credential, while the Data Protection key ring contains sensitive cryptographic material and is not claimed to be encrypted at rest on Linux. Protect volume permissions and backups accordingly. Replacing the container without retaining `/data` loses History, authentication state, and any generated API key; that is an accepted consequence of treating the container as disposable, not a bug.
+The container image is disposable and `/data` is the durability boundary. Retain a named volume or bind mount at `/data` across replacement. It contains `speedtest.db`, possible `speedtest.db-wal`/`speedtest.db-shm` files, and `/data/dataprotection/*`. The latter preserves login cookies and the protected API key across container replacement. SQLite contains History, authentication state (the Identity password hash), the protected API credential, and schedules with their run history, while the Data Protection key ring contains sensitive cryptographic material and is not claimed to be encrypted at rest on Linux. Protect volume permissions and backups accordingly. Replacing the container without retaining `/data` loses History, authentication state, any generated API key, and all schedules; that is an accepted consequence of treating the container as disposable, not a bug.
 
-### Upgrading from 0.7.x or 0.8.x
+### Upgrading from 0.7.x, 0.8.x, or 0.9.x
 
-Before the first 0.9.x start:
+Before the first 0.10.x start:
 
 1. Back up and retain the existing `/data` volume.
-2. Start 0.9.x so the forward migrations preserve History and authentication settings, and add the (initially empty) API credential table.
-3. Open the dashboard; it continues with anonymous access and no API key after upgrade.
-4. Optionally open Settings to turn on Login protection and/or generate an API key.
-5. Never remove `/data`; it contains History, account state, preferences, the API credential, and Data Protection keys.
+2. Start 0.10.x so the forward migrations preserve History, authentication settings, and the API credential, and add the (initially empty) schedule and schedule-run tables.
+3. Open the dashboard; it continues with anonymous access, no API key, and no schedules after upgrade.
+4. Optionally open Settings to turn on Login protection and/or generate an API key, then create schedules from the new Schedules page.
+5. Never remove `/data`; it contains History, account state, preferences, the API credential, schedules, and Data Protection keys.
 
 ## SQLite persistence and History
 
@@ -320,7 +340,7 @@ npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
 npm audit --prefix src/SpeedtestDashboard.Web
 npm run check --prefix src/SpeedtestDashboard.Web
 npm run build --prefix src/SpeedtestDashboard.Web
-podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-9 .
+podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-10 .
 ```
 
 Use `podman build --format docker` for the final command when Docker is unavailable. Podman's default OCI image format does not store Docker-compatible image health-check metadata; the Docker format preserves it while remaining runnable by Podman.

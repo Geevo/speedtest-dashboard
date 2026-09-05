@@ -9,6 +9,7 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider
 {
     private int _activeRuns;
     private int _maximumConcurrentRuns;
+    private int _healthCheckCalls;
     private int _runCalls;
 
     public ProviderId Id { get; init; } = ProviderId.Parse("fixture");
@@ -28,12 +29,18 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider
 
     public int MaximumConcurrentRuns => _maximumConcurrentRuns;
 
-    public Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken) => Task.FromResult(new ProviderHealth(
-        Id,
-        HealthState,
-        "1.2.3-fixture",
-        DateTimeOffset.UtcNow,
-        HealthState == ProviderHealthState.Available ? "Ready" : "Unavailable"));
+    public int HealthCheckCalls => _healthCheckCalls;
+
+    public Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _healthCheckCalls);
+        return Task.FromResult(new ProviderHealth(
+            Id,
+            HealthState,
+            "1.2.3-fixture",
+            DateTimeOffset.UtcNow,
+            HealthState == ProviderHealthState.Available ? "Ready" : "Unavailable"));
+    }
 
     public Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(
         ServerQuery query,
@@ -134,4 +141,3 @@ internal static class TestWait
         }
     }
 }
-

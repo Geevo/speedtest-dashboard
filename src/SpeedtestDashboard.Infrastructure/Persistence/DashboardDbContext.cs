@@ -14,6 +14,8 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
     public DbSet<DashboardSettingsEntity> DashboardSettings => Set<DashboardSettingsEntity>();
     public DbSet<ApiCredentialEntity> ApiCredentials => Set<ApiCredentialEntity>();
     public DbSet<ApiIdempotencyRecordEntity> ApiIdempotencyRecords => Set<ApiIdempotencyRecordEntity>();
+    public DbSet<SpeedTestScheduleEntity> SpeedTestSchedules => Set<SpeedTestScheduleEntity>();
+    public DbSet<ScheduleRunEntity> ScheduleRuns => Set<ScheduleRunEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +50,26 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
             builder.Property(record => record.Key).HasMaxLength(128);
             builder.Property(record => record.RequestHash).HasMaxLength(64).IsRequired();
             builder.HasIndex(record => record.CreatedAtUtc);
+        });
+        modelBuilder.Entity<SpeedTestScheduleEntity>(builder =>
+        {
+            builder.ToTable("SpeedTestSchedules");
+            builder.HasKey(schedule => schedule.Id);
+            builder.Property(schedule => schedule.Name).HasMaxLength(120).IsRequired();
+            builder.Property(schedule => schedule.ProviderId).HasMaxLength(32).IsRequired();
+            builder.Property(schedule => schedule.ServerId).HasMaxLength(128);
+            builder.Property(schedule => schedule.RecurrenceKind).HasMaxLength(16).IsRequired();
+            builder.Property(schedule => schedule.TimeZoneId).HasMaxLength(64).IsRequired();
+            builder.Property(schedule => schedule.LastRunStatus).HasMaxLength(16);
+            builder.HasIndex(schedule => new { schedule.Enabled, schedule.NextRunAtUtc });
+        });
+        modelBuilder.Entity<ScheduleRunEntity>(builder =>
+        {
+            builder.ToTable("ScheduleRuns");
+            builder.HasKey(run => run.Id);
+            builder.Property(run => run.Status).HasMaxLength(16).IsRequired();
+            builder.Property(run => run.FailureCode).HasMaxLength(64);
+            builder.HasIndex(run => new { run.ScheduleId, run.AttemptedAtUtc }).IsDescending(false, true);
         });
         modelBuilder.ApplyConfiguration(new SpeedTestJobEntityConfiguration());
         modelBuilder.ApplyConfiguration(new SpeedTestResultEntityConfiguration());

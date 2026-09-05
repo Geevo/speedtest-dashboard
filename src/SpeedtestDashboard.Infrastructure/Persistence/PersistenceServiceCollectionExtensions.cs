@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Core.History;
+using SpeedtestDashboard.Core.Schedules;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
 
@@ -34,6 +35,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<SqliteSpeedTestStore>();
         services.AddSingleton<ISpeedTestPersistenceWriter>(provider => provider.GetRequiredService<SqliteSpeedTestStore>());
         services.AddSingleton<ISpeedTestHistoryStore>(provider => provider.GetRequiredService<SqliteSpeedTestStore>());
+        services.AddSingleton<ISpeedTestScheduleStore, SqliteScheduleStore>();
         services.AddSingleton<DashboardDatabaseInitializer>();
         return services;
     }

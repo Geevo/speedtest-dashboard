@@ -7,6 +7,7 @@ using SpeedtestDashboard.Infrastructure.Processes;
 using SpeedtestDashboard.Infrastructure.Providers;
 using SpeedtestDashboard.Infrastructure.Providers.LibreSpeed;
 using SpeedtestDashboard.Infrastructure.Providers.Ookla;
+using SpeedtestDashboard.Infrastructure.Schedules;
 using SpeedtestDashboard.Infrastructure.Tests;
 
 namespace SpeedtestDashboard.Infrastructure;
@@ -73,6 +74,11 @@ public static class SpeedTestServiceCollectionExtensions
                 "LibreSpeed maximum server count must be between 1 and 500.")
             .ValidateOnStart();
 
+        services.AddOptions<ScheduleWorkerOptions>()
+            .Bind(configuration.GetSection(ScheduleWorkerOptions.SectionName))
+            .Validate(options => options.PollIntervalSeconds is >= 5 and <= 300, "Scheduler poll interval must be between 5 and 300 seconds.")
+            .ValidateOnStart();
+
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ISpeedTestProviderRegistry, SpeedTestProviderRegistry>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();
@@ -95,7 +101,9 @@ public static class SpeedTestServiceCollectionExtensions
         services.AddSingleton<ISpeedTestJobStore, InMemorySpeedTestJobStore>();
         services.AddSingleton<ISpeedTestQueue, SpeedTestQueue>();
         services.AddSingleton<ISpeedTestCancellationRegistry, SpeedTestCancellationRegistry>();
+        services.AddSingleton<ISpeedTestSubmissionService, SpeedTestSubmissionService>();
         services.AddHostedService<SpeedTestWorker>();
+        services.AddHostedService<ScheduleWorker>();
         return services;
     }
 }

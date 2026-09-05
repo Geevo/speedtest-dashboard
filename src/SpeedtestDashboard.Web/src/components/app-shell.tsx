@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import {
   Activity,
+  CalendarClock,
   ChartNoAxesCombined,
   ChevronLeft,
   Gauge,
@@ -17,7 +18,7 @@ import { getHealth, type SessionResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
-export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'history' | 'settings'
+export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'history' | 'schedules' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -30,6 +31,7 @@ type AppShellProps = {
 const primaryNavigation = [
   { id: 'overview' as const, label: 'Overview', icon: Gauge },
   { id: 'history' as const, label: 'History', icon: History },
+  { id: 'schedules' as const, label: 'Schedules', icon: CalendarClock },
 ]
 
 const providerNavigation = [

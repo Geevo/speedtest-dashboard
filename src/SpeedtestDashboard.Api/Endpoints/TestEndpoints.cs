@@ -84,36 +84,41 @@ public static class TestEndpoints
 
     private static async Task<IResult> CreateTestAsync(
         CreateTestRequest request,
-        ISpeedTestProviderRegistry registry,
-        ISpeedTestJobStore jobStore,
-        ISpeedTestQueue queue,
-        IOptions<SpeedTestOptions> options,
+        ISpeedTestSubmissionService submissionService,
         HttpContext context,
         CancellationToken cancellationToken)
     {
-        var outcome = await TryCreateTestAsync(request, registry, jobStore, queue, options, context, cancellationToken);
-        if (!outcome.Succeeded)
+        if (!TryMapRequest(request, out var speedTestRequest, out var validationMessage))
         {
-            return outcome.Error!;
+            return ProblemResponses.BadRequest(SpeedTestFailureCodes.InvalidRequest, validationMessage);
         }
 
-        var response = CreateTestResponse.From(outcome.Job!);
+        var result = await submissionService.SubmitAsync(speedTestRequest, cancellationToken);
+        if (result.Outcome != SpeedTestSubmissionOutcome.Created)
+        {
+            return MapSubmissionFailure(result, context);
+        }
+
+        var response = CreateTestResponse.From(result.Job!);
         return Results.Accepted(response.ResourceUrl, response);
     }
 
     private static async Task<IResult> CreateTestV1Async(
         CreateTestRequest request,
         HttpRequest httpRequest,
-        ISpeedTestProviderRegistry registry,
+        ISpeedTestSubmissionService submissionService,
         ISpeedTestJobStore jobStore,
         ISpeedTestHistoryStore history,
-        ISpeedTestQueue queue,
-        IOptions<SpeedTestOptions> options,
         IApiIdempotencyStore idempotencyStore,
         HttpContext context,
         CancellationToken cancellationToken)
     {
         const string basePath = "/api/v1/tests";
+
+        if (!TryMapRequest(request, out var speedTestRequest, out var validationMessage))
+        {
+            return ProblemResponses.BadRequest(SpeedTestFailureCodes.InvalidRequest, validationMessage);
+        }
 
         var idempotencyKey = httpRequest.Headers.TryGetValue("Idempotency-Key", out var headerValues)
             ? headerValues.ToString()
@@ -148,121 +153,32 @@ public static class TestEndpoints
             }
         }
 
-        var outcome = await TryCreateTestAsync(request, registry, jobStore, queue, options, context, cancellationToken);
-        if (!outcome.Succeeded)
+        var result = await submissionService.SubmitAsync(speedTestRequest, cancellationToken);
+        if (result.Outcome != SpeedTestSubmissionOutcome.Created)
         {
-            return outcome.Error!;
+            return MapSubmissionFailure(result, context);
         }
 
         if (!string.IsNullOrEmpty(idempotencyKey))
         {
-            await idempotencyStore.SaveAsync(idempotencyKey, requestHash!, outcome.Job!.Id, cancellationToken);
+            await idempotencyStore.SaveAsync(idempotencyKey, requestHash!, result.Job!.Id, cancellationToken);
         }
 
-        var response = CreateTestResponse.From(outcome.Job!, basePath);
+        var response = CreateTestResponse.From(result.Job!, basePath);
         return Results.Accepted(response.ResourceUrl, response);
     }
 
-    private static async Task<CreateTestOutcome> TryCreateTestAsync(
-        CreateTestRequest request,
-        ISpeedTestProviderRegistry registry,
-        ISpeedTestJobStore jobStore,
-        ISpeedTestQueue queue,
-        IOptions<SpeedTestOptions> options,
-        HttpContext context,
-        CancellationToken cancellationToken)
+    private static IResult MapSubmissionFailure(SpeedTestSubmissionResult result, HttpContext context) => result.Outcome switch
     {
-        if (!TryMapRequest(request, out var speedTestRequest, out var validationMessage))
-        {
-            return CreateTestOutcome.Failure(ProblemResponses.BadRequest(SpeedTestFailureCodes.InvalidRequest, validationMessage));
-        }
-
-        if (!registry.TryGet(speedTestRequest.ProviderId, out var provider))
-        {
-            return CreateTestOutcome.Failure(ProblemResponses.NotFound(
-                SpeedTestFailureCodes.ProviderNotFound,
-                "The requested speed-test provider is not registered."));
-        }
-
-        if (speedTestRequest.ServerId is not null &&
-            !provider.Capabilities.HasFlag(ProviderCapabilities.ServerSelection))
-        {
-            return CreateTestOutcome.Failure(ProblemResponses.Conflict(
-                SpeedTestFailureCodes.CapabilityNotSupported,
-                "This provider does not support explicit server selection."));
-        }
-
-        if (provider is ISpeedTestRequestValidator validator)
-        {
-            var validation = validator.ValidateRequest(speedTestRequest);
-            if (!validation.IsValid)
-            {
-                return CreateTestOutcome.Failure(ProblemResponses.BadRequest(
-                    validation.Code ?? SpeedTestFailureCodes.InvalidRequest,
-                    validation.Message ?? "The provider-specific request is invalid."));
-            }
-        }
-
-        ProviderHealth health;
-        try
-        {
-            health = await provider.CheckHealthAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch
-        {
-            health = new ProviderHealth(
-                provider.Id,
-                ProviderHealthState.Unavailable,
-                Version: null,
-                DateTimeOffset.UtcNow,
-                Message: null);
-        }
-
-        if (health.State == ProviderHealthState.Unavailable)
-        {
-            return CreateTestOutcome.Failure(ProblemResponses.Conflict(
-                SpeedTestFailureCodes.ProviderUnavailable,
-                "The requested speed-test provider is unavailable."));
-        }
-
-        SpeedTestJob job;
-        try
-        {
-            job = jobStore.Create(speedTestRequest);
-        }
-        catch (SpeedTestPersistenceException)
-        {
-            return CreateTestOutcome.Failure(ProblemResponses.Internal(
-                SpeedTestFailureCodes.PersistenceFailed,
-                "The speed-test job could not be saved to durable storage."));
-        }
-
-        if (!queue.TryEnqueue(job.Id))
-        {
-            try
-            {
-                jobStore.TryRemoveQueued(job.Id);
-            }
-            catch (SpeedTestPersistenceException)
-            {
-                return CreateTestOutcome.Failure(ProblemResponses.Internal(
-                    SpeedTestFailureCodes.PersistenceFailed,
-                    "The rejected speed-test job could not be removed from durable storage."));
-            }
-
-            return CreateTestOutcome.Failure(ProblemResponses.TooManyRequests(
-                SpeedTestFailureCodes.QueueFull,
-                "The speed-test queue is full. Try again shortly.",
-                options.Value.QueueFullRetryAfterSeconds,
-                context));
-        }
-
-        return CreateTestOutcome.Success(job);
-    }
+        SpeedTestSubmissionOutcome.ProviderNotFound => ProblemResponses.NotFound(result.FailureCode!, result.FailureMessage!),
+        SpeedTestSubmissionOutcome.CapabilityNotSupported => ProblemResponses.Conflict(result.FailureCode!, result.FailureMessage!),
+        SpeedTestSubmissionOutcome.ProviderUnavailable => ProblemResponses.Conflict(result.FailureCode!, result.FailureMessage!),
+        SpeedTestSubmissionOutcome.InvalidRequest => ProblemResponses.BadRequest(result.FailureCode!, result.FailureMessage!),
+        SpeedTestSubmissionOutcome.PersistenceFailed => ProblemResponses.Internal(result.FailureCode!, result.FailureMessage!),
+        SpeedTestSubmissionOutcome.QueueFull => ProblemResponses.TooManyRequests(
+            result.FailureCode!, result.FailureMessage!, result.RetryAfterSeconds!.Value, context),
+        _ => ProblemResponses.Internal(SpeedTestFailureCodes.InternalError, "The speed test could not be created.")
+    };
 
     private static async Task<IResult> GetTestAsync(
         Guid jobId,
@@ -396,15 +312,6 @@ public static class TestEndpoints
 
         mapped = new SpeedTestRequest(providerId, serverId);
         return true;
-    }
-
-    private readonly record struct CreateTestOutcome(SpeedTestJob? Job, IResult? Error)
-    {
-        public bool Succeeded => Job is not null;
-
-        public static CreateTestOutcome Success(SpeedTestJob job) => new(job, null);
-
-        public static CreateTestOutcome Failure(IResult error) => new(null, error);
     }
 }
 

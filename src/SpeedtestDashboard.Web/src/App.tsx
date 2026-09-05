@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AppShell, type NavigationItem } from './components/app-shell'
 import { OverviewPage } from './components/overview-page'
 import { LibreSpeedPage, OoklaPage } from './components/ookla-page'
+import { SchedulesPage } from './components/schedules-page'
 import { SettingsPage } from './components/settings-page'
 import { useTheme } from './hooks/use-theme'
 import { authExpiredEvent, getSession, logout, type SessionResponse } from './lib/api'
@@ -79,6 +80,8 @@ export default function App() {
           onJobIdChange={setLibreSpeedJobId}
           onOpenSettings={() => setActiveItem('settings')}
         />
+      ) : activeItem === 'schedules' ? (
+        <SchedulesPage />
       ) : (
         <SettingsPage theme={theme} onThemeChange={setTheme} session={session} onSessionChange={setSession} />
       )}

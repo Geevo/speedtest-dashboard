@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, CheckCircle2, Server, Waves, XCircle } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarClock, CheckCircle2, Server, Waves, XCircle } from 'lucide-react'
 import { getHistory, type HistoryListItem } from '../lib/history'
+import { formatInTimeZone, getSchedules } from '../lib/schedules'
 import { NetworkIdentityPanel } from './network-identity-panel'
 
 export function OverviewPage() {
@@ -12,12 +13,24 @@ export function OverviewPage() {
     queryKey: ['history', 'overview', 'recent'],
     queryFn: ({ signal }) => getHistory({ limit: 5 }, signal),
   })
+  const schedules = useQuery({ queryKey: ['schedules'], queryFn: ({ signal }) => getSchedules(signal) })
   const last = latest.data?.items[0]
+  const nextSchedule = schedules.data
+    ?.filter((schedule) => schedule.enabled && schedule.nextRunAtUtc !== null)
+    .sort((a, b) => (a.nextRunAtUtc! < b.nextRunAtUtc! ? -1 : 1))[0]
 
   return (
     <div className="page-enter">
-      <header className="mb-10 border-b border-line pb-6">
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Overview</h1>
+        {nextSchedule && (
+          <div className="flex items-center gap-2 text-sm text-ink-muted">
+            <CalendarClock className="size-4" aria-hidden="true" />
+            <span>
+              Next scheduled test <span className="font-semibold text-ink">{formatInTimeZone(nextSchedule.nextRunAtUtc, nextSchedule.timeZoneId)}</span> · {nextSchedule.providerId}
+            </span>
+          </div>
+        )}
       </header>
 
       <NetworkIdentityPanel />

@@ -218,7 +218,7 @@ export async function apiFetch(url: string, init: RequestInit = {}, handleUnauth
   return response
 }
 
-async function apiError(response: Response, fallback: string): Promise<ApiError> {
+export async function apiError(response: Response, fallback: string): Promise<ApiError> {
   const retryAfter = response.headers.get('Retry-After')
   const retryAfterSeconds = retryAfter === null ? undefined : Number.parseInt(retryAfter, 10)
   let problem: ProblemDetails | null = null
