@@ -111,7 +111,7 @@ function ScheduleCard({ schedule, onEdit, onChanged }: { schedule: Schedule; onE
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <CalendarClock className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-            <h3 className="font-semibold">{schedule.name}</h3>
+            <h3 className="break-words font-semibold">{schedule.name}</h3>
             {!schedule.enabled && <Badge>Disabled</Badge>}
             {schedule.recurrenceKind === 'oneOff' && schedule.lastRunStatus === 'skipped'
               ? <Badge>Missed</Badge>
@@ -355,11 +355,11 @@ function Switch({ checked, disabled = false, label, onChange }: {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-50',
+        'relative h-11 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-50',
         checked ? 'bg-signal' : 'bg-line',
       )}
     >
-      <span className={cn('absolute left-0 top-1 size-5 rounded-full bg-paper shadow-sm transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
+      <span className={cn('absolute left-0 top-3 size-5 rounded-full bg-paper shadow-sm transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
     </button>
   )
 }

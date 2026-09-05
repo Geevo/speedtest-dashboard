@@ -9,10 +9,6 @@ public sealed record SpeedTestRequestValidationResult(bool IsValid, string? Code
     public static SpeedTestRequestValidationResult Invalid(string code, string message) => new(false, code, message);
 }
 
-/// <summary>
-/// Shape/registration validation shared by manual test creation and schedule create/edit.
-/// It never checks live provider health and never enqueues anything.
-/// </summary>
 public static class SpeedTestRequestValidation
 {
     public static SpeedTestRequestValidationResult Validate(SpeedTestRequest request, ISpeedTestProviderRegistry registry)

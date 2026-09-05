@@ -49,9 +49,8 @@ export function StatisticsPage() {
   return (
     <div className="page-enter">
       <header className="mb-7 border-b border-line pb-6 lg:mb-9">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-signal">Persisted results</p>
         <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Statistics</h1>
-        <p className="mt-2 max-w-2xl text-sm text-ink-muted">A practical view of speed, responsiveness, and test reliability.</p>
+        <p className="mt-2 max-w-2xl text-sm text-ink-muted">Aggregate performance and reliability from saved results.</p>
       </header>
 
       <section aria-label="Statistics filters" className="grid gap-5 border-b border-line pb-7 lg:grid-cols-[1fr_20rem] lg:items-end">
@@ -166,7 +165,7 @@ function MetricPanel({ title, icon: Icon, metric, unit, kind, lowerBetter = fals
   const columns = kind === 'throughput'
     ? [{ label: 'Latest', value: metric?.latest }, { label: 'Median', value: metric?.median }, { label: 'Average', value: metric?.average }, { label: 'Best', value: metric?.maximum }, { label: 'Worst', value: metric?.minimum }]
     : [{ label: 'Latest', value: metric?.latest }, { label: 'Median', value: metric?.median }, { label: 'Average', value: metric?.average }, { label: 'P95', value: metric?.p95 }, { label: 'Best', value: metric?.minimum }, { label: 'Worst', value: metric?.maximum }]
-  return <section className="rounded-[1.25rem] border border-line bg-paper p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="flex items-center gap-2 text-xl font-semibold tracking-[-0.03em]"><Icon className="size-4 text-signal" />{title}</h2><p className="mt-1 text-xs text-ink-muted">{metric?.count ?? 0} measured</p></div><Trend value={metric?.trendPercent} lowerBetter={lowerBetter} /></div>{metric ? <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3">{columns.map((item) => <div key={item.label}><dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">{item.label}</dt><dd className="mt-1.5 text-lg font-semibold tabular-nums">{metricValue(item.value, unit)}</dd></div>)}</dl> : <p className="mt-7 border-t border-line pt-5 text-sm text-ink-muted">No measurements available.</p>}</section>
+  return <section className="min-w-0 rounded-[1.25rem] border border-line bg-paper p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="flex items-center gap-2 text-xl font-semibold tracking-[-0.03em]"><Icon className="size-4 text-signal" />{title}</h2><p className="mt-1 text-xs text-ink-muted">{metric?.count ?? 0} measured</p></div><Trend value={metric?.trendPercent} lowerBetter={lowerBetter} /></div>{metric ? <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3">{columns.map((item) => <div className="min-w-0" key={item.label}><dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">{item.label}</dt><dd className="mt-1.5 break-words text-lg font-semibold tabular-nums">{metricValue(item.value, unit)}</dd></div>)}</dl> : <p className="mt-7 border-t border-line pt-5 text-sm text-ink-muted">No measurements available.</p>}</section>
 }
 
 function Trend({ value, lowerBetter }: { value: number | null | undefined; lowerBetter: boolean }) {

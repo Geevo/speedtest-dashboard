@@ -284,11 +284,21 @@ function ApiKeySection() {
 
   useEffect(() => {
     const controller = new AbortController()
+    let active = true
     getApiKey(controller.signal)
-      .then(setState)
-      .catch(() => setStatus({ ok: false, message: 'The API key status could not be loaded.' }))
-      .finally(() => setLoading(false))
-    return () => controller.abort()
+      .then((response) => {
+        if (active) setState(response)
+      })
+      .catch(() => {
+        if (active) setStatus({ ok: false, message: 'The API key status could not be loaded.' })
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [])
 
   const generate = async () => {
@@ -388,11 +398,11 @@ function Switch({ checked, disabled = false, label, onChange }: {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-50',
+        'relative h-11 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-50',
         checked ? 'bg-signal' : 'bg-line',
       )}
     >
-      <span className={cn('absolute left-0 top-1 size-5 rounded-full bg-paper shadow-sm transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
+      <span className={cn('absolute left-0 top-3 size-5 rounded-full bg-paper shadow-sm transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
     </button>
   )
 }

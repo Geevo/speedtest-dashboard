@@ -1,11 +1,16 @@
 services:
   speedtest-dashboard:
-    image: ${SPEEDTEST_DASHBOARD_IMAGE:?Set SPEEDTEST_DASHBOARD_IMAGE to a published image tag}
-    restart: unless-stopped
+    build:
+      context: .
+      args:
+        INSTALL_OOKLA: "false"
+    image: speedtest-dashboard:local
     ports:
       - "8080:8080"
     volumes:
       - speedtest-data:/data
+    environment:
+      Authentication__AllowInsecureHttp: "true"
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

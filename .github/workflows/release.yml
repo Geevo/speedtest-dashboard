@@ -1,0 +1,269 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.400
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: src/SpeedtestDashboard.Web/package-lock.json
+      - run: dotnet tool restore
+      - run: dotnet restore SpeedtestDashboard.sln --locked-mode -p:AuditPipeline=true
+      - run: dotnet format SpeedtestDashboard.sln --verify-no-changes --no-restore
+      - run: dotnet build SpeedtestDashboard.sln --configuration Release --no-restore -p:AuditPipeline=true
+      - run: dotnet test SpeedtestDashboard.sln --configuration Release --no-build
+      - run: dotnet ef migrations has-pending-model-changes --project src/SpeedtestDashboard.Infrastructure --startup-project src/SpeedtestDashboard.Api --configuration Release --no-build
+      - run: npm ci --prefix src/SpeedtestDashboard.Web
+      - run: npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
+      - run: npm run check --prefix src/SpeedtestDashboard.Web
+      - run: npm test --prefix src/SpeedtestDashboard.Web
+      - run: npm run build --prefix src/SpeedtestDashboard.Web
+
+  build-oci:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - id: release
+        name: Read release metadata
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid semantic-version tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          image_owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "stable=$([[ "$version" != *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/$image_owner/speedtest-dashboard" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - id: metadata
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.release.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.release.outputs.stable }}
+            type=semver,pattern={{major}},enable=${{ steps.release.outputs.stable }}
+            type=raw,value=latest,enable=${{ steps.release.outputs.stable }}
+            type=sha,prefix=sha-
+      - name: Build amd64 smoke image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: speedtest-dashboard:smoke-amd64
+          build-args: |
+            APP_VERSION=${{ steps.release.outputs.version }}
+            SOURCE_REVISION=${{ github.sha }}
+            BUILD_DATE=${{ steps.release.outputs.created }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
+            INSTALL_OOKLA=false
+      - name: Smoke test amd64 and replacement persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker volume create speedtest-smoke-data
+          run_container() {
+            docker run -d --name speedtest-smoke \
+              --read-only \
+              --tmpfs /tmp:rw,size=64m,mode=1777 \
+              --cap-drop ALL \
+              --security-opt no-new-privileges \
+              -p 18080:8080 \
+              -v speedtest-smoke-data:/data \
+              speedtest-dashboard:smoke-amd64
+          }
+          wait_for_health() {
+            for attempt in {1..30}; do
+              if curl -fsS http://127.0.0.1:18080/api/health; then return; fi
+              sleep 1
+            done
+            docker logs speedtest-smoke
+            return 1
+          }
+          run_container
+          wait_for_health
+          docker exec speedtest-smoke sh -ec '
+            test -x /usr/local/bin/librespeed-cli
+            ! command -v speedtest
+            ! command -v node
+            ! command -v npm
+            ! command -v go
+            test -z "$(dotnet --list-sdks)"
+            test ! -e /source
+            test ! -e /root/.npm
+          '
+          test "$(docker inspect --format "{{.Config.User}}" speedtest-smoke)" = app
+          docker rm -f speedtest-smoke
+          run_container
+          wait_for_health
+          docker exec speedtest-smoke test -s /data/speedtest.db
+          docker image inspect speedtest-dashboard:smoke-amd64 --format 'compressed-size-unavailable local-size={{.Size}} bytes'
+          docker rm -f speedtest-smoke
+          docker volume rm speedtest-smoke-data
+      - name: Build arm64 smoke image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          tags: speedtest-dashboard:smoke-arm64
+          build-args: |
+            APP_VERSION=${{ steps.release.outputs.version }}
+            SOURCE_REVISION=${{ github.sha }}
+            BUILD_DATE=${{ steps.release.outputs.created }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
+            INSTALL_OOKLA=false
+      - name: Smoke test arm64 under QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name speedtest-smoke-arm64 --platform linux/arm64 -p 18081:8080 -v speedtest-smoke-arm64:/data speedtest-dashboard:smoke-arm64
+          for attempt in {1..45}; do
+            if curl -fsS http://127.0.0.1:18081/api/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18081/api/health
+          docker exec speedtest-smoke-arm64 /usr/local/bin/librespeed-cli --version
+          docker rm -f speedtest-smoke-arm64
+          docker volume rm speedtest-smoke-arm64
+      - name: Publish multi-architecture image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            APP_VERSION=${{ steps.release.outputs.version }}
+            SOURCE_REVISION=${{ github.sha }}
+            BUILD_DATE=${{ steps.release.outputs.created }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
+            INSTALL_OOKLA=false
+      - name: Verify manifest platforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}"
+          manifest=$(docker buildx imagetools inspect "$image")
+          grep -q 'linux/amd64' <<< "$manifest"
+          grep -q 'linux/arm64' <<< "$manifest"
+
+  build-proxmox-lxc:
+    needs: verify
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.400
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: src/SpeedtestDashboard.Web/package-lock.json
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.1
+      - name: Install rootfs tools
+        run: sudo apt-get update && sudo apt-get install --yes debootstrap qemu-user-static zstd
+      - id: release
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Build native LXC template
+        run: packaging/proxmox/build-template.sh --version "${{ steps.release.outputs.version }}" --commit "${{ github.sha }}" --architecture "${{ matrix.architecture }}" --output artifacts
+      - name: Inspect native template
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst"
+          tar --zstd -tf "$archive" | grep -q './etc/systemd/system/speedtest-dashboard.service'
+          tar --zstd -tf "$archive" | grep -q './opt/speedtest-dashboard/SpeedtestDashboard.Api'
+          tar --zstd -tf "$archive" | grep -q './opt/speedtest-dashboard/librespeed-cli'
+          ! tar --zstd -tf "$archive" | grep -Eq '(^|/)(docker|podman)(/|$)'
+          tar --zstd -xOf "$archive" ./etc/speedtest-dashboard/release
+          du -h "$archive"
+      - name: Extract rootfs for SBOM
+        shell: bash
+        run: |
+          mkdir sbom-rootfs
+          tar --zstd -xf "artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst" -C sbom-rootfs
+      - name: Create native artifact SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: sbom-rootfs
+          format: spdx-json
+          output-file: artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.spdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@v6
+        with:
+          name: proxmox-${{ matrix.architecture }}
+          path: |
+            artifacts/*.tar.zst
+            artifacts/*.sha256
+            artifacts/*.spdx.json
+          if-no-files-found: error
+
+  release:
+    needs: [build-oci, build-proxmox-lxc]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: proxmox-*
+          path: artifacts
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: artifacts
+        run: sha256sum *.tar.zst > SHA256SUMS
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            artifacts/*.tar.zst
+            artifacts/*.sha256
+            artifacts/*.spdx.json
+            artifacts/SHA256SUMS
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}

@@ -141,8 +141,6 @@ public sealed class ScheduleEndpointTests : IClassFixture<DashboardWebApplicatio
     {
         using var client = _factory.CreateClient();
 
-        // LibreSpeed server IDs must be positive integers without a leading zero; "0" fails
-        // the same provider-side validation manual test creation uses.
         var response = await client.PostAsJsonAsync("/api/schedules", new
         {
             name = "Invalid server id",

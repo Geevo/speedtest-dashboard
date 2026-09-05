@@ -79,6 +79,15 @@ public static class TestEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        endpoints.MapGet("/api/v1/tests/{jobId:guid}/events", GetTestEvents)
+            .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
+            .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
+            .WithName("GetSpeedTestEventsV1")
+            .WithTags("API v1")
+            .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return endpoints;
     }
 

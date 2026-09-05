@@ -1,0 +1,4 @@
+ASPNETCORE_URLS=http://0.0.0.0:8080
+Storage__DatabasePath=/var/lib/speedtest-dashboard/speedtest.db
+Authentication__DataProtectionPath=/var/lib/speedtest-dashboard/dataprotection
+Providers__LibreSpeed__ExecutablePath=/opt/speedtest-dashboard/librespeed-cli

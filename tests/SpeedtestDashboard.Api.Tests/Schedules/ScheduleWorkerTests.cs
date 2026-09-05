@@ -30,7 +30,7 @@ public sealed class ScheduleWorkerTests
         timeProvider.Advance(TimeSpan.FromDays(1));
         await harness.Worker.PollOnceAsync(CancellationToken.None);
 
-        Assert.Single(harness.Store.Runs); // no second run was ever attempted
+        Assert.Single(harness.Store.Runs);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class ScheduleWorkerTests
         Assert.Equal(ScheduleRunStatus.Skipped, run.Status);
         Assert.Equal(ScheduleFailureCodes.QueueFull, run.FailureCode);
         Assert.Null(run.JobId);
-        Assert.NotNull(harness.Store.Get(id).NextRunAtUtc); // advanced, not stuck retrying immediately
+        Assert.NotNull(harness.Store.Get(id).NextRunAtUtc);
         Assert.True(harness.Store.Get(id).NextRunAtUtc > timeProvider.GetUtcNow());
     }
 
@@ -135,7 +135,7 @@ public sealed class ScheduleWorkerTests
         var secondRun = harness.Store.Runs[1];
         Assert.Equal(ScheduleRunStatus.Skipped, secondRun.Status);
         Assert.Equal(ScheduleFailureCodes.PreviousRunActive, secondRun.FailureCode);
-        Assert.Equal(firstRunJobId, harness.Store.Get(id).LastJobId); // unchanged; no duplicate job was queued
+        Assert.Equal(firstRunJobId, harness.Store.Get(id).LastJobId);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class ScheduleWorkerTests
         var run = Assert.Single(harness.Store.Runs);
         Assert.Equal(ScheduleRunStatus.Skipped, run.Status);
         Assert.Null(run.JobId);
-        Assert.Null(harness.Store.Get(id).NextRunAtUtc); // never runs
+        Assert.Null(harness.Store.Get(id).NextRunAtUtc);
         Assert.Null(harness.Store.Get(id).LastJobId);
     }
 
@@ -203,7 +203,7 @@ public sealed class ScheduleWorkerTests
         Assert.Equal(ScheduleRunStatus.Failed, run.Status);
         Assert.Equal(ScheduleFailureCodes.ProviderUnavailable, run.FailureCode);
         Assert.Null(run.JobId);
-        Assert.NotNull(harness.Store.Get(id).NextRunAtUtc); // still advances instead of retrying forever
+        Assert.NotNull(harness.Store.Get(id).NextRunAtUtc);
     }
 
     private static SpeedTestSchedule CreateSchedule(

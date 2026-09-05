@@ -71,7 +71,7 @@ public static class HistoryEndpoints
                 page.Items.Select(HistoryListItemResponse.From).ToArray(),
                 page.NextCursor));
         }
-        catch (ArgumentException)
+        catch (ArgumentException) when (query.Cursor is not null)
         {
             return ProblemResponses.BadRequest("invalid_history_cursor", "The history cursor is invalid.");
         }

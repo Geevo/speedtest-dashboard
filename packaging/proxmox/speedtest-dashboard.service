@@ -1,0 +1,20 @@
+[Unit]
+Description=Speedtest Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=speedtest
+Group=speedtest
+WorkingDirectory=/opt/speedtest-dashboard
+EnvironmentFile=-/etc/speedtest-dashboard/environment
+ExecStart=/opt/speedtest-dashboard/SpeedtestDashboard.Api
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

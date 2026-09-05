@@ -11,11 +11,6 @@ using SpeedtestDashboard.Infrastructure.Schedules;
 
 namespace SpeedtestDashboard.Api.Tests.Schedules;
 
-/// <summary>
-/// A dashboard host with a fixture provider and a real SQLite-backed schedule store, where
-/// <see cref="ScheduleWorker"/> is resolvable directly for deterministic, manually-ticked polling
-/// instead of running on its own background timer.
-/// </summary>
 internal sealed class ScheduleWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _root;

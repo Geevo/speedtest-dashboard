@@ -26,7 +26,6 @@ public static class ScheduleFailureCodes
     public const string InvalidServer = "invalid_server";
     public const string PersistenceFailed = "persistence_failed";
     public const string ApplicationOffline = "application_offline";
-    public const string ScheduleDisabled = "schedule_disabled";
 }
 
 public sealed record SpeedTestSchedule(

@@ -15,11 +15,11 @@ using SpeedtestDashboard.Core.Tests;
 
 namespace SpeedtestDashboard.Api.Tests;
 
-public sealed class Milestone3EndpointTests : IClassFixture<DashboardWebApplicationFactory>
+public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApplicationFactory>
 {
     private readonly DashboardWebApplicationFactory _baseFactory;
 
-    public Milestone3EndpointTests(DashboardWebApplicationFactory baseFactory)
+    public ProviderAndTestEndpointTests(DashboardWebApplicationFactory baseFactory)
     {
         _baseFactory = baseFactory;
     }

@@ -111,7 +111,7 @@ export function NetworkIdentityPanel() {
 
 function AddressBlock({ label, identity }: { label: string; identity: NetworkAddressIdentity | null }) {
   return (
-    <article className="min-h-36 py-5 md:px-6 md:first:pl-0">
+    <article className="py-5 md:min-h-36 md:px-6 md:first:pl-0">
       <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">
         <Globe2 className="size-3.5" />
         {label}

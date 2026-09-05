@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, CalendarClock, CheckCircle2, Server, Waves, XCircle } from 'lucide-react'
-import { getHistory, type HistoryListItem } from '../lib/history'
+import { ArrowDown, ArrowUp, CalendarClock, CheckCircle2, Waves } from 'lucide-react'
+import { getHistory } from '../lib/history'
 import { formatInTimeZone, getSchedules } from '../lib/schedules'
+import { getProviders, type ProviderSummary } from '../lib/speed-tests'
 import { getStatistics, statisticsQueryKey } from '../lib/statistics'
 import { NetworkIdentityPanel } from './network-identity-panel'
 
@@ -10,11 +11,8 @@ export function OverviewPage() {
     queryKey: ['history', 'overview', 'latest-completed'],
     queryFn: ({ signal }) => getHistory({ status: 'completed', limit: 1 }, signal),
   })
-  const recent = useQuery({
-    queryKey: ['history', 'overview', 'recent'],
-    queryFn: ({ signal }) => getHistory({ limit: 5 }, signal),
-  })
   const schedules = useQuery({ queryKey: ['schedules'], queryFn: ({ signal }) => getSchedules(signal) })
+  const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
   const statistics = useQuery({ queryKey: statisticsQueryKey('7d'), queryFn: ({ signal }) => getStatistics('7d', undefined, signal) })
   const last = latest.data?.items[0]
   const nextSchedule = schedules.data
@@ -69,9 +67,17 @@ export function OverviewPage() {
         )}
       </section>
 
-      <section aria-labelledby="recent-heading" className="mt-12">
-        <h2 id="recent-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Recent tests</h2>
-        {recent.data?.items.length ? <div className="border-y border-line">{recent.data.items.map((item) => <RecentRow key={item.id} item={item} />)}</div> : <p className="border-y border-line py-8 text-sm text-ink-muted">No saved results.</p>}
+      <section aria-labelledby="providers-heading" className="mt-12">
+        <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
+        {providers.data ? (
+          <div className="grid border-y border-line sm:grid-cols-2 sm:divide-x sm:divide-line">
+            {providers.data.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
+          </div>
+        ) : (
+          <p className="border-y border-line py-8 text-sm text-ink-muted">
+            {providers.isError ? 'Provider status could not be loaded.' : 'Checking providers…'}
+          </p>
+        )}
       </section>
     </div>
   )
@@ -82,12 +88,20 @@ function Metric({ icon: Icon, label, value, unit }: { icon: typeof ArrowDown; la
   return <div className="border-r border-line px-1 py-5 last:border-r-0 sm:py-6"><div className="mb-4 flex items-center gap-2 text-xs font-semibold text-ink-muted"><Icon className="size-3.5" />{label}</div><div className="text-xl font-semibold tabular-nums sm:text-2xl">{rendered}{value != null && <span className="ml-1 text-xs text-ink-muted">{unit}</span>}</div></div>
 }
 
-function RecentRow({ item }: { item: HistoryListItem }) {
-  const Icon = item.status === 'completed' ? CheckCircle2 : XCircle
-  const detail = item.serverLocation !== item.serverName ? item.serverLocation : item.failure?.message
-  return <div className="grid gap-3 border-b border-line px-4 py-4 last:border-b-0 sm:grid-cols-[8rem_minmax(10rem,1fr)_7rem_7rem_6rem] sm:items-center"><span className="text-xs text-ink-muted">{formatDate(item.completedAtUtc)}</span><span className="min-w-0"><span className="flex items-center gap-2 font-semibold capitalize"><Server className="size-3.5 text-signal" />{item.serverName ?? `${item.providerId} test`}</span>{detail && <span className="mt-1 block truncate text-xs text-ink-muted">{detail}</span>}</span><span className="text-sm tabular-nums">{metric(item.downloadMbps, 'Mbps')}</span><span className="text-sm tabular-nums">{metric(item.uploadMbps, 'Mbps')}</span><span className="inline-flex items-center gap-1.5 text-xs font-semibold capitalize"><Icon className={item.status === 'completed' ? 'size-3.5 text-ok' : 'size-3.5 text-danger'} />{item.status}</span></div>
+function ProviderState({ provider }: { provider: ProviderSummary }) {
+  const available = provider.healthState === 'available'
+  return (
+    <div className="flex min-w-0 items-start gap-3 py-5 sm:px-6 sm:first:pl-0">
+      <span className={available ? 'mt-1.5 size-2 shrink-0 rounded-full bg-ok' : 'mt-1.5 size-2 shrink-0 rounded-full bg-ink-muted/40'} />
+      <div className="min-w-0">
+        <p className="font-semibold">{provider.displayName}</p>
+        <p className="mt-1 break-words text-sm text-ink-muted">
+          {available ? `Available${provider.version ? ` · CLI ${provider.version}` : ''}` : provider.message ?? 'Unavailable'}
+        </p>
+      </div>
+    </div>
+  )
 }
 
-function metric(value: number | null, unit: string) { return value === null ? <span className="text-ink-muted">Not available</span> : <>{new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value)} <span className="text-xs text-ink-muted">{unit}</span></> }
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
 function formatServer(name: string | null, location: string | null) { return [name, location !== name ? location : null].filter(Boolean).join(' · ') || 'Server unavailable' }

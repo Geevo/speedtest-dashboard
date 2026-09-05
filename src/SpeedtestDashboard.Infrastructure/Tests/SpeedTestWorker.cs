@@ -33,7 +33,7 @@ public sealed class SpeedTestWorker(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal application shutdown.
+            // Cancellation is expected when the host stops.
         }
     }
 
@@ -152,4 +152,3 @@ public sealed class SpeedTestWorker(
         return normalized.Length <= 240 ? normalized : normalized[..240];
     }
 }
-

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Activity,
   CalendarClock,
@@ -43,6 +43,8 @@ const providerNavigation = [
 export function AppShell({ activeItem, onNavigate, children, session, onSignOut }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const drawerRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const health = useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => getHealth(signal),
@@ -53,6 +55,43 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
     onNavigate(item)
     setMobileOpen(false)
   }
+
+  useEffect(() => {
+    if (!mobileOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    const returnFocus = menuButtonRef.current
+    document.body.style.overflow = 'hidden'
+    const focusable = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? [])
+    focusable()[0]?.focus()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items.at(-1)!
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+      returnFocus?.focus()
+    }
+  }, [mobileOpen])
 
   const navigation = (
     <>
@@ -144,10 +183,11 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             aria-label="Close navigation"
+            tabIndex={-1}
             className="absolute inset-0 bg-ink/35"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[min(19rem,88vw)] flex-col bg-paper shadow-2xl">
+          <aside ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" className="absolute inset-y-0 left-0 flex w-[min(19rem,88vw)] flex-col bg-paper shadow-2xl">
             {navigation}
             <Button
               variant="ghost"
@@ -164,7 +204,7 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
 
       <div className={cn('transition-[padding] duration-300', collapsed ? 'lg:pl-[5.25rem]' : 'lg:pl-[var(--sidebar-width)]')}>
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-canvas/95 px-4 backdrop-blur-sm lg:hidden">
-          <Button variant="outline" size="icon" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
+          <Button ref={menuButtonRef} variant="outline" size="icon" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
             <Menu className="size-5" />
           </Button>
           <span className="text-sm font-bold">Speedtest</span>

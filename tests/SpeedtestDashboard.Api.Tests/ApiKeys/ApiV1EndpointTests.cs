@@ -99,10 +99,16 @@ public sealed class ApiV1EndpointTests
         var created = await createResponse.Content.ReadFromJsonAsync<CreateTestResponse>();
         Assert.NotNull(created);
         Assert.StartsWith("/api/v1/tests/", created!.ResourceUrl);
+        Assert.Equal($"/api/v1/tests/{created.Id}/events", created.EventsUrl);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
         using var getResponse = await client.GetAsync($"/api/v1/tests/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        using var eventsRequest = new HttpRequestMessage(HttpMethod.Get, created.EventsUrl);
+        using var eventsResponse = await client.SendAsync(eventsRequest, HttpCompletionOption.ResponseHeadersRead);
+        Assert.Equal(HttpStatusCode.OK, eventsResponse.StatusCode);
+        Assert.Equal("text/event-stream", eventsResponse.Content.Headers.ContentType?.MediaType);
 
         using var cancelResponse = await client.PostAsync($"/api/v1/tests/{created.Id}/cancel", null);
         var cancelled = await cancelResponse.Content.ReadFromJsonAsync<SpeedTestJobResponse>();

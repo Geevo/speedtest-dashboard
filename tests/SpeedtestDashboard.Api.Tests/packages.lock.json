@@ -559,8 +559,8 @@
       "speedtestdashboard.api": {
         "type": "Project",
         "dependencies": {
-          "SpeedtestDashboard.Core": "[1.0.0, )",
-          "SpeedtestDashboard.Infrastructure": "[1.0.0, )"
+          "SpeedtestDashboard.Core": "[0.12.0-rc.1, )",
+          "SpeedtestDashboard.Infrastructure": "[0.12.0-rc.1, )"
         }
       },
       "speedtestdashboard.core": {
@@ -571,7 +571,7 @@
         "dependencies": {
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.11, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.11, )",
-          "SpeedtestDashboard.Core": "[1.0.0, )"
+          "SpeedtestDashboard.Core": "[0.12.0-rc.1, )"
         }
       },
       "speedtestdashboard.processfixture": {

@@ -41,7 +41,7 @@ public sealed class ScheduleWorker(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal application shutdown.
+            // PeriodicTimer reports host shutdown by throwing.
         }
     }
 
