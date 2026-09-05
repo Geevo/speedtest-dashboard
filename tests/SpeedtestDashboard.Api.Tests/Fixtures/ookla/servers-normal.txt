@@ -1,0 +1,5 @@
+Closest servers:
+    ID  Name                           Location             Country
+==============================================================================
+ 12345  Example ISP                    London               United Kingdom
+ 23456  Example Host                   Reading              United Kingdom

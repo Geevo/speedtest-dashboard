@@ -1,0 +1,11 @@
+{
+  "type": "result",
+  "timestamp": "2026-09-04T08:05:00Z",
+  "ping": { "jitter": 1.2, "latency": 18.5 },
+  "download": { "bandwidth": 50000000, "bytes": 100000000, "elapsed": 15000 },
+  "upload": { "bandwidth": 6250000, "bytes": 25000000, "elapsed": 11000 },
+  "packetLoss": null,
+  "interface": { "internalIp": "2001:db8::10", "externalIp": "2001:db8::20" },
+  "server": { "id": "23456", "name": "IPv6 Fixture", "location": "Reading", "country": "United Kingdom" },
+  "result": { "id": "fixture-no-url", "persisted": false }
+}

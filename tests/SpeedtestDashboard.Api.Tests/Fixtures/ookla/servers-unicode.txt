@@ -1,0 +1,4 @@
+Closest servers:
+    ID  Name                           Location             Country
+==============================================================================
+ 34567  Réseau Étoile                  Montréal             Canada

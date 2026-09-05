@@ -1,0 +1,5 @@
+Closest servers:
+    ID  Name                           Location             Country
+==============================================================================
+ 12345  First ISP                      London               United Kingdom
+ 12345  Duplicate ISP                  Reading              United Kingdom

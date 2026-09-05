@@ -1,0 +1,1 @@
+{ "type": "result", "download": { "bandwidth": 125000 }, "upload": { "bandwidth": 125000 }, "server": { "id": 12345, "name": "Fixture", "location": "City" } }

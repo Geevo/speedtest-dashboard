@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "ping": { "jitter": 1, "latency": 10 },
+  "download": { "bandwidth": 125000 },
+  "upload": { "bandwidth": 125000 },
+  "packetLoss": 1,
+  "server": { "id": 34567, "name": "Fixture", "location": "Test City", "country": "Test Country" },
+  "result": { "id": "unsafe-url", "url": "https://example.invalid/result/unsafe", "persisted": true }
+}

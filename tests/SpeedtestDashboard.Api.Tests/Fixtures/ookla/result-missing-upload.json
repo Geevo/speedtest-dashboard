@@ -1,0 +1,1 @@
+{ "type": "result", "ping": { "latency": 10, "jitter": 1 }, "download": { "bandwidth": 125000 }, "server": { "id": 12345, "name": "Fixture", "location": "City" } }

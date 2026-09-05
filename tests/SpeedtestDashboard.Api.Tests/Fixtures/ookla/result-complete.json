@@ -1,0 +1,41 @@
+{
+  "type": "result",
+  "timestamp": "2026-09-04T08:00:00Z",
+  "ping": { "jitter": 0.7, "latency": 11.4, "low": 10.8, "high": 12.2 },
+  "download": {
+    "bandwidth": 125000000,
+    "bytes": 250000000,
+    "elapsed": 16000,
+    "latency": { "iqm": 14.2, "low": 8.1, "high": 31.5, "jitter": 2.1 }
+  },
+  "upload": {
+    "bandwidth": 13025000,
+    "bytes": 52100000,
+    "elapsed": 12000,
+    "latency": { "iqm": 18.4, "low": 9.7, "high": 42.2, "jitter": 3.4 }
+  },
+  "packetLoss": 0,
+  "isp": "Fixture Network",
+  "interface": {
+    "internalIp": "192.0.2.10",
+    "name": "eth0",
+    "macAddr": "00:00:5E:00:53:00",
+    "isVpn": false,
+    "externalIp": "198.51.100.20"
+  },
+  "server": {
+    "id": 12345,
+    "host": "speed.fixture.example",
+    "port": 8080,
+    "name": "Fixture ISP",
+    "location": "London",
+    "country": "United Kingdom",
+    "ip": "203.0.113.10"
+  },
+  "result": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "url": "https://www.speedtest.net/result/c/00000000-0000-4000-8000-000000000001",
+    "persisted": true
+  },
+  "unknownFutureField": { "ignored": true }
+}
