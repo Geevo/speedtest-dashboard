@@ -1,6 +1,7 @@
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
+using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
@@ -12,6 +13,7 @@ public static class TestEndpoints
     public static IEndpointRouteBuilder MapTestEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/tests", CreateTestAsync)
+            .RequireCsrf()
             .WithName("CreateSpeedTest")
             .WithTags("Tests")
             .Produces<CreateTestResponse>(StatusCodes.Status202Accepted)
@@ -27,6 +29,7 @@ public static class TestEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapPost("/api/tests/{jobId:guid}/cancel", CancelTest)
+            .RequireCsrf()
             .WithName("CancelSpeedTest")
             .WithTags("Tests")
             .Produces<SpeedTestJobResponse>(StatusCodes.Status202Accepted)

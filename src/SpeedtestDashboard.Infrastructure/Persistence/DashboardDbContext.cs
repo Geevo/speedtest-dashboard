@@ -1,16 +1,38 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SpeedtestDashboard.Infrastructure.Authentication;
 using SpeedtestDashboard.Infrastructure.Persistence.Entities;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
 
-public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> options) : DbContext(options)
+public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> options)
+    : IdentityUserContext<ApplicationUser, Guid>(options)
 {
     public DbSet<SpeedTestJobEntity> SpeedTestJobs => Set<SpeedTestJobEntity>();
     public DbSet<SpeedTestResultEntity> SpeedTestResults => Set<SpeedTestResultEntity>();
+    public DbSet<DashboardSettingsEntity> DashboardSettings => Set<DashboardSettingsEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<ApplicationUser>(builder =>
+        {
+            builder.ToTable("Users");
+            builder.Property(user => user.UserName).HasMaxLength(64);
+            builder.Property(user => user.NormalizedUserName).HasMaxLength(64);
+            builder.Property(user => user.Email).HasMaxLength(256);
+            builder.Property(user => user.NormalizedEmail).HasMaxLength(256);
+            builder.HasIndex(user => user.NormalizedUserName).IsUnique();
+        });
+        modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityUserToken<Guid>>().ToTable("UserTokens");
+        modelBuilder.Entity<DashboardSettingsEntity>(builder =>
+        {
+            builder.ToTable("DashboardSettings");
+            builder.HasKey(settings => settings.Id);
+        });
         modelBuilder.ApplyConfiguration(new SpeedTestJobEntityConfiguration());
         modelBuilder.ApplyConfiguration(new SpeedTestResultEntityConfiguration());
     }

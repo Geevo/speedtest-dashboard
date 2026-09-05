@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
@@ -25,6 +26,7 @@ public static class HistoryEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapDelete("/api/history/{id:long}", DeleteAsync)
+            .RequireCsrf()
             .WithName("DeleteSpeedTestHistoryRecord")
             .WithTags("History")
             .Produces(StatusCodes.Status204NoContent)

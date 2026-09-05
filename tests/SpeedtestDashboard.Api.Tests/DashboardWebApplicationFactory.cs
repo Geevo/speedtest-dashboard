@@ -18,7 +18,9 @@ public sealed class DashboardWebApplicationFactory : WebApplicationFactory<Progr
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Storage:DatabasePath"] = DatabasePath
+                ["Storage:DatabasePath"] = DatabasePath,
+                ["Authentication:Mode"] = "None",
+                ["Authentication:DataProtectionPath"] = Path.Combine(_storageDirectory, "dataprotection")
             }));
     }
 

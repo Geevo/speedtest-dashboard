@@ -23,7 +23,7 @@ public sealed class HealthEndpointTests : IClassFixture<DashboardWebApplicationF
         Assert.NotNull(health);
         Assert.Equal("healthy", health.Status);
         Assert.Equal("Speedtest Dashboard", health.Service);
-        Assert.Equal("0.7.0", health.Version);
+        Assert.Equal("0.8.0", health.Version);
         Assert.True(health.CheckedAt <= DateTimeOffset.UtcNow);
         Assert.Contains("no-store", response.Headers.CacheControl?.ToString());
     }

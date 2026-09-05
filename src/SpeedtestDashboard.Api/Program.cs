@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Api.Endpoints;
 using SpeedtestDashboard.Core;
 using SpeedtestDashboard.Infrastructure;
@@ -11,6 +12,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddNetworkIdentity(builder.Configuration);
 builder.Services.AddDashboardPersistence(builder.Configuration);
 builder.Services.AddSpeedTestOrchestration(builder.Configuration);
+builder.Services.AddDashboardAuthentication(builder.Configuration);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -34,6 +36,10 @@ builder.WebHost.ConfigureKestrel(options =>
 var app = builder.Build();
 
 await app.Services.GetRequiredService<DashboardDatabaseInitializer>().InitializeAsync();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<DashboardAuthenticationStateInitializer>().InitializeAsync();
+}
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
@@ -46,6 +52,12 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapGet("/api/health", (HttpContext context) =>
 {
     context.Response.Headers.CacheControl = "no-store";
@@ -56,8 +68,10 @@ app.MapGet("/api/health", (HttpContext context) =>
         CheckedAt: DateTimeOffset.UtcNow));
 })
 .WithName("GetHealth")
-.WithTags("System");
+.WithTags("System")
+.AllowAnonymous();
 
+app.MapAuthenticationEndpoints();
 app.MapNetworkEndpoints();
 app.MapProviderEndpoints();
 app.MapTestEndpoints();
@@ -67,9 +81,7 @@ app.Map("/api/{**path}", () => Results.Problem(
     statusCode: StatusCodes.Status404NotFound,
     title: "API endpoint not found"));
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();
 

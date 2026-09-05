@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SpeedtestDashboard.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using SpeedtestDashboard.Infrastructure.Persistence;
 namespace SpeedtestDashboard.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DashboardDbContext))]
-    partial class DashboardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905102828_AddLocalOperatorIdentity")]
+    partial class AddLocalOperatorIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -148,23 +151,6 @@ namespace SpeedtestDashboard.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("SpeedtestDashboard.Infrastructure.Persistence.Entities.DashboardSettingsEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("AuthenticationEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("ShowAuthenticationDisabledWarning")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DashboardSettings", (string)null);
                 });
 
             modelBuilder.Entity("SpeedtestDashboard.Infrastructure.Persistence.Entities.SpeedTestJobEntity", b =>
