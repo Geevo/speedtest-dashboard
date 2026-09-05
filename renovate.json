@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "internalChecksFilter": "strict",
+  "minimumReleaseAge": "14 days",
+  "minimumReleaseAgeBehaviour": "timestamp-required",
+  "prCreation": "not-pending",
+  "packageRules": [
+    {
+      "description": "Allow immediate updates for Microsoft first-party NuGet packages",
+      "matchManagers": ["nuget"],
+      "matchPackageNames": ["/^(Microsoft|System)\\./", "NETStandard.Library"],
+      "minimumReleaseAge": "0 days"
+    }
+  ]
+}
