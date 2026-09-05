@@ -10,6 +10,7 @@ import { authExpiredEvent, getSession, logout, type SessionResponse } from './li
 import { LoginPage } from './components/login-page'
 
 const HistoryPage = lazy(() => import('./components/history-page').then((module) => ({ default: module.HistoryPage })))
+const StatisticsPage = lazy(() => import('./components/statistics-page').then((module) => ({ default: module.StatisticsPage })))
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -67,6 +68,10 @@ export default function App() {
       ) : activeItem === 'history' ? (
         <Suspense fallback={<div className="grid min-h-[60vh] place-items-center text-sm text-ink-muted">Loading history</div>}>
           <HistoryPage />
+        </Suspense>
+      ) : activeItem === 'statistics' ? (
+        <Suspense fallback={<div className="grid min-h-[60vh] place-items-center text-sm text-ink-muted">Loading statistics</div>}>
+          <StatisticsPage />
         </Suspense>
       ) : activeItem === 'ookla' ? (
         <OoklaPage

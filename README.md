@@ -83,7 +83,7 @@ Machine API:     one instance-wide API key (see "Machine API and /api/v1" below)
 
 For password-loss recovery, stop the application and back up `/data`. Restore a known-good backup, or use an offline SQLite administration tool to set `DashboardSettings.AuthenticationEnabled` to `0`. Restart, open Settings anonymously, and verify the existing credentials to turn login back on. History is not user-owned and remains intact. Never edit the live database or remove only password-hash fields.
 
-Later milestones cover richer test telemetry and application observability. Additional provider or protocol integrations may be considered later.
+Persisted speed-test History feeds the built-in Statistics view for test counts, success rate, metric summaries, trends, and bounded time-series charts. Additional provider or protocol integrations may be considered later.
 
 ## Machine API and /api/v1
 
@@ -106,6 +106,7 @@ Machine clients authenticate with `Authorization: Bearer <api-key>` - never a qu
 | `POST /api/v1/tests/{id}/cancel` | Requests cancellation through the same cancellation registry as the dashboard. |
 | `GET /api/v1/history` | The same cursor-paginated `provider`/`status`/`fromUtc`/`toUtc`/`cursor`/`limit` query as the dashboard History list. |
 | `GET /api/v1/history/{id}` | Full normalized historical result. |
+| `GET /api/v1/statistics` | History-derived test counts, metric summaries, trends, provider comparison, and bounded chart buckets for `24h`, `7d`, `30d`, `90d`, or `all`. |
 
 History deletion and authentication/API-key administration are intentionally not exposed through `/api/v1` in this milestone.
 
@@ -340,7 +341,7 @@ npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
 npm audit --prefix src/SpeedtestDashboard.Web
 npm run check --prefix src/SpeedtestDashboard.Web
 npm run build --prefix src/SpeedtestDashboard.Web
-podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-10 .
+podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-11 .
 ```
 
 Use `podman build --format docker` for the final command when Docker is unavailable. Podman's default OCI image format does not store Docker-compatible image health-check metadata; the Docker format preserves it while remaining runnable by Podman.

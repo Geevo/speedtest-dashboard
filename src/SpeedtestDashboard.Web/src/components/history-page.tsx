@@ -5,6 +5,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -37,6 +38,7 @@ import {
   type HistoryListItem,
   type HistoryStatus,
 } from '../lib/history'
+import { getStatistics, statisticsQueryKey, type StatisticsProvider, type StatisticsRange } from '../lib/statistics'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
@@ -64,6 +66,11 @@ export function HistoryPage() {
     queryKey: historyQueryKey(filters),
     queryFn: ({ signal }) => getHistory(filters, signal),
   })
+  const chartStatistics = useQuery({
+    queryKey: statisticsQueryKey(range as StatisticsRange, provider === 'all' ? undefined : provider as StatisticsProvider),
+    queryFn: ({ signal }) => getStatistics(range as StatisticsRange, provider === 'all' ? undefined : provider as StatisticsProvider, signal),
+    enabled: status === 'all' || status === 'completed',
+  })
   const detail = useQuery({
     queryKey: ['history-detail', selectedId],
     queryFn: ({ signal }) => getHistoryDetail(selectedId!, signal),
@@ -84,16 +91,13 @@ export function HistoryPage() {
     setPreviousCursors([])
     setSelectedId(null)
   }
-  const chartData = useMemo(() => [...(history.data?.items ?? [])]
-    .filter((item) => item.status === 'completed')
-    .reverse()
-    .map((item) => ({
-      label: compactTime(item.completedAtUtc),
-      download: item.downloadMbps ?? undefined,
-      upload: item.uploadMbps ?? undefined,
-      latency: item.latencyMilliseconds ?? undefined,
-      jitter: item.jitterMilliseconds ?? undefined,
-    })), [history.data?.items])
+  const chartData = useMemo(() => (chartStatistics.data?.chart ?? []).map((item) => ({
+    label: compactTime(item.bucketStartUtc),
+    download: item.downloadMbps ?? undefined,
+    upload: item.uploadMbps ?? undefined,
+    latency: item.latencyMilliseconds ?? undefined,
+    jitter: item.jitterMilliseconds ?? undefined,
+  })), [chartStatistics.data?.chart])
 
   return (
     <div className="page-enter">
@@ -140,8 +144,8 @@ export function HistoryPage() {
         <EmptyHistory />
       ) : (
         <>
-          <div className="mt-8 grid gap-7 xl:grid-cols-2">
-            <ChartPanel title="Historical throughput" note="Mbps · completed tests">
+          {(status === 'all' || status === 'completed') && <div className="mt-8 grid gap-7 xl:grid-cols-2">
+            <ChartPanel title="Historical throughput" note="Mbps · completed tests · median guide">
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={chartData} accessibilityLayer margin={{ left: -8, right: 8, top: 12 }}>
                   <defs>
@@ -154,24 +158,26 @@ export function HistoryPage() {
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
                   <YAxis unit=" Mbps" width={68} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
                   <Tooltip contentStyle={tooltipStyle} />
+                  {chartStatistics.data?.download?.median != null && <ReferenceLine y={chartStatistics.data.download.median} stroke="var(--color-chart-primary)" strokeDasharray="5 5" strokeOpacity={0.65} />}
                   <Area type="monotone" dataKey="download" name="Download" unit=" Mbps" stroke="var(--color-chart-primary)" fill="url(#download-fill)" strokeWidth={2.4} connectNulls={false} />
                   <Line type="monotone" dataKey="upload" name="Upload" unit=" Mbps" stroke="var(--color-chart-secondary)" strokeWidth={2.2} dot={false} connectNulls={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartPanel>
-            <ChartPanel title="Idle latency" note="Milliseconds · completed tests">
+            <ChartPanel title="Idle latency" note="Milliseconds · completed tests · median guide">
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={chartData} accessibilityLayer margin={{ left: -12, right: 8, top: 12 }}>
                   <CartesianGrid vertical={false} stroke="var(--color-line)" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
                   <YAxis unit=" ms" width={60} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
                   <Tooltip contentStyle={tooltipStyle} />
+                  {chartStatistics.data?.latency?.median != null && <ReferenceLine y={chartStatistics.data.latency.median} stroke="var(--color-chart-primary)" strokeDasharray="5 5" strokeOpacity={0.65} />}
                   <Line type="monotone" dataKey="latency" name="Latency" unit=" ms" stroke="var(--color-chart-primary)" strokeWidth={2.4} dot={{ r: 2.5 }} connectNulls={false} />
                   <Line type="monotone" dataKey="jitter" name="Jitter" unit=" ms" stroke="var(--color-ink-muted)" strokeDasharray="4 4" dot={false} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartPanel>
-          </div>
+          </div>}
 
           <section aria-labelledby="records-heading" className="mt-8 border-t border-line pt-6">
             <div className="mb-5 flex items-end justify-between">

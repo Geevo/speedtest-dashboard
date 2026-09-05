@@ -81,6 +81,7 @@ app.MapNetworkEndpoints();
 app.MapProviderEndpoints();
 app.MapTestEndpoints();
 app.MapHistoryEndpoints();
+app.MapStatisticsEndpoints();
 app.MapScheduleEndpoints();
 
 app.Map("/api/{**path}", () => Results.Problem(

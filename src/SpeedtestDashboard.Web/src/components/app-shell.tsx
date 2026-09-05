@@ -18,7 +18,7 @@ import { getHealth, type SessionResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
-export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'history' | 'schedules' | 'settings'
+export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'history' | 'statistics' | 'schedules' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -31,6 +31,7 @@ type AppShellProps = {
 const primaryNavigation = [
   { id: 'overview' as const, label: 'Overview', icon: Gauge },
   { id: 'history' as const, label: 'History', icon: History },
+  { id: 'statistics' as const, label: 'Statistics', icon: ChartNoAxesCombined },
   { id: 'schedules' as const, label: 'Schedules', icon: CalendarClock },
 ]
 

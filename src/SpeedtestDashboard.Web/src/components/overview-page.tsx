@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, CalendarClock, CheckCircle2, Server, Waves, XCircle } from 'lucide-react'
 import { getHistory, type HistoryListItem } from '../lib/history'
 import { formatInTimeZone, getSchedules } from '../lib/schedules'
+import { getStatistics, statisticsQueryKey } from '../lib/statistics'
 import { NetworkIdentityPanel } from './network-identity-panel'
 
 export function OverviewPage() {
@@ -14,6 +15,7 @@ export function OverviewPage() {
     queryFn: ({ signal }) => getHistory({ limit: 5 }, signal),
   })
   const schedules = useQuery({ queryKey: ['schedules'], queryFn: ({ signal }) => getSchedules(signal) })
+  const statistics = useQuery({ queryKey: statisticsQueryKey('7d'), queryFn: ({ signal }) => getStatistics('7d', undefined, signal) })
   const last = latest.data?.items[0]
   const nextSchedule = schedules.data
     ?.filter((schedule) => schedule.enabled && schedule.nextRunAtUtc !== null)
@@ -34,6 +36,19 @@ export function OverviewPage() {
       </header>
 
       <NetworkIdentityPanel />
+
+      <section aria-labelledby="snapshot-heading" className="mt-12">
+        <div className="mb-5">
+          <h2 id="snapshot-heading" className="text-2xl font-semibold tracking-[-0.035em]">7-day snapshot</h2>
+          <p className="mt-1 text-sm text-ink-muted">Median performance and overall test reliability.</p>
+        </div>
+        <div className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
+          <Metric icon={ArrowDown} label="Median download" value={statistics.data?.download?.median ?? null} unit="Mbps" />
+          <Metric icon={ArrowUp} label="Median upload" value={statistics.data?.upload?.median ?? null} unit="Mbps" />
+          <Metric icon={Waves} label="Median latency" value={statistics.data?.latency?.median ?? null} unit="ms" />
+          <Metric icon={CheckCircle2} label="Success rate" value={statistics.data?.tests.successRate ?? null} unit="%" />
+        </div>
+      </section>
 
       <section aria-labelledby="latest-heading" className="mt-12">
         <div className="mb-5 flex items-end justify-between gap-4">
