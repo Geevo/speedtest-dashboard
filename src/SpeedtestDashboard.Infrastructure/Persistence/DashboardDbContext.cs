@@ -26,7 +26,6 @@ internal sealed class SpeedTestJobEntityConfiguration : IEntityTypeConfiguration
         builder.Property(entity => entity.Status).HasMaxLength(32).IsRequired();
         builder.Property(entity => entity.Stage).HasMaxLength(120).IsRequired();
         builder.Property(entity => entity.RequestedServerId).HasMaxLength(128);
-        builder.Property(entity => entity.Direction).HasMaxLength(16);
         builder.Property(entity => entity.FailureCode).HasMaxLength(64);
         builder.Property(entity => entity.FailureMessage).HasMaxLength(240);
     }
@@ -41,7 +40,6 @@ internal sealed class SpeedTestResultEntityConfiguration : IEntityTypeConfigurat
         builder.Property(entity => entity.Id).ValueGeneratedOnAdd();
         builder.Property(entity => entity.ProviderId).HasMaxLength(32).IsRequired();
         builder.Property(entity => entity.Status).HasMaxLength(32).IsRequired();
-        builder.Property(entity => entity.Direction).HasMaxLength(16);
         builder.Property(entity => entity.RequestedServerId).HasMaxLength(128);
         builder.Property(entity => entity.ServerId).HasMaxLength(128);
         builder.Property(entity => entity.ServerName).HasMaxLength(256);

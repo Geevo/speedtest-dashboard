@@ -47,7 +47,6 @@ public sealed class SpeedTestProviderRegistryTests
     [Theory]
     [InlineData("ookla", true)]
     [InlineData("librespeed", true)]
-    [InlineData("iperf3", true)]
     [InlineData("fixture-2", true)]
     [InlineData("Fixture", false)]
     [InlineData("bad_id", false)]

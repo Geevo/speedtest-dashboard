@@ -113,13 +113,6 @@ public sealed partial class LibreSpeedSpeedTestProvider(
                 "LibreSpeed server IDs must be positive 32-bit integers without leading zeroes.");
         }
 
-        if (request.IperfServerId is not null || request.Direction is not null)
-        {
-            return ProviderRequestValidationResult.Invalid(
-                SpeedTestFailureCodes.InvalidRequest,
-                "iPerf-specific fields are not valid for a LibreSpeed test.");
-        }
-
         return ProviderRequestValidationResult.Valid;
     }
 

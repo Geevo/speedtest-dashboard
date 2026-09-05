@@ -35,8 +35,6 @@ export type HistoryDetail = {
   startedAtUtc: string | null
   completedAtUtc: string
   requestedServerId: string | null
-  requestedIperfServerId: string | null
-  direction: 'upload' | 'download' | null
   result: SpeedTestResult | null
   egressIdentity: NetworkIdentityResponse | null
   failure: { code: string; message: string } | null

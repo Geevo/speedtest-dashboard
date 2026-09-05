@@ -239,7 +239,7 @@ public sealed class SqliteSpeedTestStoreTests
     private static SpeedTestJob CreateCompleted(TestDatabase database, ProviderId providerId)
     {
         var memory = new InMemorySpeedTestJobStore(database.Clock, database.Store);
-        var job = memory.Create(new SpeedTestRequest(providerId, "12345", null, null));
+        var job = memory.Create(new SpeedTestRequest(providerId, "12345"));
         memory.Transition(job.Id, SpeedTestJobStatus.Starting, "Starting", out _);
         memory.Transition(job.Id, SpeedTestJobStatus.Running, "Running", out _, egressIdentity: database.Identity);
         memory.Transition(job.Id, SpeedTestJobStatus.ProcessingResult, "Processing result", out _);
@@ -249,7 +249,7 @@ public sealed class SqliteSpeedTestStoreTests
 
     private static SpeedTestJob AdvanceToRunning(InMemorySpeedTestJobStore store, NetworkIdentity identity)
     {
-        var job = store.Create(new SpeedTestRequest(ProviderId.Ookla, "12345", null, null));
+        var job = store.Create(new SpeedTestRequest(ProviderId.Ookla, "12345"));
         store.Transition(job.Id, SpeedTestJobStatus.Starting, "Starting", out _);
         store.Transition(job.Id, SpeedTestJobStatus.Running, "Running", out var running, egressIdentity: identity);
         return running!;

@@ -235,7 +235,7 @@ public sealed class Milestone3EndpointTests : IClassFixture<DashboardWebApplicat
         using var factory = CreateFactory(new FakeSpeedTestProvider(), runWorker: false);
         using var client = factory.CreateClient();
         var store = factory.Services.GetRequiredService<ISpeedTestJobStore>();
-        var job = store.Create(new SpeedTestRequest(ProviderId.Parse("fixture"), null, null, null));
+        var job = store.Create(new SpeedTestRequest(ProviderId.Parse("fixture"), null));
 
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/tests/{job.Id}/events");
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);

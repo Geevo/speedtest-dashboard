@@ -146,17 +146,14 @@ public sealed class OoklaSpeedTestProviderTests
     }
 
     [Fact]
-    public void ProviderRequestValidationRejectsHostileAndMeaninglessFields()
+    public void ProviderRequestValidationRejectsHostileServerId()
     {
         var provider = OoklaTestFactory.Provider(new RecordingProcessRunner());
 
         var hostile = provider.ValidateRequest(new SpeedTestRequest(
-            ProviderId.Ookla, "123;touch /tmp/pwned", null, null));
-        var iperfField = provider.ValidateRequest(new SpeedTestRequest(
-            ProviderId.Ookla, null, Guid.NewGuid(), SpeedTestDirection.Upload));
+            ProviderId.Ookla, "123;touch /tmp/pwned"));
 
         Assert.False(hostile.IsValid);
-        Assert.False(iperfField.IsValid);
     }
 
     [Theory]
@@ -233,7 +230,7 @@ public sealed class OoklaSpeedTestProviderTests
 
     private static SpeedTestExecution Execution(string? serverId) => new(
         Guid.NewGuid(),
-        new SpeedTestRequest(ProviderId.Ookla, serverId, null, null),
+        new SpeedTestRequest(ProviderId.Ookla, serverId),
         new NetworkIdentity(null, null, DateTimeOffset.UtcNow, NetworkIdentityState.Unavailable));
 
     private sealed class AdvancingTimeProvider(DateTimeOffset now) : TimeProvider

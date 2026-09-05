@@ -9,7 +9,7 @@ The project is a new implementation inspired by the useful user-facing flows in 
 
 ## Milestone status
 
-Milestones 1 through 6 are implemented:
+Milestones 1 through 7 are implemented:
 
 - .NET 10 solution with API, Core, and Infrastructure projects
 - React 19, Vite, and TypeScript frontend
@@ -36,6 +36,7 @@ Milestones 1 through 6 are implemented:
 - persisted Overview latest/recent data and a responsive History page with throughput and latency charts plus inline expandable result detail
 - neutral light, dark, and system-default themes with a locally persisted explicit preference
 - pinned LibreSpeed CLI source packaging, structured public-server discovery, automatic/explicit selection, normalized Mbps results, and the shared provider/History workflow
+- roadmap cleanup that keeps the generic provider architecture while limiting the current product surface to implemented integrations
 
 Ookla and LibreSpeed are the two production speed-test providers. Both stay registered when their optional CLIs are absent. Ookla license acceptance is disabled by default; LibreSpeed requires no application-level acceptance flag. Terminal history is durable when `/data` is persisted, while the bounded execution queue remains in memory.
 
@@ -50,9 +51,15 @@ The repository intentionally uses three backend projects rather than a large cer
 
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the proposed contracts, database model, process-safety design, and milestone acceptance criteria.
 
+## Roadmap direction
+
+Authentication and authorization are next. Human dashboard access will use secure cookie-authenticated server sessions; future machine access will use separate API keys and stable contracts below `/api/v1`. Browser-local JWT access tokens are not the default dashboard design.
+
+Later milestones cover expected-egress evaluation, scheduling through the existing bounded queue, and richer test telemetry and application observability. Expected-egress rules will build on independent IPv4/IPv6 identity and report `expected`, `mismatch`, `unknown`, or `unconfigured`; they will not claim generic VPN detection. Additional provider or protocol integrations may be considered later.
+
 ## Speed-test execution engine
 
-`POST /api/tests` accepts only a validated provider ID and typed provider options. It cannot accept executable paths, server URLs, command strings, or arbitrary CLI flags. Each provider owns its executable and fixed arguments. Ookla IDs are limited to 1–10 decimal digits; LibreSpeed IDs must be positive 32-bit integers without leading zeroes.
+`POST /api/tests` accepts only a validated provider ID and an optional provider-owned server ID. It cannot accept executable paths, server URLs, command strings, or arbitrary CLI flags. Each provider owns its executable, fixed arguments, and request validation. Ookla IDs are limited to 1–10 decimal digits; LibreSpeed IDs must be positive 32-bit integers without leading zeroes. The validated-string provider identity and provider-side validation boundary remain extensible for future typed integrations.
 
 Accepted jobs use an in-memory lifecycle (`queued`, `starting`, `running`, `processingResult`, then a terminal state). Job state transitions are also persisted, but the queue remains bounded and process-local. It defaults to four waiting jobs and rejects excess admission with HTTP 429 and `Retry-After`; a rejected admission is removed rather than appearing in History. One background reader invokes at most one provider at a time so concurrent bandwidth tests cannot contaminate each other. Queued or running jobs can be cancelled, and a running provider receives a cancellation token.
 
@@ -111,7 +118,7 @@ The image builds LibreSpeed CLI `v1.0.13` from exact upstream commit `2f2408764d
 podman build --format docker \
   --build-arg INSTALL_OOKLA=true \
   --build-arg INSTALL_LIBRESPEED=true \
-  --tag speedtest-dashboard:milestone-6 .
+  --tag speedtest-dashboard:milestone-7 .
 ```
 
 `amd64` and `arm64` map explicitly to Go's corresponding target architectures with `CGO_ENABLED=0`, producing a static Linux binary. Go and source files are not copied into the runtime image. LibreSpeed CLI is LGPL-3.0 licensed; its license is installed at `/usr/share/licenses/librespeed-cli/LICENSE`, and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) records attribution and the exact source version.
@@ -244,7 +251,7 @@ npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
 npm audit --prefix src/SpeedtestDashboard.Web
 npm run check --prefix src/SpeedtestDashboard.Web
 npm run build --prefix src/SpeedtestDashboard.Web
-podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-6 .
+podman build --format docker --build-arg INSTALL_OOKLA=true --build-arg INSTALL_LIBRESPEED=true -t speedtest-dashboard:milestone-7 .
 ```
 
 Use `podman build --format docker` for the final command when Docker is unavailable. Podman's default OCI image format does not store Docker-compatible image health-check metadata; the Docker format preserves it while remaining runnable by Podman.
@@ -263,6 +270,5 @@ The application source is available under the [MIT License](LICENSE). Provider t
 
 - Ookla Speedtest CLI is proprietary, described by Ookla as for personal, non-commercial use, and governed by its separate EULA, Terms of Use, and Privacy Policy. It is not committed to this repository; build-time inclusion and runtime acceptance are both explicit.
 - LibreSpeed CLI is LGPL-3.0 licensed.
-- iPerf3 uses the three-clause BSD license.
 
 Container redistribution must preserve all required third-party notices and comply with Ookla's terms before the Ookla binary is included in a published image.

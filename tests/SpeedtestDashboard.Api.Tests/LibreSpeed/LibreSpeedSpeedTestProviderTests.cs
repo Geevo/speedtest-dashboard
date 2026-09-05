@@ -87,23 +87,15 @@ public sealed class LibreSpeedSpeedTestProviderTests
     }
 
     [Fact]
-    public void RequestValidation_RejectsHostileAndIperfFields()
+    public void RequestValidation_RejectsHostileServerId()
     {
         var provider = LibreSpeedTestFactory.Provider(VersionRunner());
 
         var hostile = provider.ValidateRequest(new SpeedTestRequest(
             ProviderId.LibreSpeed,
-            "49;touch /tmp/pwned",
-            null,
-            null));
-        var iperf = provider.ValidateRequest(new SpeedTestRequest(
-            ProviderId.LibreSpeed,
-            "49",
-            Guid.NewGuid(),
-            SpeedTestDirection.Download));
+            "49;touch /tmp/pwned"));
 
         Assert.False(hostile.IsValid);
-        Assert.False(iperf.IsValid);
     }
 
     [Fact]
@@ -184,6 +176,6 @@ public sealed class LibreSpeedSpeedTestProviderTests
 
     private static SpeedTestExecution Execution(string? serverId) => new(
         Guid.NewGuid(),
-        new SpeedTestRequest(ProviderId.LibreSpeed, serverId, null, null),
+        new SpeedTestRequest(ProviderId.LibreSpeed, serverId),
         new NetworkIdentity(null, null, DateTimeOffset.UtcNow, NetworkIdentityState.Unavailable));
 }

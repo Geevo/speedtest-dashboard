@@ -21,8 +21,6 @@ public sealed record SpeedTestHistoryRecord(
     DateTimeOffset? StartedAtUtc,
     DateTimeOffset CompletedAtUtc,
     string? RequestedServerId,
-    Guid? RequestedIperfServerId,
-    SpeedTestDirection? Direction,
     string? ServerId,
     string? ServerName,
     string? ServerLocation,

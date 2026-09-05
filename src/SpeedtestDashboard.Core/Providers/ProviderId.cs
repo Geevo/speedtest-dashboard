@@ -6,7 +6,6 @@ public readonly record struct ProviderId
 {
     public static readonly ProviderId Ookla = new("ookla");
     public static readonly ProviderId LibreSpeed = new("librespeed");
-    public static readonly ProviderId Iperf3 = new("iperf3");
 
     private ProviderId(string value)
     {
@@ -59,4 +58,3 @@ public readonly record struct ProviderId
 
     public override string ToString() => Value ?? string.Empty;
 }
-

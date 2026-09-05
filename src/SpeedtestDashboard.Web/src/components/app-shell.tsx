@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import {
   Activity,
-  Cable,
   ChartNoAxesCombined,
   ChevronLeft,
   Gauge,
@@ -16,7 +15,7 @@ import { getHealth } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
-export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'iperf3' | 'history' | 'settings'
+export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'history' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -32,7 +31,6 @@ const primaryNavigation = [
 const providerNavigation = [
   { id: 'ookla' as const, label: 'Ookla', icon: Activity },
   { id: 'librespeed' as const, label: 'LibreSpeed', icon: RadioTower },
-  { id: 'iperf3' as const, label: 'iPerf3', icon: Cable },
 ]
 
 export function AppShell({ activeItem, onNavigate, children }: AppShellProps) {

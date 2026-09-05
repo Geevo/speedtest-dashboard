@@ -137,9 +137,7 @@ public sealed class InMemorySpeedTestJobStoreTests
 
     internal static SpeedTestRequest CreateRequest() => new(
         ProviderId.Parse("fixture"),
-        ServerId: null,
-        IperfServerId: null,
-        Direction: null);
+        ServerId: null);
 
     internal static InMemorySpeedTestJobStore CreateStore() => new(TimeProvider.System);
 
@@ -183,4 +181,3 @@ public sealed class InMemorySpeedTestJobStoreTests
         Transition(store, jobId, SpeedTestJobStatus.ProcessingResult, out _);
     }
 }
-

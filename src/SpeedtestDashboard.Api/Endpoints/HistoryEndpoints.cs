@@ -218,8 +218,6 @@ public sealed record HistoryDetailResponse(
     DateTimeOffset? StartedAtUtc,
     DateTimeOffset CompletedAtUtc,
     string? RequestedServerId,
-    Guid? RequestedIperfServerId,
-    string? Direction,
     SpeedTestResultResponse? Result,
     NetworkIdentityResponse? EgressIdentity,
     SpeedTestFailureResponse? Failure,
@@ -234,8 +232,6 @@ public sealed record HistoryDetailResponse(
         record.StartedAtUtc,
         record.CompletedAtUtc,
         record.RequestedServerId,
-        record.RequestedIperfServerId,
-        record.Direction?.ToString().ToLowerInvariant(),
         record.Status == SpeedTestJobStatus.Completed
             ? new SpeedTestResultResponse(
                 record.ProviderId.Value,

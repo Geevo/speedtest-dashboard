@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SpeedtestDashboard.Core;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.LibreSpeed;
 
@@ -25,7 +26,7 @@ public sealed class LibreSpeedServerCatalogClient(
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, CatalogUri);
-            request.Headers.UserAgent.Add(new ProductInfoHeaderValue("SpeedtestDashboard", "0.6.0"));
+            request.Headers.UserAgent.Add(new ProductInfoHeaderValue("SpeedtestDashboard", AppConstants.Version));
             using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,

@@ -11,8 +11,6 @@ public sealed class SpeedTestJobEntity
     public DateTime? StartedAtUtc { get; set; }
     public DateTime? CompletedAtUtc { get; set; }
     public string? RequestedServerId { get; set; }
-    public Guid? RequestedIperfServerId { get; set; }
-    public string? Direction { get; set; }
     public string? FailureCode { get; set; }
     public string? FailureMessage { get; set; }
     public SpeedTestResultEntity? Result { get; set; }

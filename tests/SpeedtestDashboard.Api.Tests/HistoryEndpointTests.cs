@@ -79,7 +79,7 @@ public sealed class HistoryEndpointTests
             new NetworkAddressIdentity("2001:db8::20", NetworkAddressFamily.IPv6, "AS64501", "Fixture v6", null, "GB", "United Kingdom", null, "London", "fixture", "fixture"),
             DateTimeOffset.UtcNow,
             NetworkIdentityState.Complete);
-        var job = store.Create(new SpeedTestRequest(provider, "12345", null, null));
+        var job = store.Create(new SpeedTestRequest(provider, "12345"));
         store.Transition(job.Id, SpeedTestJobStatus.Starting, "Starting", out _);
         store.Transition(job.Id, SpeedTestJobStatus.Running, "Running", out _, egressIdentity: identity);
         if (status == SpeedTestJobStatus.Completed)

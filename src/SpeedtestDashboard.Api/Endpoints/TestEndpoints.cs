@@ -256,32 +256,14 @@ public static class TestEndpoints
             return false;
         }
 
-        SpeedTestDirection? direction = null;
-        if (!string.IsNullOrWhiteSpace(request.Direction))
-        {
-            direction = request.Direction.Trim().ToLowerInvariant() switch
-            {
-                "upload" => SpeedTestDirection.Upload,
-                "download" => SpeedTestDirection.Download,
-                _ => null
-            };
-            if (direction is null)
-            {
-                validationMessage = "Direction must be 'upload' or 'download'.";
-                return false;
-            }
-        }
-
-        mapped = new SpeedTestRequest(providerId, serverId, request.IperfServerId, direction);
+        mapped = new SpeedTestRequest(providerId, serverId);
         return true;
     }
 }
 
 public sealed record CreateTestRequest(
     string? ProviderId,
-    string? ServerId,
-    Guid? IperfServerId,
-    string? Direction);
+    string? ServerId);
 
 public sealed record CreateTestResponse(
     Guid Id,

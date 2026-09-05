@@ -217,9 +217,7 @@ public sealed class SqliteSpeedTestStore(
             Version = job.Version,
             Stage = job.Stage,
             CreatedAtUtc = job.CreatedAtUtc.UtcDateTime,
-            RequestedServerId = job.Request.ServerId,
-            RequestedIperfServerId = job.Request.IperfServerId,
-            Direction = DirectionValue(job.Request.Direction)
+            RequestedServerId = job.Request.ServerId
         };
         ApplyJob(entity, job);
         return entity;
@@ -255,8 +253,6 @@ public sealed class SqliteSpeedTestStore(
             CompletedAtUtc = job.CompletedAtUtc?.UtcDateTime
                 ?? throw new InvalidOperationException("A terminal speed-test job requires a completion timestamp."),
             RequestedServerId = job.Request.ServerId,
-            RequestedIperfServerId = job.Request.IperfServerId,
-            Direction = DirectionValue(job.Request.Direction),
             ServerId = job.Result?.ServerId,
             ServerName = job.Result?.ServerName,
             ServerLocation = job.Result?.ServerLocation,
@@ -284,8 +280,6 @@ public sealed class SqliteSpeedTestStore(
         StartedAtUtc = job.StartedAtUtc,
         CompletedAtUtc = job.CompletedAtUtc!.Value,
         RequestedServerId = job.RequestedServerId,
-        RequestedIperfServerId = job.RequestedIperfServerId,
-        Direction = job.Direction,
         FailureCode = job.FailureCode,
         FailureMessage = job.FailureMessage
     };
@@ -353,8 +347,6 @@ public sealed class SqliteSpeedTestStore(
             AsUtcOffset(entity.StartedAtUtc),
             AsUtcOffset(entity.CompletedAtUtc),
             entity.RequestedServerId,
-            entity.RequestedIperfServerId,
-            ParseDirection(entity.Direction),
             entity.ServerId,
             entity.ServerName,
             entity.ServerLocation,
@@ -392,7 +384,7 @@ public sealed class SqliteSpeedTestStore(
             : null;
         return new SpeedTestJob(
             job.Id,
-            new SpeedTestRequest(providerId, job.RequestedServerId, job.RequestedIperfServerId, ParseDirection(job.Direction)),
+            new SpeedTestRequest(providerId, job.RequestedServerId),
             ParseStatus(job.Status),
             job.Stage,
             job.Version,
@@ -449,10 +441,6 @@ public sealed class SqliteSpeedTestStore(
     private static SpeedTestJobStatus ParseStatus(string status) => status == "processingResult"
         ? SpeedTestJobStatus.ProcessingResult
         : Enum.Parse<SpeedTestJobStatus>(status, ignoreCase: true);
-
-    private static string? DirectionValue(SpeedTestDirection? direction) => direction?.ToString().ToLowerInvariant();
-    private static SpeedTestDirection? ParseDirection(string? direction) =>
-        Enum.TryParse<SpeedTestDirection>(direction, ignoreCase: true, out var parsed) ? parsed : null;
 
     private static ProviderId ParseProvider(string value) => ProviderId.TryParse(value, out var providerId)
         ? providerId

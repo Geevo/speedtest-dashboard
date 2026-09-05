@@ -10,8 +10,6 @@ public sealed class SpeedTestResultEntity
     public DateTime? StartedAtUtc { get; set; }
     public DateTime CompletedAtUtc { get; set; }
     public string? RequestedServerId { get; set; }
-    public Guid? RequestedIperfServerId { get; set; }
-    public string? Direction { get; set; }
     public string? ServerId { get; set; }
     public string? ServerName { get; set; }
     public string? ServerLocation { get; set; }

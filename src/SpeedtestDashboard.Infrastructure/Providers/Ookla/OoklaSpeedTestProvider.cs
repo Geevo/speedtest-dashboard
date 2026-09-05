@@ -101,13 +101,6 @@ public sealed partial class OoklaSpeedTestProvider(
                 "Ookla server IDs must contain 1 to 10 decimal digits and cannot start with zero.");
         }
 
-        if (request.IperfServerId is not null || request.Direction is not null)
-        {
-            return ProviderRequestValidationResult.Invalid(
-                SpeedTestFailureCodes.InvalidRequest,
-                "iPerf-specific fields are not valid for an Ookla test.");
-        }
-
         return ProviderRequestValidationResult.Valid;
     }
 

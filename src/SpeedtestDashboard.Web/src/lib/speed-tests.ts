@@ -72,8 +72,6 @@ export type SpeedTestJob = {
 export type CreateSpeedTestRequest = {
   providerId: string
   serverId?: string | null
-  iperfServerId?: string | null
-  direction?: 'upload' | 'download' | null
 }
 
 export type CreateSpeedTestResponse = {

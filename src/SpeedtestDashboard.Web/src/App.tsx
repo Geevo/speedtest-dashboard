@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { AppShell, type NavigationItem } from './components/app-shell'
 import { OverviewPage } from './components/overview-page'
-import { PlaceholderPage } from './components/placeholder-page'
 import { LibreSpeedPage, OoklaPage } from './components/ookla-page'
 import { SettingsPage } from './components/settings-page'
 import { useTheme } from './hooks/use-theme'
@@ -34,10 +33,8 @@ export default function App() {
           onJobIdChange={setLibreSpeedJobId}
           onOpenSettings={() => setActiveItem('settings')}
         />
-      ) : activeItem === 'settings' ? (
-        <SettingsPage theme={theme} onThemeChange={setTheme} />
       ) : (
-        <PlaceholderPage item={activeItem} onBack={() => setActiveItem('overview')} />
+        <SettingsPage theme={theme} onThemeChange={setTheme} />
       )}
     </AppShell>
   )
