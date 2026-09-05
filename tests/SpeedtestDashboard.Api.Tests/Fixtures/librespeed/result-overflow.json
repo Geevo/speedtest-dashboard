@@ -1,0 +1,9 @@
+[
+  {
+    "server": { "name": "London", "url": "https://london.example.test/backend" },
+    "ping": 11.4,
+    "jitter": 0.7,
+    "upload": 104.2,
+    "download": 1e1000
+  }
+]

@@ -1,0 +1,3 @@
+[
+  { "id": "not-a-number", "name": "Broken", "server": "javascript:alert(1)" }
+]

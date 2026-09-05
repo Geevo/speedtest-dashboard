@@ -1,0 +1,4 @@
+[
+  { "id": 49, "name": "One", "server": "https://one.example.test" },
+  { "id": 49, "name": "Two", "server": "https://two.example.test" }
+]

@@ -1,0 +1,25 @@
+[
+  {
+    "id": 49,
+    "name": "London, England (Example Network)",
+    "server": "https://london.example.test/backend",
+    "dlURL": "garbage.php",
+    "ulURL": "empty.php",
+    "pingURL": "empty.php",
+    "getIpURL": "getIP.php",
+    "sponsorName": "Example Network",
+    "sponsorURL": "https://sponsor.example.test/",
+    "futureField": "ignored"
+  },
+  {
+    "id": 82,
+    "name": "Tōkyō, Japan (A573)",
+    "server": "https://tokyo.example.test/",
+    "dlURL": "backend/garbage.php",
+    "ulURL": "backend/empty.php",
+    "pingURL": "backend/empty.php",
+    "getIpURL": "backend/getIP.php",
+    "sponsorName": "A573",
+    "sponsorURL": "https://sponsor-two.example.test/"
+  }
+]

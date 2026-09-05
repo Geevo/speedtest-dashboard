@@ -1,0 +1,30 @@
+[
+  {
+    "timestamp": "2026-04-30T06:42:34Z",
+    "server": {
+      "name": "London, England (Example Network)",
+      "url": "https://london.example.test/backend"
+    },
+    "client": {
+      "ip": "192.0.2.40",
+      "hostname": "customer.example.test",
+      "city": "Example City",
+      "region": "Example Region",
+      "country": "ZZ",
+      "loc": "0.0000,0.0000",
+      "org": "AS64500 Example Network",
+      "postal": "EX0 0PL",
+      "timezone": "Etc/UTC"
+    },
+    "bytes_sent": 157286400,
+    "bytes_received": 1401375000,
+    "ping": 11.4,
+    "jitter": 0.7,
+    "upload": 104.2,
+    "download": 934.25,
+    "share": "",
+    "unknownFutureField": {
+      "ignored": true
+    }
+  }
+]
