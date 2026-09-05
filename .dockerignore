@@ -1,0 +1,13 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+.git
+.github
+.idea
+.vscode
+data
+*.db
+*.md
+!README.md
+!THIRD_PARTY_NOTICES.md

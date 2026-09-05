@@ -1,0 +1,69 @@
+services:
+  speedtest-dashboard:
+    build:
+      context: .
+      args:
+        # Set true only for a local build after reviewing Ookla's separate license terms.
+        INSTALL_OOKLA: "false"
+        # Builds pinned LGPL-3.0 LibreSpeed CLI source into the image.
+        INSTALL_LIBRESPEED: "true"
+    image: speedtest-dashboard:local
+    ports:
+      - "8080:8080"
+    volumes:
+      - speedtest-data:/data
+    environment:
+      ReverseProxy__TrustForwardedHeaders: "false"
+      # Optional Network Identity tuning (defaults shown):
+      # NetworkIdentity__SuccessCacheSeconds: "300"
+      # NetworkIdentity__FailureCacheSeconds: "30"
+      # NetworkIdentity__RefreshThrottleSeconds: "10"
+      # NetworkIdentity__RequestTimeoutSeconds: "5"
+      # Enable IPinfo Lite enrichment only after supplying a token:
+      # NetworkIdentity__MetadataProvider: "ipinfo"
+      # NetworkIdentity__Ipinfo__Token: "replace-with-an-ipinfo-token"
+      # Optional in-memory speed-test orchestration tuning (defaults shown):
+      # SpeedTests__QueueCapacity: "4"
+      # SpeedTests__QueueFullRetryAfterSeconds: "5"
+      # SpeedTests__SseHeartbeatSeconds: "20"
+      # Process safety limits used by future provider adapters (defaults shown):
+      # Processes__DefaultTimeoutSeconds: "120"
+      # Processes__MaxTimeoutSeconds: "600"
+      # Processes__DefaultStdoutLimitBytes: "2097152"
+      # Processes__DefaultStderrLimitBytes: "1048576"
+      # Processes__AbsoluteOutputLimitBytes: "8388608"
+      # Ookla is registered even when the optional CLI is absent (defaults shown):
+      # Providers__Ookla__Enabled: "true"
+      # Set both true only after the administrator explicitly accepts Ookla's terms:
+      # Providers__Ookla__AcceptLicense: "false"
+      # Providers__Ookla__AcceptGdpr: "false"
+      # Providers__Ookla__ExecutablePath: "/usr/bin/speedtest"
+      # Providers__Ookla__HealthTimeoutSeconds: "5"
+      # Providers__Ookla__HealthCacheSeconds: "45"
+      # Providers__Ookla__TestTimeoutSeconds: "180"
+      # Providers__Ookla__ServerListTimeoutSeconds: "30"
+      # Providers__Ookla__ServerCacheSeconds: "300"
+      # Providers__Ookla__MaximumServers: "100"
+      # LibreSpeed is registered even when the optional CLI is absent (defaults shown):
+      # Providers__LibreSpeed__Enabled: "true"
+      # Providers__LibreSpeed__ExecutablePath: "/usr/local/bin/librespeed-cli"
+      # Providers__LibreSpeed__HealthTimeoutSeconds: "5"
+      # Providers__LibreSpeed__HealthCacheSeconds: "45"
+      # Providers__LibreSpeed__TestTimeoutSeconds: "180"
+      # Providers__LibreSpeed__ServerListTimeoutSeconds: "20"
+      # Providers__LibreSpeed__ServerCacheSeconds: "300"
+      # Providers__LibreSpeed__MaximumServers: "250"
+      # Providers__LibreSpeed__DisableIcmp: "true"
+      # Providers__LibreSpeed__PreferHttps: "true"
+      # Durable history storage (defaults shown):
+      # Storage__DatabasePath: "/data/speedtest.db"
+      # Storage__CommandTimeoutSeconds: "10"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  speedtest-data:
