@@ -9,7 +9,7 @@ namespace SpeedtestDashboard.Api.Tests.Authentication;
 
 public sealed class AuthenticationEndpointTests
 {
-    private const string Password = "lab123";
+    private const string Password = "lab-secret1";
 
     [Fact]
     public async Task FreshInstanceStartsAnonymousAndNoticeCanBeHidden()
@@ -65,6 +65,47 @@ public sealed class AuthenticationEndpointTests
         Assert.NotEqual(Password, user.PasswordHash);
         Assert.StartsWith("AQAAAA", user.PasswordHash);
         Assert.True((await database.DashboardSettings.SingleAsync()).AuthenticationEnabled);
+    }
+
+    [Fact]
+    public async Task SetupRejectsPasswordsBelowSixCharacters()
+    {
+        using var factory = new AuthWebApplicationFactory();
+        using var client = factory.CreateHttpsClient();
+
+        var token = await GetCsrfAsync(client);
+        using var response = await PostWithCsrfAsync(client, "/api/auth/setup", token,
+            new { username = "admin", password = "abcde" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_credentials", await ProblemCodeAsync(response));
+    }
+
+    [Fact]
+    public async Task SetupAcceptsASixCharacterPassword()
+    {
+        using var factory = new AuthWebApplicationFactory();
+        using var client = factory.CreateHttpsClient();
+
+        var token = await GetCsrfAsync(client);
+        using var response = await PostWithCsrfAsync(client, "/api/auth/setup", token,
+            new { username = "admin", password = "abcdef" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetupAcceptsLongPassphrasesWithNoCompositionRules()
+    {
+        using var factory = new AuthWebApplicationFactory();
+        using var client = factory.CreateHttpsClient();
+
+        var token = await GetCsrfAsync(client);
+        const string passphrase = "correct horse battery staple and a few more words for length";
+        using var response = await PostWithCsrfAsync(client, "/api/auth/setup", token,
+            new { username = "admin", password = passphrase });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
