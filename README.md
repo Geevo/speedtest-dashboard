@@ -32,7 +32,7 @@ Screenshots use a temporary database with sanitized sample data. The IP address 
 - persistent SQLite results with filters, pagination, details, and deletion
 - 24-hour, 7-day, 30-day, 90-day, and all-time statistics
 - one-off, interval, daily, and weekly schedules with IANA time zones
-- backend-observed IPv4 and IPv6 identity with optional IPinfo Lite metadata
+- backend-observed IPv4 and IPv6 identity with optional IPConfig.io metadata
 - optional single-operator login and an independent machine API key
 - light, dark, and system themes
 - OCI images for `linux/amd64` and `linux/arm64`
@@ -234,7 +234,6 @@ Environment variables use double underscores for nested keys.
 | `NetworkIdentity__RefreshThrottleSeconds` | `10` |
 | `NetworkIdentity__RequestTimeoutSeconds` | `5` |
 | `NetworkIdentity__MetadataProvider` | `none` |
-| `NetworkIdentity__Ipinfo__Token` | empty |
 | `Providers__Ookla__Enabled` | `true` |
 | `Providers__Ookla__ExecutablePath` | `/usr/bin/speedtest` |
 | `Providers__Ookla__AcceptLicense` | `false` |
@@ -259,6 +258,16 @@ Environment variables use double underscores for nested keys.
 The LXC environment overrides the storage paths and LibreSpeed executable path for its filesystem layout. Configuration validation rejects unsafe or out-of-range values at startup.
 
 When `ReverseProxy__TrustForwardedHeaders=true`, the app clears ASP.NET Core's known-proxy restrictions. Enable it only when untrusted clients cannot reach port 8080 directly and the proxy replaces forwarded headers.
+
+### IP metadata
+
+`NetworkIdentity__MetadataProvider` defaults to `none`, which discovers IPv4 and IPv6 addresses without any enrichment lookup. Set it to `ipconfig` to annotate each discovered address using [IPConfig.io](https://ipconfig.io), which needs no account or token.
+
+The response supplies the country, country code, AS number, and AS organization. Region and city are included only when the address database can place the address: ordinary ISP addresses usually resolve to one, while anycast and datacenter addresses often do not. The dashboard shows those fields when they are present and leaves them empty otherwise; it never infers them. IPConfig.io reports no ISP separate from the AS organization, and no metadata field is used to claim VPN status.
+
+Each address is looked up separately over HTTPS, results are cached with the identity snapshot, and a failed or slow lookup leaves address discovery intact. Enabling this sends each discovered public IP address to IPConfig.io.
+
+Installations that used the removed IPinfo Lite provider should replace `NetworkIdentity__MetadataProvider=ipinfo` with `ipconfig` and drop `NetworkIdentity__Ipinfo__Token`; `ipinfo` is no longer a valid selection and fails validation at startup. Results already stored keep the source label recorded when they were written.
 
 ## Backup and upgrade
 

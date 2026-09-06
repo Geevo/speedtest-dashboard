@@ -1,7 +1,7 @@
 {
   "ip": "8.8.8.8",
   "asn": "AS15169",
-  "as_name": "Google LLC",
-  "country_code": "ZZ",
+  "asn_org": "Google LLC",
+  "country_iso": "ZZ",
   "country": "Unknown"
 }

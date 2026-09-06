@@ -21,22 +21,21 @@ public static class NetworkIdentityServiceCollectionExtensions
             .Validate(options => options.RefreshThrottleSeconds is >= 1 and <= 3600, "Refresh throttle must be between 1 and 3600 seconds.")
             .Validate(options => options.RequestTimeoutSeconds is >= 1 and <= 60, "Request timeout must be between 1 and 60 seconds.")
             .Validate(options => options.MetadataProvider.Equals("none", StringComparison.OrdinalIgnoreCase) ||
-                options.MetadataProvider.Equals("ipinfo", StringComparison.OrdinalIgnoreCase),
-                "Metadata provider must be 'none' or 'ipinfo'.")
+                options.MetadataProvider.Equals("ipconfig", StringComparison.OrdinalIgnoreCase),
+                "Metadata provider must be 'none' or 'ipconfig'.")
             .ValidateOnStart();
 
         AddHttpClient(services, IpifyPublicIpResolver.IPv4ClientName, "https://api.ipify.org/", "text/plain");
         AddHttpClient(services, IpifyPublicIpResolver.IPv6ClientName, "https://api6.ipify.org/", "text/plain");
-        AddHttpClient(services, IpinfoLiteMetadataProvider.ClientName, "https://api.ipinfo.io/", "application/json");
+        AddHttpClient(services, IpConfigIoMetadataProvider.ClientName, "https://ipconfig.io/", "application/json");
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPublicIpResolver, IpifyPublicIpResolver>();
 
         var configuredOptions = section.Get<NetworkIdentityOptions>() ?? new NetworkIdentityOptions();
-        if (configuredOptions.MetadataProvider.Equals("ipinfo", StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrWhiteSpace(configuredOptions.Ipinfo.Token))
+        if (configuredOptions.MetadataProvider.Equals("ipconfig", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddSingleton<IIpMetadataProvider, IpinfoLiteMetadataProvider>();
+            services.AddSingleton<IIpMetadataProvider, IpConfigIoMetadataProvider>();
         }
 
         services.AddSingleton<INetworkIdentityService, NetworkIdentityService>();

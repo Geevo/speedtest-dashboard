@@ -7,6 +7,7 @@ import {
   type NetworkAddressIdentity,
   type NetworkIdentityResponse,
 } from '../lib/api'
+import { formatLocation } from '../lib/network-identity'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
@@ -85,7 +86,7 @@ export function NetworkIdentityPanel() {
 
       <div className="mt-3 flex flex-col gap-2 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
         <p>{data.isStale ? 'Last checked' : 'Checked'} {formatRelativeTime(data.checkedAtUtc, now)}</p>
-        {hasIpinfoMetadata(data) && <p>IP metadata by <a className="font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink" href="https://ipinfo.io" rel="noreferrer" target="_blank">IPinfo</a></p>}
+        {hasIpConfigMetadata(data) && <p>IP metadata by <a className="font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink" href="https://ipconfig.io" rel="noreferrer" target="_blank">IPConfig.io</a></p>}
       </div>
 
       {(data.isStale || refreshError) && (
@@ -110,6 +111,7 @@ export function NetworkIdentityPanel() {
 }
 
 function AddressBlock({ label, identity }: { label: string; identity: NetworkAddressIdentity | null }) {
+  const location = identity ? formatLocation(identity) : null
   return (
     <article className="py-5 md:min-h-36 md:px-6 md:first:pl-0">
       <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">
@@ -122,11 +124,7 @@ function AddressBlock({ label, identity }: { label: string; identity: NetworkAdd
           {(identity.asn || identity.asName) && (
             <p className="mt-3 text-sm font-semibold">{[identity.asn, identity.asName].filter(Boolean).join(' · ')}</p>
           )}
-          {identity.countryName && (
-            <p className="mt-1 text-sm text-ink-muted">
-              {identity.countryName}{identity.countryCode ? ` · ${identity.countryCode}` : ''}
-            </p>
-          )}
+          {location && <p className="mt-1 text-sm text-ink-muted">{location}</p>}
         </div>
       ) : (
         <p className="text-lg font-semibold text-ink-muted">Not available</p>
@@ -163,8 +161,8 @@ function hasMixedEgress(identity: NetworkIdentityResponse) {
   return asnDiffers || countryDiffers
 }
 
-function hasIpinfoMetadata(identity: NetworkIdentityResponse) {
-  return [identity.ipv4, identity.ipv6].some((address) => address?.metadataSource === 'IPinfo Lite')
+function hasIpConfigMetadata(identity: NetworkIdentityResponse) {
+  return [identity.ipv4, identity.ipv6].some((address) => address?.metadataSource === 'IPConfig.io')
 }
 
 function formatRelativeTime(timestamp: string, now: number) {

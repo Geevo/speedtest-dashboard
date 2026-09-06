@@ -13,11 +13,4 @@ public sealed class NetworkIdentityOptions
     public int RequestTimeoutSeconds { get; set; } = 5;
 
     public string MetadataProvider { get; set; } = "none";
-
-    public IpinfoOptions Ipinfo { get; set; } = new();
-}
-
-public sealed class IpinfoOptions
-{
-    public string Token { get; set; } = string.Empty;
 }

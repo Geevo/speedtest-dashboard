@@ -34,7 +34,7 @@ public sealed class NetworkEndpointTests : IClassFixture<DashboardWebApplication
                 null,
                 null,
                 "ipify",
-                "IPinfo Lite"),
+                "IPConfig.io"),
             null,
             new DateTimeOffset(2026, 9, 3, 20, 30, 0, TimeSpan.Zero),
             NetworkIdentityState.Complete)));

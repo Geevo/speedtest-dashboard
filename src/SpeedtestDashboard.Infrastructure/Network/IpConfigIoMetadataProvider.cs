@@ -1,21 +1,18 @@
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Core.Network;
 
 namespace SpeedtestDashboard.Infrastructure.Network;
 
-public sealed partial class IpinfoLiteMetadataProvider(
+public sealed partial class IpConfigIoMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    IOptions<NetworkIdentityOptions> options,
-    ILogger<IpinfoLiteMetadataProvider> logger) : IIpMetadataProvider
+    ILogger<IpConfigIoMetadataProvider> logger) : IIpMetadataProvider
 {
-    public const string ClientName = "network-identity-ipinfo-lite";
-    private const string SourceName = "IPinfo Lite";
+    public const string ClientName = "network-identity-ipconfig-io";
+    private const string SourceName = "IPConfig.io";
 
     private static readonly HashSet<string> IsoCountryCodes = CultureInfo
         .GetCultures(CultureTypes.SpecificCultures)
@@ -28,8 +25,7 @@ public sealed partial class IpinfoLiteMetadataProvider(
         {
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"lite/{Uri.EscapeDataString(address.ToString())}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Value.Ipinfo.Token);
+                $"json?ip={Uri.EscapeDataString(address.ToString())}");
 
             using var response = await httpClientFactory
                 .CreateClient(ClientName)
@@ -60,7 +56,7 @@ public sealed partial class IpinfoLiteMetadataProvider(
                 asn = null;
             }
 
-            var countryCode = GetOptionalString(root, "country_code")?.ToUpperInvariant();
+            var countryCode = GetOptionalString(root, "country_iso")?.ToUpperInvariant();
             var countryName = GetOptionalString(root, "country");
             if (countryCode is null || countryName is null || !IsoCountryCodes.Contains(countryCode))
             {
@@ -71,12 +67,12 @@ public sealed partial class IpinfoLiteMetadataProvider(
             return new IpMetadata(
                 address,
                 asn,
-                GetOptionalString(root, "as_name"),
+                GetOptionalString(root, "asn_org"),
                 Isp: null,
                 countryCode,
                 countryName,
-                Region: null,
-                City: null,
+                Region: GetOptionalString(root, "region_name"),
+                City: GetOptionalString(root, "city"),
                 SourceName);
         }
         catch (JsonException exception)
