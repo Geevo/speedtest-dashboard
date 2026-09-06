@@ -182,7 +182,7 @@ public sealed class SqliteStatisticsService(
         CancellationToken cancellationToken)
     {
         var comparisons = new List<ProviderStatisticsComparison>(2);
-        foreach (var provider in new[] { ProviderId.Ookla, ProviderId.Parse("librespeed") })
+        foreach (var provider in new[] { ProviderId.LibreSpeed, ProviderId.Ookla })
         {
             var filtered = Filter(context.SpeedTestResults.AsNoTracking(), provider, fromUtc, toUtc);
             var tests = await CountTestsAsync(filtered, cancellationToken);

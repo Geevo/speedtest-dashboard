@@ -9,7 +9,10 @@ public sealed class SpeedTestProviderRegistry : ISpeedTestProviderRegistry
 
     public SpeedTestProviderRegistry(IEnumerable<ISpeedTestProvider> providers)
     {
-        var providerList = providers.OrderBy(provider => provider.Id.Value, StringComparer.Ordinal).ToArray();
+        var providerList = providers
+            .OrderBy(provider => ProviderPriority(provider.Id))
+            .ThenBy(provider => provider.Id.Value, StringComparer.Ordinal)
+            .ToArray();
         var duplicate = providerList
             .GroupBy(provider => provider.Id)
             .FirstOrDefault(group => group.Count() > 1);
@@ -26,5 +29,9 @@ public sealed class SpeedTestProviderRegistry : ISpeedTestProviderRegistry
 
     public bool TryGet(ProviderId providerId, out ISpeedTestProvider provider) =>
         _providers.TryGetValue(providerId, out provider!);
-}
 
+    private static int ProviderPriority(ProviderId providerId) =>
+        providerId == ProviderId.LibreSpeed ? 0 :
+        providerId == ProviderId.Ookla ? 1 :
+        2;
+}

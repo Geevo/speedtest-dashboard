@@ -104,16 +104,16 @@ export default function App() {
         <Suspense fallback={<div className="grid min-h-[60vh] place-items-center text-sm text-ink-muted">Loading statistics</div>}>
           <StatisticsPage />
         </Suspense>
-      ) : activeItem === 'ookla' ? (
-        <OoklaPage
-          jobId={ooklaJobId}
-          onJobIdChange={setOoklaJobId}
-          onOpenSettings={() => navigate('settings')}
-        />
       ) : activeItem === 'librespeed' ? (
         <LibreSpeedPage
           jobId={libreSpeedJobId}
           onJobIdChange={setLibreSpeedJobId}
+          onOpenSettings={() => navigate('settings')}
+        />
+      ) : activeItem === 'ookla' ? (
+        <OoklaPage
+          jobId={ooklaJobId}
+          onJobIdChange={setOoklaJobId}
           onOpenSettings={() => navigate('settings')}
         />
       ) : activeItem === 'schedules' ? (

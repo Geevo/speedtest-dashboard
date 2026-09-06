@@ -234,16 +234,6 @@ Environment variables use double underscores for nested keys.
 | `NetworkIdentity__RefreshThrottleSeconds` | `10` |
 | `NetworkIdentity__RequestTimeoutSeconds` | `5` |
 | `NetworkIdentity__MetadataProvider` | `none` |
-| `Providers__Ookla__Enabled` | `true` |
-| `Providers__Ookla__ExecutablePath` | `/usr/bin/speedtest` |
-| `Providers__Ookla__AcceptLicense` | `false` |
-| `Providers__Ookla__AcceptGdpr` | `false` |
-| `Providers__Ookla__HealthTimeoutSeconds` | `5` |
-| `Providers__Ookla__HealthCacheSeconds` | `45` |
-| `Providers__Ookla__TestTimeoutSeconds` | `180` |
-| `Providers__Ookla__ServerListTimeoutSeconds` | `30` |
-| `Providers__Ookla__ServerCacheSeconds` | `300` |
-| `Providers__Ookla__MaximumServers` | `100` |
 | `Providers__LibreSpeed__Enabled` | `true` |
 | `Providers__LibreSpeed__ExecutablePath` | `/usr/local/bin/librespeed-cli` (OCI) |
 | `Providers__LibreSpeed__HealthTimeoutSeconds` | `5` |
@@ -254,6 +244,16 @@ Environment variables use double underscores for nested keys.
 | `Providers__LibreSpeed__MaximumServers` | `250` |
 | `Providers__LibreSpeed__DisableIcmp` | `true` |
 | `Providers__LibreSpeed__PreferHttps` | `true` |
+| `Providers__Ookla__Enabled` | `true` |
+| `Providers__Ookla__ExecutablePath` | `/usr/bin/speedtest` |
+| `Providers__Ookla__AcceptLicense` | `false` |
+| `Providers__Ookla__AcceptGdpr` | `false` |
+| `Providers__Ookla__HealthTimeoutSeconds` | `5` |
+| `Providers__Ookla__HealthCacheSeconds` | `45` |
+| `Providers__Ookla__TestTimeoutSeconds` | `180` |
+| `Providers__Ookla__ServerListTimeoutSeconds` | `30` |
+| `Providers__Ookla__ServerCacheSeconds` | `300` |
+| `Providers__Ookla__MaximumServers` | `100` |
 
 The LXC environment overrides the storage paths and LibreSpeed executable path for its filesystem layout. Configuration validation rejects unsafe or out-of-range values at startup.
 

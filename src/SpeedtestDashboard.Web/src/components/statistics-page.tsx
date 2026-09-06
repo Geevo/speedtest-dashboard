@@ -75,8 +75,8 @@ export function StatisticsPage() {
           <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">Provider</span>
           <select value={provider} className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-semibold outline-none focus:border-signal" onChange={(event) => setProvider(event.target.value as typeof provider)}>
             <option value="all">All providers</option>
-            <option value="ookla">Ookla</option>
             <option value="librespeed">LibreSpeed</option>
+            <option value="ookla">Ookla</option>
           </select>
         </label>
       </section>

@@ -1,7 +1,7 @@
 import { apiFetch } from './api'
 
 export type StatisticsRange = '24h' | '7d' | '30d' | '90d' | 'all'
-export type StatisticsProvider = 'ookla' | 'librespeed'
+export type StatisticsProvider = 'librespeed' | 'ookla'
 
 export type TestCountStatistics = {
   total: number

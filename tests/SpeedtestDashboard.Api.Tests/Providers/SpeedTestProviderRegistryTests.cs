@@ -24,6 +24,16 @@ public sealed class SpeedTestProviderRegistryTests
     }
 
     [Fact]
+    public void ProductionProviders_ListLibreSpeedFirstRegardlessOfRegistrationOrder()
+    {
+        var ookla = new FakeSpeedTestProvider { Id = ProviderId.Ookla };
+        var libreSpeed = new FakeSpeedTestProvider { Id = ProviderId.LibreSpeed };
+        var registry = new SpeedTestProviderRegistry([ookla, libreSpeed]);
+
+        Assert.Equal([libreSpeed, ookla], registry.GetAll());
+    }
+
+    [Fact]
     public void UnknownProvider_DoesNotResolveOrFallback()
     {
         var provider = new FakeSpeedTestProvider();

@@ -18,7 +18,7 @@ import { getHealth, type SessionResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
-export type NavigationItem = 'overview' | 'ookla' | 'librespeed' | 'results' | 'statistics' | 'schedules' | 'settings'
+export type NavigationItem = 'overview' | 'librespeed' | 'ookla' | 'results' | 'statistics' | 'schedules' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -36,8 +36,8 @@ const primaryNavigation = [
 ]
 
 const providerNavigation = [
-  { id: 'ookla' as const, label: 'Ookla', icon: Activity },
   { id: 'librespeed' as const, label: 'LibreSpeed', icon: RadioTower },
+  { id: 'ookla' as const, label: 'Ookla', icon: Activity },
 ]
 
 export function AppShell({ activeItem, onNavigate, children, session, onSignOut }: AppShellProps) {

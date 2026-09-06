@@ -66,9 +66,9 @@ public static class StatisticsEndpoints
         if (values.TryGetValue("provider", out var suppliedProvider) && !string.IsNullOrWhiteSpace(suppliedProvider))
         {
             var providerValue = suppliedProvider.ToString().ToLowerInvariant();
-            if (providerValue is not ("ookla" or "librespeed"))
+            if (providerValue is not ("librespeed" or "ookla"))
             {
-                error = "Provider must be ookla or librespeed.";
+                error = "Provider must be librespeed or ookla.";
                 return false;
             }
 

@@ -34,17 +34,10 @@ type ProviderPageProps = {
 }
 
 type ProviderPageConfig = {
-  id: 'ookla' | 'librespeed'
+  id: 'librespeed' | 'ookla'
   displayName: string
   serverSearchLabel: string
   unavailableGuidance: string
-}
-
-const ooklaConfig: ProviderPageConfig = {
-  id: 'ookla',
-  displayName: 'Ookla',
-  serverSearchLabel: 'Search ID, sponsor, city, or country',
-  unavailableGuidance: 'Check the Ookla settings and license acceptance.',
 }
 
 const libreSpeedConfig: ProviderPageConfig = {
@@ -54,12 +47,19 @@ const libreSpeedConfig: ProviderPageConfig = {
   unavailableGuidance: 'Include the LibreSpeed CLI when building the image.',
 }
 
-export function OoklaPage(props: ProviderPageProps) {
-  return <SpeedTestProviderPage {...props} config={ooklaConfig} />
+const ooklaConfig: ProviderPageConfig = {
+  id: 'ookla',
+  displayName: 'Ookla',
+  serverSearchLabel: 'Search ID, sponsor, city, or country',
+  unavailableGuidance: 'Check the Ookla settings and license acceptance.',
 }
 
 export function LibreSpeedPage(props: ProviderPageProps) {
   return <SpeedTestProviderPage {...props} config={libreSpeedConfig} />
+}
+
+export function OoklaPage(props: ProviderPageProps) {
+  return <SpeedTestProviderPage {...props} config={ooklaConfig} />
 }
 
 function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }: ProviderPageProps & { config: ProviderPageConfig }) {
