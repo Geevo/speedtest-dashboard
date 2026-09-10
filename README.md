@@ -138,7 +138,7 @@ Send the key as `Authorization: Bearer <api-key>`. Reads are limited to 120 requ
 | `GET /api/v1/schedules` | List schedules |
 | `GET /api/v1/schedules/{id}` | Read one schedule |
 
-`POST /api/v1/tests` accepts `{ "providerId": "librespeed", "serverId": null }`. An optional `Idempotency-Key` of at most 128 characters is retained for 24 hours. Reusing it with the same request returns the original job; changing the request returns `409`.
+`POST /api/v1/tests` accepts `{ "providerId": "librespeed", "serverId": null }`. An optional `Idempotency-Key` of at most 128 characters is retained for 24 hours. Reusing it with the same request returns the original job, including concurrent retries; changing the request returns `409`.
 
 The `/api/v1` surface does not expose History deletion, schedule mutation, or authentication administration.
 

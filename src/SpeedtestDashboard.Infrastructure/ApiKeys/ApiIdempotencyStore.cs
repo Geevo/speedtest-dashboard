@@ -9,6 +9,22 @@ public sealed class ApiIdempotencyStore(
     TimeProvider timeProvider) : IApiIdempotencyStore
 {
     private static readonly TimeSpan RetentionPeriod = TimeSpan.FromHours(24);
+    // One instance owns the database. Fixed lock stripes bound memory regardless of key count.
+    private readonly SemaphoreSlim[] _gates = Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+
+    public async ValueTask<IDisposable> AcquireAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var gate = _gates[(uint)key.GetHashCode(StringComparison.Ordinal) % (uint)_gates.Length];
+        await gate.WaitAsync(cancellationToken);
+        return new Lease(gate);
+    }
+
+    private sealed class Lease(SemaphoreSlim gate) : IDisposable
+    {
+        private SemaphoreSlim? _gate = gate;
+
+        public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+    }
 
     public async Task<ApiIdempotencyRecord?> TryGetAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -49,13 +65,6 @@ public sealed class ApiIdempotencyStore(
             existing.CreatedAtUtc = now;
         }
 
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // A concurrent request already recorded this key; the first writer wins.
-        }
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

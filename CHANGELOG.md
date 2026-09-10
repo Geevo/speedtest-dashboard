@@ -6,6 +6,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Fixed
 
+- serialized API idempotency lookup, submission, and recording so concurrent retries return one job
 - restored browser mutations on anonymous HTTP installations while retaining HTTPS requirements for credentials
 - serialized authentication settings changes so concurrent preferences cannot turn off newly enabled login protection
 

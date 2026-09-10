@@ -139,6 +139,10 @@ public static class TestEndpoints
                 $"Idempotency-Key must be at most {MaximumIdempotencyKeyLength} characters.");
         }
 
+        using var idempotencyLease = string.IsNullOrEmpty(idempotencyKey)
+            ? null
+            : await idempotencyStore.AcquireAsync(idempotencyKey, cancellationToken);
+
         string? requestHash = null;
         if (!string.IsNullOrEmpty(idempotencyKey))
         {
@@ -170,7 +174,8 @@ public static class TestEndpoints
 
         if (!string.IsNullOrEmpty(idempotencyKey))
         {
-            await idempotencyStore.SaveAsync(idempotencyKey, requestHash!, result.Job!.Id, cancellationToken);
+            // Admission has already succeeded; a disconnected caller must not erase deduplication.
+            await idempotencyStore.SaveAsync(idempotencyKey, requestHash!, result.Job!.Id, CancellationToken.None);
         }
 
         var response = CreateTestResponse.From(result.Job!, basePath);
