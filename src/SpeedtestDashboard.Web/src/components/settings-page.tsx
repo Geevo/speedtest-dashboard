@@ -16,6 +16,7 @@ import {
 } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
+import { ApiReference } from './api-reference'
 
 const choices = [
   { id: 'system' as const, label: 'System', icon: Laptop },
@@ -511,6 +512,7 @@ function ApiKeySection() {
           </div>
         </div>
       )}
+      {state?.enabled && <ApiReference />}
     </section>
   )
 }

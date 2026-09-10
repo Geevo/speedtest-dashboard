@@ -9,6 +9,8 @@
   --color-line: oklch(0.86 0.006 260);
   --color-signal: oklch(0.57 0.19 255);
   --color-signal-soft: oklch(0.93 0.035 255);
+  --color-api-post: oklch(0.48 0.13 155);
+  --color-api-post-soft: oklch(0.93 0.035 155);
   --color-ok: oklch(0.57 0.115 155);
   --color-danger: oklch(0.56 0.18 25);
   --color-danger-soft: oklch(0.94 0.035 25);
@@ -35,6 +37,8 @@
   --color-line: oklch(0.29 0.007 260);
   --color-signal: oklch(0.72 0.15 255);
   --color-signal-soft: oklch(0.27 0.055 255);
+  --color-api-post: oklch(0.76 0.12 155);
+  --color-api-post-soft: oklch(0.27 0.04 155);
   --color-ok: oklch(0.72 0.12 155);
   --color-danger: oklch(0.72 0.16 25);
   --color-danger-soft: oklch(0.27 0.05 25);
@@ -52,6 +56,8 @@
     --color-line: oklch(0.29 0.007 260);
     --color-signal: oklch(0.72 0.15 255);
     --color-signal-soft: oklch(0.27 0.055 255);
+    --color-api-post: oklch(0.76 0.12 155);
+    --color-api-post-soft: oklch(0.27 0.04 155);
     --color-ok: oklch(0.72 0.12 155);
     --color-danger: oklch(0.72 0.16 25);
     --color-danger-soft: oklch(0.27 0.05 25);
