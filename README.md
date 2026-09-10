@@ -38,16 +38,25 @@ Screenshots use a temporary database with sanitized sample data. The IP address 
 - OCI images for `linux/amd64` and `linux/arm64`
 - native Debian-based Proxmox LXC templates for amd64 and arm64
 
-## Quick start
+## Deployment
 
-Published images use `ghcr.io/<owner>/speedtest-dashboard`. Replace `<owner>` with the repository owner until the final package name is set.
+Docker/Podman and native Proxmox LXC are equally supported packaging targets. Both include LibreSpeed and use the same application source.
+
+| Target | Start here | Runtime and persistent state |
+| --- | --- | --- |
+| Docker or rootless Podman | [Container guide](packaging/containers/README.md) | OCI image, `/data` volume |
+| Proxmox LXC | [Native LXC guide](packaging/proxmox/README.md) | Debian + systemd, `/var/lib/speedtest-dashboard` |
+
+For Docker, run from the repository root (replace `<owner>` with the repository owner):
 
 ```bash
 export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/<owner>/speedtest-dashboard:0.12.0-rc.1
-docker compose up -d
+docker compose -f packaging/containers/compose.yml up -d
 ```
 
-Open `http://localhost:8080`. New installations allow anonymous access. Configure login protection in Settings after placing the dashboard behind HTTPS. On an isolated trusted network, `Authentication__AllowInsecureHttp=true` permits login over HTTP.
+For Proxmox, download the matching release template and follow the native LXC guide to create an unprivileged container.
+
+Open `http://<server-address>:8080`. New installations allow anonymous access. Configure login protection in Settings after placing the dashboard behind HTTPS. On an isolated trusted network, `Authentication__AllowInsecureHttp=true` permits login over HTTP.
 
 ## Persistent storage
 
@@ -59,7 +68,7 @@ The container is disposable. Mount `/data` if you want state to survive updates.
 - login state and the protected API credential
 - Data Protection keys used for sessions and API-key encryption
 
-The production Compose file uses the `speedtest-data` named volume. Do not run two dashboard instances against the same SQLite file.
+The production [Compose file](packaging/containers/compose.yml) uses the `speedtest-data` named volume. Do not run two dashboard instances against the same SQLite file.
 
 For native Proxmox LXC, durable state lives at `/var/lib/speedtest-dashboard`, not `/data`.
 
@@ -83,25 +92,9 @@ Tests run with `--json --no-icmp --secure`. The application does not enable resu
 
 ### Ookla
 
-Ookla support is available, but published images and LXC templates do not contain the official CLI. The project does not grant redistribution rights for it.
+The integration is included in the application; the official CLI is excluded from all public images and LXC templates. Local builds can add the pinned, checksum-verified CLI with one opt-in flag. Runtime use requires explicit licence and GDPR acceptance.
 
-After reviewing Ookla's terms, build a local OCI image with the pinned CLI package:
-
-```bash
-docker build \
-  --build-arg INSTALL_OOKLA=true \
-  -t speedtest-dashboard:local .
-```
-
-Then set both runtime acceptance values:
-
-```yaml
-environment:
-  Providers__Ookla__AcceptLicense: "true"
-  Providers__Ookla__AcceptGdpr: "true"
-```
-
-The Dockerfile pins Ookla CLI `1.2.0.84-1.ea6b6773cf` and verifies separate amd64 and arm64 package checksums. Acceptance remains explicit and is passed to the CLI as `--accept-license` and `--accept-gdpr`.
+See [Enable Ookla](docs/ookla.md) for complete Docker, Podman, and native Proxmox commands.
 
 ## Scheduling
 
@@ -141,73 +134,6 @@ Send the key as `Authorization: Bearer <api-key>`. Reads are limited to 120 requ
 `POST /api/v1/tests` accepts `{ "providerId": "librespeed", "serverId": null }`. An optional `Idempotency-Key` of at most 128 characters is retained for 24 hours. Reusing it with the same request returns the original job, including concurrent retries; changing the request returns `409`.
 
 The `/api/v1` surface does not expose History deletion, schedule mutation, or authentication administration.
-
-## Docker
-
-The same OCI image supports Docker and Podman. The normal image includes the dashboard and LibreSpeed CLI, but not Ookla CLI.
-
-`docker-compose.yml` is a hardened production example: non-root, read-only root filesystem, writable `/data`, tmpfs `/tmp`, all capabilities dropped, and no-new-privileges enabled. It does not use the Docker socket, privileged mode, `NET_ADMIN`, or host networking.
-
-For a local source build:
-
-```bash
-docker compose -f docker-compose.dev.yml up --build -d
-```
-
-Release tags are `latest`, major, major.minor, full semantic version, and `sha-<short>`. `latest` moves only for stable releases. GHCR is the primary registry; mirrors must use the same manifest and digest.
-
-## Podman
-
-Rootless Podman consumes the same published image:
-
-```bash
-podman volume create speedtest-data
-podman run -d --name speedtest-dashboard \
-  -p 8080:8080 \
-  -v speedtest-data:/data:Z \
-  --read-only \
-  --tmpfs /tmp:rw,size=64m,mode=1777 \
-  --cap-drop ALL \
-  --security-opt no-new-privileges \
-  ghcr.io/<owner>/speedtest-dashboard:0.12.0-rc.1
-```
-
-The named volume preserves state when the container is replaced.
-
-## Proxmox LXC
-
-Proxmox uses a native LXC appliance. It does not run Docker or Podman and is not built from OCI layers. The application runs directly under systemd as the `speedtest` user in an unprivileged container.
-
-Release assets are named `speedtest-dashboard_<version>_amd64.tar.zst` and `speedtest-dashboard_<version>_arm64.tar.zst`. After verifying `SHA256SUMS`, copy the matching archive to Proxmox template storage and create the container:
-
-```bash
-wget <release-url>/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
-  -O /var/lib/vz/template/cache/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
-
-pct create 120 \
-  local:vztmpl/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
-  --hostname speedtest-dashboard \
-  --unprivileged 1 \
-  --cores 2 \
-  --memory 1024 \
-  --swap 512 \
-  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
-  --start 1
-```
-
-The target for this release is Proxmox VE 9 with a Debian 12 root filesystem. Final support requires the release candidate to pass the real-host checklist in [packaging/proxmox/README.md](packaging/proxmox/README.md); archive creation alone is not runtime validation.
-
-Inside the container:
-
-```bash
-systemctl status speedtest-dashboard
-journalctl -u speedtest-dashboard
-curl -fsS http://127.0.0.1:8080/api/health
-```
-
-The dashboard listens on port 8080. Configure Proxmox firewall access yourself. The appliance does not change Proxmox networking, DNS, time, or firewall settings and does not install SSH. Use `pct console` or `pct enter` for administration.
-
-New templates are intended for new installations. Before attempting a manual in-place update, back up the container and `/var/lib/speedtest-dashboard`. A native package/update mechanism is not part of this release.
 
 ## Configuration
 
@@ -304,4 +230,4 @@ npm ci --prefix src/SpeedtestDashboard.Web
 npm run dev --prefix src/SpeedtestDashboard.Web
 ```
 
-Vite serves `http://localhost:5173` and proxies `/api` to the backend. See [CONTRIBUTING.md](CONTRIBUTING.md) for the verification commands and provider safety rules. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) records the current implementation boundaries without duplicating release history.
+Vite serves `http://localhost:5173` and proxies `/api` to the backend. See [CONTRIBUTING.md](CONTRIBUTING.md) for the verification commands and provider safety rules. See [architecture](docs/architecture.md) for implementation boundaries and [release maintenance](docs/releasing.md) for packaging validation.

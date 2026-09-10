@@ -77,6 +77,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: packaging/containers/Dockerfile
           platforms: linux/amd64
           load: true
           tags: speedtest-dashboard:smoke-amd64
@@ -114,10 +115,12 @@ jobs:
           wait_for_health
           docker exec speedtest-smoke sh -ec '
             test -x /usr/local/bin/librespeed-cli
-            ! command -v speedtest
-            ! command -v node
-            ! command -v npm
-            ! command -v go
+            for excluded in speedtest node npm go; do
+              if command -v "$excluded"; then
+                echo "Unexpected executable in public image: $excluded" >&2
+                exit 1
+              fi
+            done
             test -z "$(dotnet --list-sdks)"
             test ! -e /source
             test ! -e /root/.npm
@@ -134,6 +137,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: packaging/containers/Dockerfile
           platforms: linux/arm64
           load: true
           tags: speedtest-dashboard:smoke-arm64
@@ -161,6 +165,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: packaging/containers/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
@@ -204,7 +209,7 @@ jobs:
         with:
           go-version: 1.27.1
       - name: Install rootfs tools
-        run: sudo apt-get update && sudo apt-get install --yes debootstrap qemu-user-static zstd
+        run: sudo apt-get update && sudo apt-get install --yes debian-archive-keyring debootstrap qemu-user-static zstd
       - id: release
         shell: bash
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
@@ -215,10 +220,20 @@ jobs:
         run: |
           set -euo pipefail
           archive="artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst"
-          tar --zstd -tf "$archive" | grep -q './etc/systemd/system/speedtest-dashboard.service'
-          tar --zstd -tf "$archive" | grep -q './opt/speedtest-dashboard/SpeedtestDashboard.Api'
-          tar --zstd -tf "$archive" | grep -q './opt/speedtest-dashboard/librespeed-cli'
-          ! tar --zstd -tf "$archive" | grep -Eq '(^|/)(docker|podman)(/|$)'
+          contents=$(tar --zstd -tf "$archive")
+          grep -q './etc/systemd/system/speedtest-dashboard.service' <<< "$contents"
+          grep -q './opt/speedtest-dashboard/SpeedtestDashboard.Api' <<< "$contents"
+          grep -q './opt/speedtest-dashboard/librespeed-cli' <<< "$contents"
+          grep -q './usr/sbin/ifup' <<< "$contents"
+          grep -q './usr/sbin/ip' <<< "$contents"
+          grep -q './usr/bin/ping' <<< "$contents"
+          grep -q './usr/sbin/dhclient' <<< "$contents"
+          grep -q './usr/sbin/init' <<< "$contents"
+          if grep -Eq '(^|/)(docker|podman)(/|$)|/(speedtest|ookla-speedtest.deb)$' <<< "$contents"; then
+            echo "Public native template contains an excluded runtime or Ookla CLI" >&2
+            exit 1
+          fi
+          tar --zstd -xOf "$archive" ./etc/speedtest-dashboard/release | grep -qx 'ookla_cli=false'
           tar --zstd -xOf "$archive" ./etc/speedtest-dashboard/release
           du -h "$archive"
       - name: Extract rootfs for SBOM
@@ -237,9 +252,9 @@ jobs:
         with:
           name: proxmox-${{ matrix.architecture }}
           path: |
-            artifacts/*.tar.zst
-            artifacts/*.sha256
-            artifacts/*.spdx.json
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.spdx.json
           if-no-files-found: error
 
   release:
@@ -253,17 +268,27 @@ jobs:
           pattern: proxmox-*
           path: artifacts
           merge-multiple: true
-      - name: Create checksums
+      - id: release
+        name: Create public artifact checksums
         working-directory: artifacts
-        run: sha256sum *.tar.zst > SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          sha256sum "speedtest-dashboard_${version}_amd64.tar.zst" "speedtest-dashboard_${version}_arm64.tar.zst" > SHA256SUMS
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            artifacts/*.tar.zst
-            artifacts/*.sha256
-            artifacts/*.spdx.json
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.tar.zst
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.spdx.json
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.tar.zst
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.spdx.json
             artifacts/SHA256SUMS
+          fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}

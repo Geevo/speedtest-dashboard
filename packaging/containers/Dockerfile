@@ -9,13 +9,14 @@ RUN npm run build
 
 FROM golang:1.27.1-bookworm AS librespeed-build
 ARG TARGETARCH
-ARG LIBRESPEED_VERSION=1.0.13
-ARG LIBRESPEED_COMMIT=2f2408764d88e9601aa64a03b340f8e3151003e4
-ARG LIBRESPEED_SOURCE_SHA256=5e6622697bf5b651d552458997856dcd7f86e07e4bd44508aaad1be238085b11
+# Defaults are pinned once in packaging/providers/build-librespeed.sh.
+ARG LIBRESPEED_VERSION
+ARG LIBRESPEED_COMMIT
+ARG LIBRESPEED_SOURCE_SHA256
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
-COPY scripts/build-librespeed.sh /usr/local/bin/build-librespeed
+COPY packaging/providers/build-librespeed.sh /usr/local/bin/build-librespeed
 RUN chmod 0755 /usr/local/bin/build-librespeed \
     && mkdir -p /out \
     && TARGETARCH="$TARGETARCH" \
@@ -58,9 +59,6 @@ ARG BUILD_DATE=unknown
 ARG SOURCE_URL=""
 ARG DOCUMENTATION_URL=""
 ARG INSTALL_OOKLA=false
-ARG OOKLA_PACKAGE_VERSION=1.2.0.84-1.ea6b6773cf
-ARG OOKLA_AMD64_SHA256=35e084567a6388631fb10cf01e5e0d6b57a67d34ede2b72ba111b3d9164c8b94
-ARG OOKLA_ARM64_SHA256=98e7de9db3bf181d08bc67e647bcfc71349c8014e387289c08e54e5c55d82f37
 LABEL org.opencontainers.image.title="Speedtest Dashboard" \
       org.opencontainers.image.description="A self-hosted dashboard for testing a server or container network connection." \
       org.opencontainers.image.source="$SOURCE_URL" \
@@ -75,21 +73,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data /usr/share/doc/speedtest-dashboard /usr/share/licenses/speedtest-dashboard \
     && chown app:app /data
-RUN if [ "$INSTALL_OOKLA" = "true" ]; then \
-      case "$TARGETARCH" in \
-        amd64) OOKLA_ARCH="amd64"; OOKLA_SHA256="$OOKLA_AMD64_SHA256" ;; \
-        arm64) OOKLA_ARCH="arm64"; OOKLA_SHA256="$OOKLA_ARM64_SHA256" ;; \
-        *) echo "Unsupported Ookla target architecture: $TARGETARCH" >&2; exit 1 ;; \
-      esac; \
-      OOKLA_PACKAGE="speedtest_${OOKLA_PACKAGE_VERSION}_${OOKLA_ARCH}.deb"; \
-      OOKLA_URL="https://packagecloud.io/ookla/speedtest-cli/packages/debian/bookworm/${OOKLA_PACKAGE}/download.deb?distro_version_id=215"; \
-      curl --fail --location --silent --show-error "$OOKLA_URL" --output /tmp/ookla-speedtest.deb; \
-      echo "$OOKLA_SHA256  /tmp/ookla-speedtest.deb" | sha256sum --check --strict -; \
-      dpkg --install /tmp/ookla-speedtest.deb; \
-      rm -f /tmp/ookla-speedtest.deb; \
+COPY packaging/providers/download-ookla.sh packaging/providers/OOKLA_NOTICE.md /tmp/ookla/
+RUN set -eu; if [ "$INSTALL_OOKLA" = "true" ]; then \
+      TARGETARCH="$TARGETARCH" OUTPUT_DIR=/tmp/ookla sh /tmp/ookla/download-ookla.sh; \
+      dpkg --install /tmp/ookla/ookla-speedtest.deb; \
+      cp /tmp/ookla/OOKLA_NOTICE.md /usr/share/doc/speedtest-dashboard/OOKLA_NOTICE.md; \
     elif [ "$INSTALL_OOKLA" != "false" ]; then \
       echo "INSTALL_OOKLA must be true or false" >&2; exit 1; \
-    fi
+    fi; \
+    rm -rf /tmp/ookla
 COPY --from=librespeed-build --chmod=0755 /out/librespeed-cli /usr/local/bin/librespeed-cli
 COPY --from=librespeed-build --chmod=0644 /out/LICENSE.librespeed-cli /usr/share/licenses/librespeed-cli/LICENSE
 WORKDIR /app

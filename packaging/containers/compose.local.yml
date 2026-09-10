@@ -1,0 +1,28 @@
+name: speedtest-dashboard
+
+services:
+  speedtest-dashboard:
+    build:
+      context: ../..
+      dockerfile: packaging/containers/Dockerfile
+      args:
+        INSTALL_OOKLA: "${INSTALL_OOKLA:-false}"
+    image: ${SPEEDTEST_DASHBOARD_IMAGE:-speedtest-dashboard:local}
+    ports:
+      - "8080:8080"
+    volumes:
+      - speedtest-data:/data
+    environment:
+      Authentication__AllowInsecureHttp: "${ALLOW_INSECURE_HTTP:-false}"
+      Providers__Ookla__AcceptLicense: "${OOKLA_ACCEPT_LICENSE:-false}"
+      Providers__Ookla__AcceptGdpr: "${OOKLA_ACCEPT_GDPR:-false}"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  speedtest-data:

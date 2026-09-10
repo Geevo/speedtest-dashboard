@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 --version VERSION --architecture amd64|arm64 [--commit SHA] [--output DIRECTORY]" >&2
+  echo "Usage: $0 --version VERSION --architecture amd64|arm64 [--commit SHA] [--output DIRECTORY] [--install-ookla]" >&2
   exit 2
 }
 
@@ -10,6 +10,7 @@ version=
 architecture=
 commit=unknown
 output=
+install_ookla=false
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -17,6 +18,7 @@ while [ "$#" -gt 0 ]; do
     --architecture) [ "$#" -ge 2 ] || usage; architecture=$2; shift 2 ;;
     --commit) [ "$#" -ge 2 ] || usage; commit=$2; shift 2 ;;
     --output) [ "$#" -ge 2 ] || usage; output=$2; shift 2 ;;
+    --install-ookla) install_ookla=true; shift ;;
     *) usage ;;
   esac
 done
@@ -50,6 +52,12 @@ for command in debootstrap dotnet npm go curl dpkg sha256sum tar zstd; do
   }
 done
 
+debian_keyring=/usr/share/keyrings/debian-archive-keyring.gpg
+if [ ! -r "$debian_keyring" ]; then
+  echo "Required Debian archive keyring not found: $debian_keyring" >&2
+  exit 1
+fi
+
 host_architecture=$(dpkg --print-architecture)
 bootstrap=debootstrap
 if [ "$host_architecture" != "$architecture" ]; then
@@ -74,7 +82,11 @@ web_dist="$work_dir/web-dist"
 publish_dir="$work_dir/publish"
 librespeed_dir="$work_dir/librespeed"
 rootfs="$work_dir/rootfs"
-artifact="$output/speedtest-dashboard_${version}_${architecture}.tar.zst"
+artifact_suffix=
+if [ "$install_ookla" = true ]; then
+  artifact_suffix=_ookla
+fi
+artifact="$output/speedtest-dashboard_${version}_${architecture}${artifact_suffix}.tar.zst"
 
 npm ci --prefix "$repo_root/src/SpeedtestDashboard.Web"
 npm run build --prefix "$repo_root/src/SpeedtestDashboard.Web"
@@ -98,15 +110,24 @@ dotnet publish "$repo_root/src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csp
   -p:SourceRevisionId="$commit" \
   -p:Version="$version"
 
-TARGETARCH="$architecture" OUTPUT_DIR="$librespeed_dir" "$repo_root/scripts/build-librespeed.sh"
+TARGETARCH="$architecture" OUTPUT_DIR="$librespeed_dir" "$repo_root/packaging/providers/build-librespeed.sh"
 
 $elevate "$bootstrap" \
   --arch="$architecture" \
+  --keyring="$debian_keyring" \
   --variant=minbase \
-  --include=ca-certificates,curl,libicu72,libssl3,systemd,systemd-sysv,tzdata,zlib1g \
+  --include=ca-certificates,curl,ifupdown2,iproute2,iputils-ping,isc-dhcp-client,libicu72,libssl3,systemd,systemd-sysv,tzdata,zlib1g \
   bookworm \
   "$rootfs" \
   http://deb.debian.org/debian
+
+if [ "$install_ookla" = true ]; then
+  TARGETARCH="$architecture" OUTPUT_DIR="$work_dir/ookla" \
+    "$repo_root/packaging/providers/download-ookla.sh"
+  $elevate install -m 0644 "$work_dir/ookla/ookla-speedtest.deb" "$rootfs/tmp/ookla-speedtest.deb"
+  $elevate chroot "$rootfs" dpkg --install /tmp/ookla-speedtest.deb
+  $elevate rm -f "$rootfs/tmp/ookla-speedtest.deb"
+fi
 
 $elevate chroot "$rootfs" groupadd --system speedtest
 $elevate chroot "$rootfs" useradd \
@@ -125,13 +146,16 @@ $elevate install -d -m 0755 "$rootfs/opt/speedtest-dashboard/third-party-license
 $elevate install -m 0644 "$repo_root/LICENSE" "$rootfs/opt/speedtest-dashboard/LICENSE"
 $elevate install -m 0644 "$repo_root/THIRD_PARTY_NOTICES.md" "$rootfs/opt/speedtest-dashboard/THIRD_PARTY_NOTICES.md"
 $elevate install -m 0644 "$librespeed_dir/LICENSE.librespeed-cli" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.librespeed-cli"
+if [ "$install_ookla" = true ]; then
+  $elevate install -m 0644 "$repo_root/packaging/providers/OOKLA_NOTICE.md" "$rootfs/opt/speedtest-dashboard/third-party-licenses/OOKLA_NOTICE.md"
+fi
 
 $elevate install -d -m 0750 "$rootfs/etc/speedtest-dashboard"
 $elevate install -m 0640 "$script_dir/environment" "$rootfs/etc/speedtest-dashboard/environment"
 build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 release_file="$work_dir/release"
-printf 'version=%s\ncommit=%s\narchitecture=%s\nbuild_date=%s\n' \
-  "$version" "$commit" "$architecture" "$build_date" > "$release_file"
+printf 'version=%s\ncommit=%s\narchitecture=%s\nbuild_date=%s\nookla_cli=%s\n' \
+  "$version" "$commit" "$architecture" "$build_date" "$install_ookla" > "$release_file"
 $elevate install -m 0644 "$release_file" "$rootfs/etc/speedtest-dashboard/release"
 
 $elevate install -d -o "$service_uid" -g "$service_gid" -m 0750 "$rootfs/var/lib/speedtest-dashboard"
@@ -155,5 +179,5 @@ $elevate tar \
   --directory "$rootfs" \
   . | zstd -19 -T0 --force -o "$artifact"
 
-sha256sum "$artifact" > "$artifact.sha256"
+(cd "$output" && sha256sum "$(basename "$artifact")") > "$artifact.sha256"
 echo "$artifact"

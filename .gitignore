@@ -1,22 +1,70 @@
 # .NET
 **/bin/
 **/obj/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
 *.user
 *.suo
 
 # Frontend
 **/node_modules/
 **/dist/
+**/dist-ssr/
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/.vite/
 *.tsbuildinfo
 
-# Runtime data
+# Local builds and packaging output
+/artifacts/
+/sbom-rootfs/
+/out/
+*.tar.zst
+*.tar.zst.sha256
+*.oci.tar
+
+# Runtime data and credentials
+.data/
 data/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+**/dataprotection/
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/appsettings.Local.json
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Personal notes, evaluations, and temporary output
+/.local/
+/private/
+/scratch/
+/tmp/
+/RELEASE_READINESS.md
+/IMPLEMENTATION_PLAN.md
+*.local
+*.log
+logs/
 
 # Editors and OS
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~

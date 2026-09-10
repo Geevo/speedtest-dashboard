@@ -2,7 +2,7 @@
 
 ## Local setup
 
-Install .NET SDK 10, Node.js 22+, and npm. Follow the development commands in [README.md](README.md), using a disposable `.data` directory.
+Install .NET SDK 10, Node.js 22+, and npm. Follow the development commands in [README.md](README.md), using a disposable `.data` directory. Deployment recipes live in [packaging/](packaging/README.md); implementation boundaries and UI guidelines live in [docs/architecture.md](docs/architecture.md) and [docs/design.md](docs/design.md).
 
 ## Before opening a pull request
 
@@ -41,3 +41,20 @@ Commit lockfiles. Non-Microsoft packages use a 14-day release-age cooldown enfor
 ## Pull requests
 
 Keep changes focused. Update tests, user-facing copy, configuration documentation, and third-party notices when behavior changes. Describe manual checks and anything that could not be verified, especially architecture, container, or Proxmox runtime claims.
+
+## Repository hygiene and packaging
+
+Keep local evaluations and scratch notes in ignored `.local/` or outside the
+checkout. `artifacts/` is ignored build output. Never commit runtime databases,
+Data Protection keys, local environment files, credentials, or built appliances.
+Use sanitized examples and fixtures when adding documentation or tests.
+
+Before staging, review `git status --short` and
+`git ls-files -ci --exclude-standard`; ignore rules do not untrack existing files
+or erase history. See [release maintenance](docs/releasing.md) before publishing
+an existing private repository.
+
+When changing packaging, check both [container](packaging/containers/README.md)
+and [native LXC](packaging/proxmox/README.md) paths. Keep provider pins in
+`packaging/providers/`, verify checksum failures stop the build, and preserve
+explicit Ookla acceptance. Public release builds must exclude the Ookla CLI.
