@@ -4,8 +4,14 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## Unreleased
 
+### Fixed
+
+- restored browser mutations on anonymous HTTP installations while retaining HTTPS requirements for credentials
+- serialized authentication settings changes so concurrent preferences cannot turn off newly enabled login protection
+
 ### Changed
 
+- deleted the local account and password when disabling login protection so re-enabling it uses fresh credentials
 - replaced IPinfo Lite with token-free IPConfig.io metadata covering country, AS details, and region and city where the address can be placed; select `NetworkIdentity__MetadataProvider=ipconfig` and drop `NetworkIdentity__Ipinfo__Token`, because `ipinfo` is no longer a valid provider selection
 - prepared one OCI build for amd64 and arm64 with LibreSpeed included and Ookla excluded
 - added independent native Proxmox LXC template tooling for amd64 and arm64

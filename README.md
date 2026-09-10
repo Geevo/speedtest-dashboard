@@ -65,11 +65,11 @@ For native Proxmox LXC, durable state lives at `/var/lib/speedtest-dashboard`, n
 
 ## Authentication
 
-Login protection is off on a fresh database. Settings can create one local account and turn protection on or off. There is no registration, account list, email recovery, or role system.
+Login protection is off on a fresh database. Settings can create one local account and turn protection on or off. Turning protection off deletes the local account and password, so turning it on again creates fresh credentials. There is no registration, account list, email recovery, or role system.
 
 Usernames are 3–64 characters using letters, digits, `.`, `_`, or `-`. Passwords are 6–128 characters with no composition rule. Five failed logins lock the account for 15 minutes; login requests are also limited to 10 per minute per source IP.
 
-Browser sessions use an `HttpOnly`, `SameSite=Lax` cookie with a 12-hour sliding lifetime. Cookies are Secure unless `Authentication__AllowInsecureHttp=true`. Unsafe cookie-authenticated requests use an antiforgery token. Health and session bootstrap routes remain anonymous.
+Browser sessions use an `HttpOnly`, `SameSite=Lax` cookie with a 12-hour sliding lifetime. Cookies are Secure unless `Authentication__AllowInsecureHttp=true`. Unsafe cookie-authenticated requests use an antiforgery token. Anonymous HTTP dashboards can also obtain antiforgery tokens; credential setup and login still require HTTPS unless the insecure-HTTP override is enabled. Health and session bootstrap routes remain anonymous.
 
 The machine API uses a separate instance-wide bearer key. Generate, view, rotate, or revoke it in Settings. A dashboard session does not authenticate `/api/v1`, and an API key does not sign in to the dashboard.
 

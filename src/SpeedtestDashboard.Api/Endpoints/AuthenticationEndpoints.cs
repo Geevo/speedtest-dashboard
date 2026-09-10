@@ -76,9 +76,19 @@ public static partial class AuthenticationEndpoints
             : Results.Ok(SessionResponse.ForUser(user, state.ShowDisabledWarning));
     }
 
-    private static IResult GetCsrf(HttpContext context, IAntiforgery antiforgery)
+    private static IResult GetCsrf(
+        HttpContext context,
+        IAntiforgery antiforgery,
+        DashboardAuthenticationState state,
+        IOptions<DashboardAuthenticationOptions> options)
     {
         context.Response.Headers.CacheControl = "no-store";
+        if (state.IsEnabled && !options.Value.AllowInsecureHttp && !context.Request.IsHttps)
+        {
+            return Problem(StatusCodes.Status400BadRequest, "https_required",
+                "Use HTTPS to initialize request protection while login protection is enabled.");
+        }
+
         var tokens = antiforgery.GetAndStoreTokens(context);
         return Results.Ok(new CsrfResponse(tokens.RequestToken!));
     }
@@ -147,7 +157,7 @@ public static partial class AuthenticationEndpoints
         IOptions<DashboardAuthenticationOptions> options,
         ILogger<Program> logger)
     {
-        await state.MutationLock.WaitAsync(context.RequestAborted);
+        await state.WaitForMutationAsync(context.RequestAborted);
         try
         {
             context.Response.Headers.CacheControl = "no-store";
@@ -247,39 +257,66 @@ public static partial class AuthenticationEndpoints
         DashboardAuthenticationState state,
         ILogger<Program> logger)
     {
-        var user = await userManager.GetUserAsync(context.User);
-        if (user is null || !await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+        await state.WaitForMutationAsync(context.RequestAborted);
+        try
         {
-            return Problem(StatusCodes.Status400BadRequest, "password_confirmation_failed",
-                "The current password is incorrect.");
-        }
+            var user = await userManager.GetUserAsync(context.User);
+            if (user is null || !await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+            {
+                return Problem(StatusCodes.Status400BadRequest, "password_confirmation_failed",
+                    "The current password is incorrect.");
+            }
 
-        var settings = await GetSettingsAsync(database);
-        settings.AuthenticationEnabled = false;
-        await database.SaveChangesAsync();
-        state.Set(false, settings.ShowAuthenticationDisabledWarning);
-        await signInManager.SignOutAsync();
-        logger.LogInformation("Login protection was disabled from dashboard settings.");
-        return Results.Ok(SessionResponse.Disabled(accountConfigured: true, state.ShowDisabledWarning));
+            await using var transaction = await database.Database.BeginTransactionAsync(context.RequestAborted);
+            var settings = await GetSettingsAsync(database);
+            settings.AuthenticationEnabled = false;
+            await database.SaveChangesAsync(context.RequestAborted);
+
+            var deleted = await userManager.DeleteAsync(user);
+            if (!deleted.Succeeded)
+            {
+                return Problem(StatusCodes.Status500InternalServerError, "account_removal_failed",
+                    "Login protection could not be disabled because the local account could not be removed.");
+            }
+
+            await transaction.CommitAsync(context.RequestAborted);
+            state.Set(false, settings.ShowAuthenticationDisabledWarning);
+            await signInManager.SignOutAsync();
+            logger.LogInformation("Login protection was disabled and the local account was removed from dashboard settings.");
+            return Results.Ok(SessionResponse.Disabled(accountConfigured: false, state.ShowDisabledWarning));
+        }
+        finally
+        {
+            state.MutationLock.Release();
+        }
     }
 
     private static async Task<IResult> UpdatePreferencesAsync(
         AuthenticationPreferencesRequest request,
+        HttpContext context,
         DashboardDbContext database,
         DashboardAuthenticationState state)
     {
-        if (state.IsEnabled)
+        await state.WaitForMutationAsync(context.RequestAborted);
+        try
         {
-            return Problem(StatusCodes.Status409Conflict, "authentication_enabled",
-                "This preference only applies while login protection is off.");
+            if (state.IsEnabled)
+            {
+                return Problem(StatusCodes.Status409Conflict, "authentication_enabled",
+                    "This preference only applies while login protection is off.");
+            }
+            var settings = await GetSettingsAsync(database);
+            settings.ShowAuthenticationDisabledWarning = request.ShowDisabledWarning;
+            await database.SaveChangesAsync();
+            state.Set(settings.AuthenticationEnabled, settings.ShowAuthenticationDisabledWarning);
+            return Results.Ok(SessionResponse.Disabled(
+                accountConfigured: await database.Users.AnyAsync(),
+                showDisabledWarning: state.ShowDisabledWarning));
         }
-        var settings = await GetSettingsAsync(database);
-        settings.ShowAuthenticationDisabledWarning = request.ShowDisabledWarning;
-        await database.SaveChangesAsync();
-        state.Set(settings.AuthenticationEnabled, settings.ShowAuthenticationDisabledWarning);
-        return Results.Ok(SessionResponse.Disabled(
-            accountConfigured: await database.Users.AnyAsync(),
-            showDisabledWarning: state.ShowDisabledWarning));
+        finally
+        {
+            state.MutationLock.Release();
+        }
     }
 
     private static async Task<IResult> ChangePasswordAsync(

@@ -1,0 +1,142 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using SpeedtestDashboard.Api.Authentication;
+using SpeedtestDashboard.Api.Tests.ApiKeys;
+using SpeedtestDashboard.Api.Tests.Orchestration;
+using SpeedtestDashboard.Infrastructure.Persistence;
+using SpeedtestDashboard.Infrastructure.Persistence.Entities;
+
+namespace SpeedtestDashboard.Api.Tests.Authentication;
+
+public sealed class AuthenticationRegressionTests
+{
+    [Fact]
+    public async Task DefaultHttpAnonymousBrowserCanInitializeMutationProtection()
+    {
+        using var factory = new AuthWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var session = await client.GetFromJsonAsync<JsonElement>("/api/auth/session");
+        Assert.Equal("none", session.GetProperty("mode").GetString());
+        using var response = await client.GetAsync("/api/auth/csrf");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var cookie = response.Headers.GetValues("Set-Cookie").Single();
+        Assert.DoesNotContain("; secure", cookie, StringComparison.OrdinalIgnoreCase);
+        var csrf = await response.Content.ReadFromJsonAsync<JsonElement>();
+        using var missingToken = await client.PostAsJsonAsync("/api/auth/preferences", new { showDisabledWarning = false });
+        Assert.Equal(HttpStatusCode.BadRequest, missingToken.StatusCode);
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        using var preference = await client.PostAsJsonAsync("/api/auth/preferences", new { showDisabledWarning = false });
+        Assert.Equal(HttpStatusCode.OK, preference.StatusCode);
+        using var setup = await client.PostAsJsonAsync("/api/auth/setup", new { username = "admin", password = "review-password" });
+        Assert.Equal(HttpStatusCode.BadRequest, setup.StatusCode);
+        var problem = await setup.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("https_required", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task AnonymousHttpBrowserCanQueueATestAfterCsrfBootstrap()
+    {
+        using var factory = new ApiV1WebApplicationFactory(new FakeSpeedTestProvider(), runWorker: false);
+        using var client = factory.CreateClient();
+        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        using var response = await client.PostAsJsonAsync("/api/tests", new { providerId = "fixture" });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConcurrentPreferenceChangeDoesNotDisableNewlyEnabledAuthentication()
+    {
+        var interceptor = new PreferenceBarrier();
+        var state = new ObservedAuthenticationState();
+        using var parent = new AuthWebApplicationFactory();
+        using var factory = parent.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.ConfigureDbContext<DashboardDbContext>(options => options.AddInterceptors(interceptor));
+            services.RemoveAll<DashboardAuthenticationState>();
+            services.AddSingleton<DashboardAuthenticationState>(state);
+        }));
+        using var preferences = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var setup = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        async Task AddCsrfAsync(HttpClient client)
+        {
+            var body = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+            client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", body.GetProperty("token").GetString());
+        }
+        await AddCsrfAsync(preferences);
+        await AddCsrfAsync(setup);
+        var pendingPreference = preferences.PostAsJsonAsync("/api/auth/preferences", new { showDisabledWarning = false });
+        Task<HttpResponseMessage> enabling;
+        try
+        {
+            await interceptor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            enabling = setup.PostAsJsonAsync("/api/auth/setup", new { username = "admin", password = "review-password" });
+            // Observe the real semaphore wait, not elapsed time or HTTP scheduling.
+            var setupIsWaiting = await state.SecondMutationWait.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(setupIsWaiting, "Setup must wait while preferences hold the authentication mutation lock.");
+            Assert.False(enabling.IsCompleted);
+        }
+        finally
+        {
+            interceptor.Release.TrySetResult();
+        }
+        using var enabled = await enabling;
+        Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
+        using var preferenceResponse = await pendingPreference;
+        Assert.Equal(HttpStatusCode.OK, preferenceResponse.StatusCode);
+        using var anonymous = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var protectedResponse = await anonymous.GetAsync("/api/history");
+        Assert.Equal(HttpStatusCode.Unauthorized, protectedResponse.StatusCode);
+        await using var database = await factory.Services.GetRequiredService<IDbContextFactory<DashboardDbContext>>().CreateDbContextAsync();
+        var settings = await database.DashboardSettings.SingleAsync();
+        Assert.True(settings.AuthenticationEnabled);
+        Assert.False(settings.ShowAuthenticationDisabledWarning);
+        using var httpClient = factory.CreateClient();
+        using var httpCsrf = await httpClient.GetAsync("/api/auth/csrf");
+        Assert.Equal(HttpStatusCode.BadRequest, httpCsrf.StatusCode);
+        var httpProblem = await httpCsrf.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("https_required", httpProblem.GetProperty("code").GetString());
+        using var httpsCsrf = await anonymous.GetAsync("/api/auth/csrf");
+        Assert.Equal(HttpStatusCode.OK, httpsCsrf.StatusCode);
+        Assert.Contains("; secure", httpsCsrf.Headers.GetValues("Set-Cookie").Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class ObservedAuthenticationState : DashboardAuthenticationState
+    {
+        private int _mutationCalls;
+        public TaskCompletionSource<bool> SecondMutationWait { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override Task WaitForMutationAsync(CancellationToken cancellationToken)
+        {
+            var wait = base.WaitForMutationAsync(cancellationToken);
+            if (Interlocked.Increment(ref _mutationCalls) == 2)
+            {
+                SecondMutationWait.TrySetResult(!wait.IsCompleted);
+            }
+            return wait;
+        }
+    }
+
+    private sealed class PreferenceBarrier : SaveChangesInterceptor
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<DashboardSettingsEntity>().Any(entry =>
+                entry.State == EntityState.Modified && entry.Property(item => item.ShowAuthenticationDisabledWarning).IsModified))
+            {
+                Entered.TrySetResult();
+                await Release.Task.WaitAsync(cancellationToken);
+            }
+            return result;
+        }
+    }
+}

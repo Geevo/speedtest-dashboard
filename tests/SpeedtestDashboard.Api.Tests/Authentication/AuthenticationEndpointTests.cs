@@ -135,7 +135,7 @@ public sealed class AuthenticationEndpointTests
     }
 
     [Fact]
-    public async Task LoginCanBeDisabledAndReenabledFromSettings()
+    public async Task DisablingLoginDeletesTheAccountAndAllowsFreshCredentials()
     {
         using var factory = new AuthWebApplicationFactory();
         using var client = factory.CreateHttpsClient();
@@ -151,18 +151,33 @@ public sealed class AuthenticationEndpointTests
         var disabledSession = await disabled.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
         Assert.Equal("none", disabledSession.GetProperty("mode").GetString());
-        Assert.True(disabledSession.GetProperty("loginConfigured").GetBoolean());
+        Assert.False(disabledSession.GetProperty("loginConfigured").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/providers")).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<DashboardDbContext>();
+            Assert.Empty(await database.Users.ToListAsync());
+        }
 
         token = await GetCsrfAsync(client);
         using var reenabled = await PostWithCsrfAsync(client, "/api/auth/setup", token,
-            new { username = "ADMIN", password = Password });
+            new { username = "new-admin", password = "a-new-password" });
         Assert.Equal(HttpStatusCode.OK, reenabled.StatusCode);
 
         token = await GetCsrfAsync(client);
         using var logout = await PostWithCsrfAsync(client, "/api/auth/logout", token, new { });
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/providers")).StatusCode);
+
+        token = await GetCsrfAsync(client);
+        using var oldCredentials = await PostWithCsrfAsync(client, "/api/auth/login", token,
+            new { username = "admin", password = Password });
+        Assert.Equal(HttpStatusCode.Unauthorized, oldCredentials.StatusCode);
+
+        token = await GetCsrfAsync(client);
+        using var newCredentials = await PostWithCsrfAsync(client, "/api/auth/login", token,
+            new { username = "new-admin", password = "a-new-password" });
+        Assert.Equal(HttpStatusCode.OK, newCredentials.StatusCode);
     }
 
     [Fact]

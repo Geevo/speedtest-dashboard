@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SpeedtestDashboard.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SpeedtestDashboard.Core\SpeedtestDashboard.Core.csproj" />
     <ProjectReference Include="..\SpeedtestDashboard.Infrastructure\SpeedtestDashboard.Infrastructure.csproj" />
   </ItemGroup>

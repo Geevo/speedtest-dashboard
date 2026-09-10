@@ -114,12 +114,10 @@ public static class AuthenticationServiceCollectionExtensions
             options.Cookie.Name = "SpeedtestDashboard.Antiforgery";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
+            // Anonymous dashboards support HTTP. Session cookies and credential endpoints
+            // retain their separate HTTPS requirements.
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
-        services.AddOptions<Microsoft.AspNetCore.Antiforgery.AntiforgeryOptions>()
-            .Configure<IOptions<DashboardAuthenticationOptions>>((antiforgery, auth) =>
-                antiforgery.Cookie.SecurePolicy = auth.Value.AllowInsecureHttp
-                    ? CookieSecurePolicy.SameAsRequest
-                    : CookieSecurePolicy.Always);
 
         services.AddRateLimiter(options =>
         {
