@@ -9,9 +9,10 @@ namespace SpeedtestDashboard.Api.Tests.Network;
 public sealed class NetworkIdentityRegistrationTests
 {
     [Theory]
+    [InlineData(null)]
     [InlineData("ipconfig")]
     [InlineData("IPCONFIG")]
-    public void IpConfigSelected_RegistersProviderWithoutToken(string selection)
+    public void IpConfigSelectedOrDefault_RegistersProviderWithoutToken(string? selection)
     {
         using var provider = BuildProvider(selection);
         Assert.IsType<IpConfigIoMetadataProvider>(Assert.Single(provider.GetServices<IIpMetadataProvider>()));
@@ -24,9 +25,8 @@ public sealed class NetworkIdentityRegistrationTests
     }
 
     [Theory]
-    [InlineData(null)]
     [InlineData("none")]
-    public void MetadataNotSelected_StartsWithAddressDiscoveryOnly(string? selection)
+    public void MetadataDisabled_StartsWithAddressDiscoveryOnly(string selection)
     {
         using var provider = BuildProvider(selection);
         Assert.Empty(provider.GetServices<IIpMetadataProvider>());

@@ -12,6 +12,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Changed
 
+- enabled token-free IPConfig.io network identity enrichment by default; set `NetworkIdentity__MetadataProvider=none` to opt out
 - deleted the local account and password when disabling login protection so re-enabling it uses fresh credentials
 - replaced IPinfo Lite with token-free IPConfig.io metadata covering country, AS details, and region and city where the address can be placed; select `NetworkIdentity__MetadataProvider=ipconfig` and drop `NetworkIdentity__Ipinfo__Token`, because `ipinfo` is no longer a valid provider selection
 - prepared one OCI build for amd64 and arm64 with LibreSpeed included and Ookla excluded

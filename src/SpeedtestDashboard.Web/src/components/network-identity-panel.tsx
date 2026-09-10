@@ -86,7 +86,7 @@ export function NetworkIdentityPanel() {
 
       <div className="mt-3 flex flex-col gap-2 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
         <p>{data.isStale ? 'Last checked' : 'Checked'} {formatRelativeTime(data.checkedAtUtc, now)}</p>
-        {hasIpConfigMetadata(data) && <p>IP metadata by <a className="font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink" href="https://ipconfig.io" rel="noreferrer" target="_blank">IPConfig.io</a></p>}
+        {hasIpConfigMetadata(data) && <p>IP metadata by <a className="font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink" href="https://ipconfig.io" rel="noreferrer" target="_blank">ipconfig.io</a></p>}
       </div>
 
       {(data.isStale || refreshError) && (
@@ -120,7 +120,7 @@ function AddressBlock({ label, identity }: { label: string; identity: NetworkAdd
       </div>
       {identity ? (
         <div>
-          <p className="break-all text-lg font-semibold tracking-[-0.025em] sm:text-xl">{identity.address}</p>
+          <p className="break-all text-lg font-semibold tracking-normal tabular-nums sm:text-xl">{identity.address}</p>
           {(identity.asn || identity.asName) && (
             <p className="mt-3 text-sm font-semibold">{[identity.asn, identity.asName].filter(Boolean).join(' · ')}</p>
           )}

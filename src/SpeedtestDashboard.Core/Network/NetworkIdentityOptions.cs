@@ -12,5 +12,5 @@ public sealed class NetworkIdentityOptions
 
     public int RequestTimeoutSeconds { get; set; } = 5;
 
-    public string MetadataProvider { get; set; } = "none";
+    public string MetadataProvider { get; set; } = "ipconfig";
 }

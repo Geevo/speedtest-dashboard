@@ -233,7 +233,7 @@ Environment variables use double underscores for nested keys.
 | `NetworkIdentity__FailureCacheSeconds` | `30` |
 | `NetworkIdentity__RefreshThrottleSeconds` | `10` |
 | `NetworkIdentity__RequestTimeoutSeconds` | `5` |
-| `NetworkIdentity__MetadataProvider` | `none` |
+| `NetworkIdentity__MetadataProvider` | `ipconfig` |
 | `Providers__LibreSpeed__Enabled` | `true` |
 | `Providers__LibreSpeed__ExecutablePath` | `/usr/local/bin/librespeed-cli` (OCI) |
 | `Providers__LibreSpeed__HealthTimeoutSeconds` | `5` |
@@ -261,11 +261,11 @@ When `ReverseProxy__TrustForwardedHeaders=true`, the app clears ASP.NET Core's k
 
 ### IP metadata
 
-`NetworkIdentity__MetadataProvider` defaults to `none`, which discovers IPv4 and IPv6 addresses without any enrichment lookup. Set it to `ipconfig` to annotate each discovered address using [IPConfig.io](https://ipconfig.io), which needs no account or token.
+`NetworkIdentity__MetadataProvider` defaults to `ipconfig`, which annotates each discovered address using [IPConfig.io](https://ipconfig.io) without needing an account or token. Set it to `none` to perform address discovery without sending enrichment lookups to IPConfig.io.
 
 The response supplies the country, country code, AS number, and AS organization. Region and city are included only when the address database can place the address: ordinary ISP addresses usually resolve to one, while anycast and datacenter addresses often do not. The dashboard shows those fields when they are present and leaves them empty otherwise; it never infers them. IPConfig.io reports no ISP separate from the AS organization, and no metadata field is used to claim VPN status.
 
-Each address is looked up separately over HTTPS, results are cached with the identity snapshot, and a failed or slow lookup leaves address discovery intact. Enabling this sends each discovered public IP address to IPConfig.io.
+Each address is looked up separately over HTTPS, results are cached with the identity snapshot, and a failed or slow lookup leaves address discovery intact. The default enrichment sends each discovered public IP address to IPConfig.io.
 
 Installations that used the removed IPinfo Lite provider should replace `NetworkIdentity__MetadataProvider=ipinfo` with `ipconfig` and drop `NetworkIdentity__Ipinfo__Token`; `ipinfo` is no longer a valid selection and fails validation at startup. Results already stored keep the source label recorded when they were written.
 
