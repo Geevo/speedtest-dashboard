@@ -12,6 +12,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Changed
 
+- moved schedule creation and editing into responsive dialogs with clearer recurrence controls
 - moved admin account setup and password changes into focused dialogs
 - enabled token-free IPConfig.io network identity enrichment by default; set `NetworkIdentity__MetadataProvider=none` to opt out
 - deleted the local account and password when disabling login protection so re-enabling it uses fresh credentials

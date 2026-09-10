@@ -109,7 +109,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
       {operational && provider.isSuccess && (
         <section aria-labelledby="test-options-heading">
           <h2 id="test-options-heading" className="sr-only">Test options</h2>
-          <div className="flex flex-col gap-5 border-b border-line pb-10 md:flex-row md:items-end">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end">
             <div className="min-w-0 flex-1">
               <p className="mb-2 text-sm font-semibold">Server</p>
               <ServerCombobox
@@ -178,7 +178,7 @@ function JobPanel({
 }) {
   const active = !isTerminalJob(job.status)
   return (
-    <section aria-live="polite" aria-labelledby="job-heading" className="mt-10 border-t border-line pt-8">
+    <section aria-live="polite" aria-labelledby="job-heading" className="mt-8 border-t border-line pt-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <span className={cn('grid size-10 place-items-center rounded-full', active ? 'bg-signal-soft text-signal' : job.status === 'completed' ? 'bg-ok/10 text-ok' : 'bg-danger-soft text-danger')}>
