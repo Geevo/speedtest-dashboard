@@ -93,5 +93,5 @@ ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/api/health"]
+    CMD curl --fail --silent --show-error "http://127.0.0.1:${ASPNETCORE_HTTP_PORTS:-8080}/api/health"
 ENTRYPOINT ["dotnet", "SpeedtestDashboard.Api.dll"]
