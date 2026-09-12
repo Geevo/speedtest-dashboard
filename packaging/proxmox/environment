@@ -1,4 +1,4 @@
-ASPNETCORE_URLS=http://0.0.0.0:8080
+DASHBOARD_PORT=8080
 ASPNETCORE_ENVIRONMENT=Production
 
 Storage__DatabasePath=/var/lib/speedtest-dashboard/speedtest.db

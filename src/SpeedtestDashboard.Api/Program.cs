@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Api.Endpoints;
+using SpeedtestDashboard.Api.Hosting;
 using SpeedtestDashboard.Core;
 using SpeedtestDashboard.Infrastructure;
 using SpeedtestDashboard.Infrastructure.ApiKeys;
@@ -9,6 +10,13 @@ using SpeedtestDashboard.Infrastructure.Network;
 using SpeedtestDashboard.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dashboardListenUrl = DashboardPortConfiguration.GetListenUrl(
+    Environment.GetEnvironmentVariable(DashboardPortConfiguration.EnvironmentVariableName));
+if (dashboardListenUrl is not null)
+{
+    builder.WebHost.UseUrls(dashboardListenUrl);
+}
 
 builder.Services.AddProblemDetails();
 builder.Services.AddNetworkIdentity(builder.Configuration);

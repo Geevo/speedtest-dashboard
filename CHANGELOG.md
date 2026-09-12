@@ -4,6 +4,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## Unreleased
 
+### Added
+
+- `DASHBOARD_PORT` as the simple way to change the app's listening port, including container health checks and packaged Compose files
+
 ### Fixed
 
 - included the Debian interface, DHCP, route, and ping tooling required for Proxmox-managed LXC networking

@@ -87,9 +87,9 @@ COPY --from=api-build --chown=app:app /app/publish/ ./
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/speedtest-dashboard/THIRD_PARTY_NOTICES.md
 COPY LICENSE /usr/share/licenses/speedtest-dashboard/LICENSE
 USER app
-ENV ASPNETCORE_HTTP_PORTS=8080
+ENV DASHBOARD_PORT=8080
 EXPOSE 8080
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail --silent --show-error "http://127.0.0.1:${ASPNETCORE_HTTP_PORTS:-8080}/api/health"
+    CMD curl --fail --silent --show-error "http://127.0.0.1:${DASHBOARD_PORT:-8080}/api/health"
 ENTRYPOINT ["dotnet", "SpeedtestDashboard.Api.dll"]
