@@ -80,7 +80,7 @@ export function ResultsPage() {
         <p className="mt-2 text-sm text-ink-muted">Individual speed-test runs and their captured measurements.</p>
       </header>
 
-      <section aria-label="Results filters" className="grid gap-3 border-b border-line pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
+      <section aria-label="Results filters" className="grid gap-3 pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
         <FilterSelect label="Provider" value={provider} onChange={(value) => { setProvider(value); resetPagination() }}>
           <option value="all">All providers</option>
           <option value="librespeed">LibreSpeed</option>

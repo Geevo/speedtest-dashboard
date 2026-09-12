@@ -70,7 +70,7 @@ export function OverviewPage() {
       <section aria-labelledby="providers-heading" className="mt-12">
         <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
         {providers.data ? (
-          <div className="grid border-y border-line sm:grid-cols-2 sm:divide-x sm:divide-line">
+          <div className="grid divide-y divide-line border-y border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {providers.data.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
           </div>
         ) : (

@@ -34,6 +34,24 @@ test('results retains record controls and contains no analytics charts', async (
   assert.doesNotMatch(results, /ReferenceLine|AreaChart|LineChart|ChartPanel/)
 })
 
+test('results filters do not add a duplicate divider above the results region', async () => {
+  const results = await source('../src/components/results-page.tsx')
+  const filters = results.match(/<section aria-label="Results filters" className="([^"]+)"/)
+
+  assert.ok(filters)
+  assert.doesNotMatch(filters[1], /\bborder-b\b/)
+})
+
+test('overview provider states share one row when all three providers are present', async () => {
+  const overview = await source('../src/components/overview-page.tsx')
+  const providerGrid = overview.match(/providers\.data \? \(\s*<div className="([^"]+)"/)
+
+  assert.ok(providerGrid)
+  assert.match(providerGrid[1], /\bsm:grid-cols-3\b/)
+  assert.match(providerGrid[1], /\bdivide-y\b/)
+  assert.match(providerGrid[1], /\bsm:divide-y-0\b/)
+})
+
 test('statistics remains the sole owner of aggregates and charts', async () => {
   const statistics = await source('../src/components/statistics-page.tsx')
   const shell = await source('../src/components/app-shell.tsx')
