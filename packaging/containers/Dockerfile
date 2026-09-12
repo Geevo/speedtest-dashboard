@@ -27,7 +27,6 @@ RUN chmod 0755 /usr/local/bin/build-librespeed \
       /usr/local/bin/build-librespeed
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS api-build
-ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
 WORKDIR /source
 COPY SpeedtestDashboard.sln Directory.Build.props ./
@@ -48,8 +47,7 @@ RUN dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
     -p:DebugSymbols=false \
     -p:DebugType=None \
     -p:IsTransformWebConfigDisabled=true \
-    -p:UseAppHost=false \
-    -p:Version="$APP_VERSION"
+    -p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS runtime
 ARG TARGETARCH
