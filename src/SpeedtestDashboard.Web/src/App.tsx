@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AppShell, type NavigationItem } from './components/app-shell'
 import { OverviewPage } from './components/overview-page'
-import { LibreSpeedPage, OoklaPage } from './components/ookla-page'
+import { FastComPage, LibreSpeedPage, OoklaPage } from './components/ookla-page'
 import { SchedulesPage } from './components/schedules-page'
 import { SettingsPage } from './components/settings-page'
 import { useTheme } from './hooks/use-theme'
@@ -21,6 +21,7 @@ export default function App() {
   const [activeItem, setActiveItem] = useState<NavigationItem>(() => resolveNavigation(window.location.pathname).item)
   const [ooklaJobId, setOoklaJobId] = useState<string | null>(null)
   const [libreSpeedJobId, setLibreSpeedJobId] = useState<string | null>(null)
+  const [fastComJobId, setFastComJobId] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -31,6 +32,7 @@ export default function App() {
       queryClient.clear()
       setOoklaJobId(null)
       setLibreSpeedJobId(null)
+      setFastComJobId(null)
       setSession({ mode: 'local', authenticated: false, user: null, loginConfigured: true, showDisabledWarning: true })
     }
     window.addEventListener(authExpiredEvent, expired)
@@ -58,7 +60,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const pageName = activeItem === 'results' ? 'Results' : activeItem[0].toUpperCase() + activeItem.slice(1)
+    const pageName = activeItem === 'fastcom'
+      ? 'FAST.com'
+      : activeItem === 'results'
+        ? 'Results'
+        : activeItem[0].toUpperCase() + activeItem.slice(1)
     document.title = `${pageName} · Speedtest Dashboard`
   }, [activeItem])
 
@@ -114,6 +120,12 @@ export default function App() {
         <OoklaPage
           jobId={ooklaJobId}
           onJobIdChange={setOoklaJobId}
+          onOpenSettings={() => navigate('settings')}
+        />
+      ) : activeItem === 'fastcom' ? (
+        <FastComPage
+          jobId={fastComJobId}
+          onJobIdChange={setFastComJobId}
           onOpenSettings={() => navigate('settings')}
         />
       ) : activeItem === 'schedules' ? (

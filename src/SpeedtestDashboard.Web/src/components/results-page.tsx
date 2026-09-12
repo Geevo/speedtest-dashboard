@@ -84,6 +84,7 @@ export function ResultsPage() {
         <FilterSelect label="Provider" value={provider} onChange={(value) => { setProvider(value); resetPagination() }}>
           <option value="all">All providers</option>
           <option value="librespeed">LibreSpeed</option>
+          <option value="fastcom">FAST.com</option>
           <option value="ookla">Ookla</option>
         </FilterSelect>
         <FilterSelect label="Status" value={status} onChange={(value) => { setStatus(value as typeof status); resetPagination() }}>

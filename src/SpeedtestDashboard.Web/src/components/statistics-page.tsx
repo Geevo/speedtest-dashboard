@@ -76,6 +76,7 @@ export function StatisticsPage() {
           <select value={provider} className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-semibold outline-none focus:border-signal" onChange={(event) => setProvider(event.target.value as typeof provider)}>
             <option value="all">All providers</option>
             <option value="librespeed">LibreSpeed</option>
+            <option value="fastcom">FAST.com</option>
             <option value="ookla">Ookla</option>
           </select>
         </label>

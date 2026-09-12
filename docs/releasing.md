@@ -6,7 +6,7 @@ and then builds two independent targets from the same version tag and commit:
 - a Docker/Podman OCI manifest for `linux/amd64` and `linux/arm64`;
 - native Debian Proxmox LXC templates for `amd64` and `arm64`.
 
-Both include LibreSpeed. Public jobs set `INSTALL_OOKLA=false` for OCI and omit
+Both include LibreSpeed and fast-cli. Public jobs set `INSTALL_OOKLA=false` for OCI and omit
 `--install-ookla` for LXC. The native release upload uses explicit standard
 filenames, excluding local `_ookla` variants. Checksums and SBOMs accompany the
 templates; OCI publication enables SBOM and provenance attestations.
@@ -29,7 +29,7 @@ templates; OCI publication enables SBOM and provenance attestations.
 ## Validate the candidate
 
 For OCI, verify both manifest architectures, public pull access, health,
-non-root execution, read-only-root operation, and state surviving container
+non-root execution, read-only-root operation, packaged provider health, and state surviving container
 replacement in Docker and rootless Podman. Inspect SBOM/provenance and confirm
 that no Ookla CLI, SDK, source tree, fixtures, or local data reached the image.
 
@@ -38,7 +38,7 @@ the template to a real Proxmox VE 9 host. Create an unprivileged container with
 no nesting and validate boot, networking, systemd, HTTP access, persisted state
 after restart, authentication, API access, schedules, and results. Run provider
 tests deliberately, accounting for the bandwidth they consume. Verify that the
-public template excludes Ookla and contains its expected LibreSpeed licence.
+public template excludes Ookla and contains the expected LibreSpeed and fast-cli licences.
 
 Record machine-specific measurements and evaluation results outside the
 repository. This document describes a repeatable procedure, not a claim that

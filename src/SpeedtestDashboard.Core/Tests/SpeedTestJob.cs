@@ -46,6 +46,13 @@ public static class SpeedTestFailureCodes
     public const string LibreSpeedFailed = "librespeed_failed";
     public const string LibreSpeedInvalidOutput = "librespeed_invalid_output";
     public const string LibreSpeedResultIncomplete = "librespeed_result_incomplete";
+    public const string FastComDisabled = "fastcom_disabled";
+    public const string FastComNotInstalled = "fastcom_not_installed";
+    public const string FastComNetworkUnavailable = "fastcom_network_unavailable";
+    public const string FastComTimeout = "fastcom_timeout";
+    public const string FastComFailed = "fastcom_failed";
+    public const string FastComInvalidOutput = "fastcom_invalid_output";
+    public const string FastComResultIncomplete = "fastcom_result_incomplete";
     public const string PersistenceFailed = "persistence_failed";
     public const string ApplicationRestarted = "application_restarted";
 }

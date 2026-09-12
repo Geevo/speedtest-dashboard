@@ -81,6 +81,7 @@ trap cleanup EXIT HUP INT TERM
 web_dist="$work_dir/web-dist"
 publish_dir="$work_dir/publish"
 librespeed_dir="$work_dir/librespeed"
+fastcom_dir="$work_dir/fastcom"
 rootfs="$work_dir/rootfs"
 artifact_suffix=
 if [ "$install_ookla" = true ]; then
@@ -111,6 +112,7 @@ dotnet publish "$repo_root/src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csp
   -p:Version="$version"
 
 TARGETARCH="$architecture" OUTPUT_DIR="$librespeed_dir" "$repo_root/packaging/providers/build-librespeed.sh"
+TARGETARCH="$architecture" OUTPUT_DIR="$fastcom_dir" "$repo_root/packaging/providers/download-fast-cli.sh"
 
 $elevate "$bootstrap" \
   --arch="$architecture" \
@@ -142,10 +144,12 @@ service_gid=$($elevate chroot "$rootfs" id -g speedtest)
 $elevate install -d -m 0755 "$rootfs/opt/speedtest-dashboard"
 $elevate cp -R "$publish_dir/." "$rootfs/opt/speedtest-dashboard/"
 $elevate install -m 0755 "$librespeed_dir/librespeed-cli" "$rootfs/opt/speedtest-dashboard/librespeed-cli"
+$elevate install -m 0755 "$fastcom_dir/fast-cli" "$rootfs/opt/speedtest-dashboard/fast-cli"
 $elevate install -d -m 0755 "$rootfs/opt/speedtest-dashboard/third-party-licenses"
 $elevate install -m 0644 "$repo_root/LICENSE" "$rootfs/opt/speedtest-dashboard/LICENSE"
 $elevate install -m 0644 "$repo_root/THIRD_PARTY_NOTICES.md" "$rootfs/opt/speedtest-dashboard/THIRD_PARTY_NOTICES.md"
 $elevate install -m 0644 "$librespeed_dir/LICENSE.librespeed-cli" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.librespeed-cli"
+$elevate install -m 0644 "$fastcom_dir/LICENSE.fast-cli" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.fast-cli"
 if [ "$install_ookla" = true ]; then
   $elevate install -m 0644 "$repo_root/packaging/providers/OOKLA_NOTICE.md" "$rootfs/opt/speedtest-dashboard/third-party-licenses/OOKLA_NOTICE.md"
 fi

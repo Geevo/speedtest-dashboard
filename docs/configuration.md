@@ -64,6 +64,21 @@ Older installs that used the removed IPinfo Lite provider should change `Network
 | `Providers__LibreSpeed__DisableIcmp` | `true` |
 | `Providers__LibreSpeed__PreferHttps` | `true` |
 
+## FAST.com
+
+| Variable | Default |
+| --- | --- |
+| `Providers__FastCom__Enabled` | `true` |
+| `Providers__FastCom__ExecutablePath` | `/usr/local/bin/fast-cli` (container) |
+| `Providers__FastCom__HealthTimeoutSeconds` | `5` |
+| `Providers__FastCom__HealthCacheSeconds` | `45` |
+| `Providers__FastCom__TestTimeoutSeconds` | `90` |
+| `Providers__FastCom__DurationSeconds` | `30` |
+
+`DurationSeconds` accepts the upstream effective range of 7–30 seconds. Download
+and upload are separate phases, so `TestTimeoutSeconds` must be at least twice
+the duration plus ten seconds.
+
 ## Ookla
 
 | Variable | Default |

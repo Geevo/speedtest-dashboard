@@ -32,6 +32,7 @@ public sealed class SpeedTestProviderRegistry : ISpeedTestProviderRegistry
 
     private static int ProviderPriority(ProviderId providerId) =>
         providerId == ProviderId.LibreSpeed ? 0 :
-        providerId == ProviderId.Ookla ? 1 :
-        2;
+        providerId == ProviderId.FastCom ? 1 :
+        providerId == ProviderId.Ookla ? 2 :
+        3;
 }

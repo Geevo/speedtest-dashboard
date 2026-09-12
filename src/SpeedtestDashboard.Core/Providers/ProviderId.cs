@@ -5,6 +5,7 @@ namespace SpeedtestDashboard.Core.Providers;
 public readonly record struct ProviderId
 {
     public static readonly ProviderId LibreSpeed = new("librespeed");
+    public static readonly ProviderId FastCom = new("fastcom");
     public static readonly ProviderId Ookla = new("ookla");
 
     private ProviderId(string value)

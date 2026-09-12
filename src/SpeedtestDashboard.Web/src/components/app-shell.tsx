@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   UserRound,
+  Zap,
   X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -18,7 +19,7 @@ import { getHealth, type SessionResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
-export type NavigationItem = 'overview' | 'librespeed' | 'ookla' | 'results' | 'statistics' | 'schedules' | 'settings'
+export type NavigationItem = 'overview' | 'librespeed' | 'fastcom' | 'ookla' | 'results' | 'statistics' | 'schedules' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -37,6 +38,7 @@ const primaryNavigation = [
 
 const providerNavigation = [
   { id: 'librespeed' as const, label: 'LibreSpeed', icon: RadioTower },
+  { id: 'fastcom' as const, label: 'FAST.com', icon: Zap },
   { id: 'ookla' as const, label: 'Ookla', icon: Activity },
 ]
 

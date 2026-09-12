@@ -26,6 +26,15 @@ RUN chmod 0755 /usr/local/bin/build-librespeed \
       OUTPUT_DIR=/out \
       /usr/local/bin/build-librespeed
 
+FROM debian:bookworm-slim AS fastcom-fetch
+ARG TARGETARCH
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY packaging/providers/download-fast-cli.sh /usr/local/bin/download-fast-cli
+RUN chmod 0755 /usr/local/bin/download-fast-cli \
+    && TARGETARCH="$TARGETARCH" OUTPUT_DIR=/out /usr/local/bin/download-fast-cli
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS api-build
 ARG SOURCE_REVISION=unknown
 WORKDIR /source
@@ -82,6 +91,8 @@ RUN set -eu; if [ "$INSTALL_OOKLA" = "true" ]; then \
     rm -rf /tmp/ookla
 COPY --from=librespeed-build --chmod=0755 /out/librespeed-cli /usr/local/bin/librespeed-cli
 COPY --from=librespeed-build --chmod=0644 /out/LICENSE.librespeed-cli /usr/share/licenses/librespeed-cli/LICENSE
+COPY --from=fastcom-fetch --chmod=0755 /out/fast-cli /usr/local/bin/fast-cli
+COPY --from=fastcom-fetch --chmod=0644 /out/LICENSE.fast-cli /usr/share/licenses/fast-cli/LICENSE
 WORKDIR /app
 COPY --from=api-build --chown=app:app /app/publish/ ./
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/speedtest-dashboard/THIRD_PARTY_NOTICES.md

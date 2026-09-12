@@ -115,6 +115,7 @@ jobs:
           wait_for_health
           docker exec speedtest-smoke sh -ec '
             test -x /usr/local/bin/librespeed-cli
+            test -x /usr/local/bin/fast-cli
             for excluded in speedtest node npm go; do
               if command -v "$excluded"; then
                 echo "Unexpected executable in public image: $excluded" >&2
@@ -159,6 +160,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:18081/api/health
           docker exec speedtest-smoke-arm64 /usr/local/bin/librespeed-cli --version
+          docker exec speedtest-smoke-arm64 /usr/local/bin/fast-cli --help
           docker rm -f speedtest-smoke-arm64
           docker volume rm speedtest-smoke-arm64
       - name: Publish multi-architecture image
@@ -224,6 +226,7 @@ jobs:
           grep -q './etc/systemd/system/speedtest-dashboard.service' <<< "$contents"
           grep -q './opt/speedtest-dashboard/SpeedtestDashboard.Api' <<< "$contents"
           grep -q './opt/speedtest-dashboard/librespeed-cli' <<< "$contents"
+          grep -q './opt/speedtest-dashboard/fast-cli' <<< "$contents"
           grep -q './usr/sbin/ifup' <<< "$contents"
           grep -q './usr/sbin/ip' <<< "$contents"
           grep -q './usr/bin/ping' <<< "$contents"

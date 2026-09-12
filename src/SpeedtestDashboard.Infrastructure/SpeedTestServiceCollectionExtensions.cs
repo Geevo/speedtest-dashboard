@@ -5,6 +5,7 @@ using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
 using SpeedtestDashboard.Infrastructure.Processes;
 using SpeedtestDashboard.Infrastructure.Providers;
+using SpeedtestDashboard.Infrastructure.Providers.FastCom;
 using SpeedtestDashboard.Infrastructure.Providers.LibreSpeed;
 using SpeedtestDashboard.Infrastructure.Providers.Ookla;
 using SpeedtestDashboard.Infrastructure.Schedules;
@@ -74,6 +75,23 @@ public static class SpeedTestServiceCollectionExtensions
                 "LibreSpeed maximum server count must be between 1 and 500.")
             .ValidateOnStart();
 
+        services.AddOptions<FastComOptions>()
+            .Bind(configuration.GetSection(FastComOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ExecutablePath) &&
+                                 options.ExecutablePath.IndexOfAny(['\r', '\n', '\0']) < 0,
+                "FAST.com executable path is invalid.")
+            .Validate(options => options.HealthTimeoutSeconds is >= 1 and <= 30,
+                "FAST.com health timeout must be between 1 and 30 seconds.")
+            .Validate(options => options.HealthCacheSeconds is >= 10 and <= 300,
+                "FAST.com health cache duration must be between 10 and 300 seconds.")
+            .Validate(options => options.TestTimeoutSeconds >= 30 && options.TestTimeoutSeconds <= processMaximumTimeout,
+                "FAST.com test timeout must be between 30 seconds and the configured process maximum.")
+            .Validate(options => options.DurationSeconds is >= 7 and <= 30,
+                "FAST.com test duration must be between 7 and 30 seconds.")
+            .Validate(options => options.TestTimeoutSeconds >= (2 * options.DurationSeconds) + 10,
+                "FAST.com test timeout must allow both bandwidth phases and a ten-second margin.")
+            .ValidateOnStart();
+
         services.AddOptions<ScheduleWorkerOptions>()
             .Bind(configuration.GetSection(ScheduleWorkerOptions.SectionName))
             .Validate(options => options.PollIntervalSeconds is >= 5 and <= 300, "Scheduler poll interval must be between 5 and 300 seconds.")
@@ -98,6 +116,11 @@ public static class SpeedTestServiceCollectionExtensions
         services.AddSingleton<LibreSpeedSpeedTestProvider>();
         services.AddSingleton<ISpeedTestProvider>(serviceProvider =>
             serviceProvider.GetRequiredService<LibreSpeedSpeedTestProvider>());
+        services.AddSingleton<FastComCommandFactory>();
+        services.AddSingleton<FastComResultParser>();
+        services.AddSingleton<FastComSpeedTestProvider>();
+        services.AddSingleton<ISpeedTestProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<FastComSpeedTestProvider>());
         services.AddSingleton<ISpeedTestJobStore, InMemorySpeedTestJobStore>();
         services.AddSingleton<ISpeedTestQueue, SpeedTestQueue>();
         services.AddSingleton<ISpeedTestCancellationRegistry, SpeedTestCancellationRegistry>();

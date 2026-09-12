@@ -6,6 +6,7 @@ const paths: Record<NavigationItem, string> = {
   statistics: '/statistics',
   schedules: '/schedules',
   librespeed: '/librespeed',
+  fastcom: '/fastcom',
   ookla: '/ookla',
   settings: '/settings',
 }

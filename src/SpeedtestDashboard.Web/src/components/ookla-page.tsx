@@ -34,7 +34,7 @@ type ProviderPageProps = {
 }
 
 type ProviderPageConfig = {
-  id: 'librespeed' | 'ookla'
+  id: 'librespeed' | 'fastcom' | 'ookla'
   displayName: string
   serverSearchLabel: string
   unavailableGuidance: string
@@ -54,12 +54,23 @@ const ooklaConfig: ProviderPageConfig = {
   unavailableGuidance: 'Check the Ookla settings and license acceptance.',
 }
 
+const fastComConfig: ProviderPageConfig = {
+  id: 'fastcom',
+  displayName: 'FAST.com',
+  serverSearchLabel: '',
+  unavailableGuidance: 'Ensure the packaged fast-cli binary is available.',
+}
+
 export function LibreSpeedPage(props: ProviderPageProps) {
   return <SpeedTestProviderPage {...props} config={libreSpeedConfig} />
 }
 
 export function OoklaPage(props: ProviderPageProps) {
   return <SpeedTestProviderPage {...props} config={ooklaConfig} />
+}
+
+export function FastComPage(props: ProviderPageProps) {
+  return <SpeedTestProviderPage {...props} config={fastComConfig} />
 }
 
 function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }: ProviderPageProps & { config: ProviderPageConfig }) {
@@ -70,10 +81,11 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
     refetchInterval: 60_000,
   })
   const operational = provider.data?.healthState !== 'unavailable'
+  const supportsServerDiscovery = provider.data?.capabilities.includes('serverDiscovery') ?? false
   const servers = useQuery({
     queryKey: ['provider-servers', config.id],
     queryFn: ({ signal }) => getProviderServers(config.id, signal),
-    enabled: provider.isSuccess && operational,
+    enabled: provider.isSuccess && operational && supportsServerDiscovery,
     staleTime: 5 * 60_000,
   })
   const job = useSpeedTestJob(jobId)
@@ -110,18 +122,27 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
         <section aria-labelledby="test-options-heading">
           <h2 id="test-options-heading" className="sr-only">Test options</h2>
           <div className="flex flex-col gap-5 md:flex-row md:items-end">
-            <div className="min-w-0 flex-1">
-              <p className="mb-2 text-sm font-semibold">Server</p>
-              <ServerCombobox
-                providerName={config.displayName}
-                servers={servers.data ?? []}
-                selectedServerId={selectedServerId}
-                loading={servers.isLoading}
-                error={servers.isError}
-                searchPlaceholder={config.serverSearchLabel}
-                onSelect={setSelectedServerId}
-              />
-            </div>
+            {supportsServerDiscovery ? (
+              <div className="min-w-0 flex-1">
+                <p className="mb-2 text-sm font-semibold">Server</p>
+                <ServerCombobox
+                  providerName={config.displayName}
+                  servers={servers.data ?? []}
+                  selectedServerId={selectedServerId}
+                  loading={servers.isLoading}
+                  error={servers.isError}
+                  searchPlaceholder={config.serverSearchLabel}
+                  onSelect={setSelectedServerId}
+                />
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1">
+                <p className="mb-2 text-sm font-semibold">Server</p>
+                <div className="flex h-12 items-center rounded-xl border border-line bg-paper px-4 text-sm text-ink-muted">
+                  Chosen automatically by {config.displayName}
+                </div>
+              </div>
+            )}
             <Button
               className="h-12 shrink-0 px-7 md:min-w-44"
               disabled={Boolean(activeJob) || createTest.isPending}

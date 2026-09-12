@@ -24,13 +24,14 @@ public sealed class SpeedTestProviderRegistryTests
     }
 
     [Fact]
-    public void ProductionProviders_ListLibreSpeedFirstRegardlessOfRegistrationOrder()
+    public void ProductionProviders_HaveStableOrderRegardlessOfRegistrationOrder()
     {
         var ookla = new FakeSpeedTestProvider { Id = ProviderId.Ookla };
+        var fastCom = new FakeSpeedTestProvider { Id = ProviderId.FastCom };
         var libreSpeed = new FakeSpeedTestProvider { Id = ProviderId.LibreSpeed };
-        var registry = new SpeedTestProviderRegistry([ookla, libreSpeed]);
+        var registry = new SpeedTestProviderRegistry([ookla, fastCom, libreSpeed]);
 
-        Assert.Equal([libreSpeed, ookla], registry.GetAll());
+        Assert.Equal([libreSpeed, fastCom, ookla], registry.GetAll());
     }
 
     [Fact]
@@ -57,6 +58,7 @@ public sealed class SpeedTestProviderRegistryTests
     [Theory]
     [InlineData("ookla", true)]
     [InlineData("librespeed", true)]
+    [InlineData("fastcom", true)]
     [InlineData("fixture-2", true)]
     [InlineData("Fixture", false)]
     [InlineData("bad_id", false)]

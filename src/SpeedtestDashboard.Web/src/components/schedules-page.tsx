@@ -121,7 +121,7 @@ function ScheduleCard({ schedule, onEdit, onChanged }: { schedule: Schedule; onE
                 : schedule.completed && <Badge>Submitted</Badge>}
           </div>
           <p className="mt-1 text-sm capitalize text-ink-muted">
-            {schedule.providerId}
+            {providerLabel(schedule.providerId)}
             {schedule.serverId ? ` · Server ${schedule.serverId}` : ' · Automatic server'}
           </p>
           <p className="mt-1 text-sm text-ink-muted">
@@ -225,6 +225,8 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const effectiveProviderId = providerId || providers.data?.[0]?.id || ''
+  const effectiveProvider = providers.data?.find((provider) => provider.id === effectiveProviderId)
+  const supportsServerSelection = effectiveProvider?.capabilities.includes('serverSelection') ?? false
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -282,7 +284,11 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-semibold">Provider
-            <select className={inputClass} value={effectiveProviderId} onChange={(event) => setProviderId(event.target.value)} required>
+            <select className={inputClass} value={effectiveProviderId} onChange={(event) => {
+              setProviderId(event.target.value)
+              const selected = providers.data?.find((provider) => provider.id === event.target.value)
+              if (!selected?.capabilities.includes('serverSelection')) setServerId('')
+            }} required>
               {providers.data?.map((provider) => (
                 <option key={provider.id} value={provider.id}>{provider.displayName}</option>
               ))}
@@ -293,7 +299,8 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
               className={inputClass}
               value={serverId}
               onChange={(event) => setServerId(event.target.value)}
-              placeholder="Automatic"
+              placeholder={supportsServerSelection ? 'Automatic' : 'Chosen by provider'}
+              disabled={!supportsServerSelection}
               maxLength={128}
             />
           </label>
@@ -395,6 +402,13 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
       </footer>
     </form>
   )
+}
+
+function providerLabel(providerId: string) {
+  if (providerId === 'fastcom') return 'FAST.com'
+  if (providerId === 'librespeed') return 'LibreSpeed'
+  if (providerId === 'ookla') return 'Ookla'
+  return providerId
 }
 
 function CalendarPicker({ value, timeZoneId, onChange }: {

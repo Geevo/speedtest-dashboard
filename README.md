@@ -16,7 +16,7 @@ The tests run wherever the dashboard is installed. Put it behind Gluetun and it 
 
 ## What you get
 
-- LibreSpeed ready to go, with automatic or pinned server selection
+- LibreSpeed and FAST.com ready to go; LibreSpeed also supports pinned server selection
 - saved download, upload, latency, jitter, packet-loss, server, and public-IP details
 - charts covering the last 24 hours, 7, 30, or 90 days, or everything recorded
 - schedules for regular tests, whether that means every few minutes or once a week
@@ -159,6 +159,12 @@ Published images and LXC templates include LibreSpeed CLI `1.0.13`, built from c
 
 The source archive is checksum-verified and its LGPL-3.0 licence is included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+### FAST.com
+
+Published images and LXC templates include the upstream fast-cli `0.3.5` static binary for amd64 and arm64. The experimental integration uses HTTPS, FAST.com-managed targets, upload testing, and the upstream JSON output. It reports download, upload, and HTTP HEAD latency; server selection, jitter, packet loss, and result sharing are not available.
+
+The release archive is checksum-verified and its MIT licence is included. This first integration intentionally consumes upstream output as-is so its behavior can be validated before maintaining a fork or patches.
+
 ### Ookla
 
 The integration is built into the app, but the proprietary Ookla CLI is not included in public images or templates. Local builds can opt in to the pinned, checksum-verified package, then explicitly accept the licence and GDPR terms at runtime.
@@ -262,4 +268,4 @@ Vite serves `http://localhost:5173` and proxies `/api` to the backend. The deepe
 
 ## Licence
 
-Speedtest Dashboard is [MIT licensed](LICENSE). LibreSpeed CLI remains LGPL-3.0. Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Ookla, Speedtest.net, LibreSpeed, Docker, Podman, Gluetun, or Proxmox.
+Speedtest Dashboard is [MIT licensed](LICENSE). fast-cli is MIT licensed, LibreSpeed CLI remains LGPL-3.0, and Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Netflix, FAST.com, Ookla, Speedtest.net, LibreSpeed, Docker, Podman, Gluetun, or Proxmox.

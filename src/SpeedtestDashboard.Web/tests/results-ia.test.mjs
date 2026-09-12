@@ -65,12 +65,13 @@ test('statistics remains the sole owner of aggregates and charts', async () => {
   assert.doesNotMatch(shell, /label: 'History'/)
 })
 
-test('LibreSpeed is presented before Ookla wherever providers are ordered', async () => {
+test('LibreSpeed, FAST.com, and Ookla keep their intended provider order', async () => {
   const shell = await source('../src/components/app-shell.tsx')
   const results = await source('../src/components/results-page.tsx')
   const statistics = await source('../src/components/statistics-page.tsx')
 
   for (const providerUi of [shell, results, statistics]) {
-    assert.ok(providerUi.indexOf('LibreSpeed') < providerUi.indexOf('Ookla'))
+    assert.ok(providerUi.indexOf('LibreSpeed') < providerUi.indexOf('FAST.com'))
+    assert.ok(providerUi.indexOf('FAST.com') < providerUi.indexOf('Ookla'))
   }
 })

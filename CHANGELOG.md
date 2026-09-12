@@ -7,6 +7,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 ### Added
 
 - `DASHBOARD_PORT` as the simple way to change the app's listening port, including container health checks and packaged Compose files
+- experimental FAST.com provider using the checksum-pinned upstream fast-cli `v0.3.5` binary on amd64 and arm64
 
 ### Fixed
 

@@ -36,6 +36,13 @@ Providers__LibreSpeed__MaximumServers=250
 Providers__LibreSpeed__DisableIcmp=true
 Providers__LibreSpeed__PreferHttps=true
 
+Providers__FastCom__Enabled=true
+Providers__FastCom__ExecutablePath=/opt/speedtest-dashboard/fast-cli
+Providers__FastCom__HealthTimeoutSeconds=5
+Providers__FastCom__HealthCacheSeconds=45
+Providers__FastCom__TestTimeoutSeconds=90
+Providers__FastCom__DurationSeconds=30
+
 Providers__Ookla__Enabled=true
 Providers__Ookla__ExecutablePath=/usr/bin/speedtest
 Providers__Ookla__AcceptLicense=false
