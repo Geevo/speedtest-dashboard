@@ -1,219 +1,247 @@
 # Speedtest Dashboard
 
-A self-hosted dashboard for testing the network connection of a server or container. It includes scheduled tests, saved results, statistics, network identity, LibreSpeed, optional Ookla support, and a small API.
+A self-hosted dashboard that runs speed tests, keeps the results, and shows which public IP the machine is using.
 
-Tests and public-IP lookups run from the backend. The displayed IP is the backend's observed egress; it does not prove that a VPN is active.
+Run it alongside [Gluetun](https://github.com/qdm12/gluetun), another WireGuard/OpenVPN setup, or on a regular server connection.
 
-## Screenshots
+## Why this exists
 
-Screenshots use a temporary database with sanitized sample data. The IP address shown is from the documentation-only `203.0.113.0/24` range.
+My ISP wanted three speed tests a day - morning, afternoon, and evening - for five days as evidence that I was not getting the advertised speeds.
 
-### Overview
+I also wanted to compare VPN providers and regions, with the exit IP saved alongside each result. Those two things were the inspiration for the app.
 
-![Overview with network identity, seven-day summary, latest result, and next schedule](docs/screenshots/overview.png)
+The tests run wherever the dashboard is installed. Put it behind Gluetun and it tests the VPN connection. Run it normally and it tests the server's usual internet connection. The displayed IP is a handy sanity check, but it cannot guarantee that your VPN or kill switch is configured correctly.
+
+![Speedtest Dashboard overview showing a sample VPN exit and recent measurements](docs/screenshots/overview.png)
+
+## What you get
+
+- LibreSpeed ready to go, with automatic or pinned server selection
+- saved download, upload, latency, jitter, packet-loss, server, and public-IP details
+- charts covering the last 24 hours, 7, 30, or 90 days, or everything recorded
+- schedules for regular tests, whether that means every few minutes or once a week
+- optional Ookla support for local builds
+- a simple single-user login if you do not want the dashboard left open
+- an API for Home Assistant, scripts, dashboards, and other things you want to wire up
+- Docker images for `amd64` and `arm64`, plus native unprivileged Proxmox LXC templates
+
+## Get it running
+
+Pick whichever flavour fits your lab. The examples use `latest` to keep the first run simple; pin a release tag once you are happy with it.
+
+Replace `<owner>` with the GitHub repository owner in the image and release URLs.
+
+### Docker command
+
+```bash
+docker volume create speedtest-data
+
+docker run -d \
+  --name speedtest-dashboard \
+  --restart unless-stopped \
+  -p 8008:8008 \
+  -e DASHBOARD_PORT=8008 \
+  -v speedtest-data:/data \
+  ghcr.io/<owner>/speedtest-dashboard:latest
+```
+
+Open `http://<docker-host>:8008`. Port `8008` is only an example; set `DASHBOARD_PORT` and the port mapping to any free port.
+
+### Docker Compose
+
+```yaml
+services:
+  speedtest-dashboard:
+    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    container_name: speedtest-dashboard
+    restart: unless-stopped
+    ports:
+      - "8008:8008"
+    environment:
+      DASHBOARD_PORT: "8008"
+    volumes:
+      - speedtest-data:/data
+
+volumes:
+  speedtest-data:
+```
+
+Save that as `compose.yml`, then:
+
+```bash
+docker compose up -d
+docker compose logs -f speedtest-dashboard
+```
+
+The repo also ships a ready-made [production Compose file](packaging/containers/compose.yml) plus a [full Docker and Podman guide](packaging/containers/README.md).
+
+### Put it behind Gluetun
+
+If both services live in the same Compose project, let the dashboard borrow Gluetun's network stack:
+
+```yaml
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    # Keep your existing Gluetun capabilities, device and VPN settings here.
+    ports:
+      - "8008:8008" # Speedtest Dashboard UI
+
+  speedtest-dashboard:
+    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    container_name: speedtest-dashboard
+    network_mode: "service:gluetun"
+    restart: unless-stopped
+    environment:
+      DASHBOARD_PORT: "8008"
+    volumes:
+      - speedtest-data:/data
+
+volumes:
+  speedtest-data:
+```
+
+Notice that port `8008` is published by the `gluetun` service. Containers sharing Gluetun's network also share its ports, so choose any unused port and use the same number for `DASHBOARD_PORT` and Gluetun's port mapping.
+
+Already running Gluetun elsewhere? The equivalent Docker flag is `--network container:gluetun`, and the port still needs to be published by the Gluetun container. The [container guide](packaging/containers/README.md#routing-tests-through-gluetun) has complete same-stack, separate-project, and port-clash examples.
+
+### Proxmox LXC
+
+Download the template matching your host, verify it, and create an unprivileged container. On the Proxmox host that looks roughly like this:
+
+```bash
+wget <release-url>/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
+  -O /var/lib/vz/template/cache/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
+
+pct create 120 \
+  local:vztmpl/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
+  --hostname speedtest-dashboard \
+  --unprivileged 1 \
+  --cores 2 \
+  --memory 1024 \
+  --swap 512 \
+  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
+  --start 1
+```
+
+Browse to `http://<container-ip>:8080`. The template runs the app directly with systemd and keeps its data under `/var/lib/speedtest-dashboard`. Upload locations, checksums, firewall notes, ARM templates, and build instructions live in the [Proxmox LXC guide](packaging/proxmox/README.md).
+
+## First few minutes
+
+Fresh installs open without a login so you can make sure networking works. Run a test, check that the displayed exit IP belongs to the route you expected, then add a schedule or two.
+
+If the dashboard is reachable beyond a trusted LAN, put it behind HTTPS and enable login protection in Settings. For a deliberately isolated HTTP-only lab, set `Authentication__AllowInsecureHttp=true` before configuring a login.
+
+The container itself is disposable; `/data` is not. That directory holds SQLite, schedules, login state, the protected API credential, and session keys. Keep it mounted, do not point two dashboard containers at the same database, and stop the container before making a filesystem-level copy.
+
+## A few more screenshots
+
+The screenshots use a temporary database and documentation-only IP addresses. No real VPN account or endpoint is shown.
 
 ### Statistics
 
-![Seven-day statistics with provider filters and summary measurements](docs/screenshots/statistics.png)
+![Seven-day speed-test statistics and reliability summary](docs/screenshots/statistics.png)
 
 ### Schedules
 
-![Enabled and disabled recurring schedules](docs/screenshots/schedules.png)
+![Recurring VPN speed-test schedules](docs/screenshots/schedules.png)
 
 ### Mobile results
 
-![Results displayed as a mobile card](docs/screenshots/results-mobile.png)
-
-## Features
-
-- LibreSpeed tests with automatic or explicit server selection
-- optional local Ookla CLI integration
-- one active bandwidth test, a bounded queue, cancellation, and live status updates
-- persistent SQLite results with filters, pagination, details, and deletion
-- 24-hour, 7-day, 30-day, 90-day, and all-time statistics
-- one-off, interval, daily, and weekly schedules with IANA time zones
-- backend-observed IPv4 and IPv6 identity with optional IPConfig.io metadata
-- optional single-operator login and an independent machine API key
-- light, dark, and system themes
-- OCI images for `linux/amd64` and `linux/arm64`
-- native Debian-based Proxmox LXC templates for amd64 and arm64
-
-## Deployment
-
-Docker/Podman and native Proxmox LXC are equally supported packaging targets. Both include LibreSpeed and use the same application source.
-
-| Target | Start here | Runtime and persistent state |
-| --- | --- | --- |
-| Docker or rootless Podman | [Container guide](packaging/containers/README.md) | OCI image, `/data` volume |
-| Proxmox LXC | [Native LXC guide](packaging/proxmox/README.md) | Debian + systemd, `/var/lib/speedtest-dashboard` |
-
-For Docker, run from the repository root (replace `<owner>` with the repository owner):
-
-```bash
-export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/<owner>/speedtest-dashboard:0.12.0-rc.1
-docker compose -f packaging/containers/compose.yml up -d
-```
-
-For Proxmox, download the matching release template and follow the native LXC guide to create an unprivileged container.
-
-Open `http://<server-address>:8080`. New installations allow anonymous access. Configure login protection in Settings after placing the dashboard behind HTTPS. On an isolated trusted network, `Authentication__AllowInsecureHttp=true` permits login over HTTP.
-
-## Persistent storage
-
-The container is disposable. Mount `/data` if you want state to survive updates.
-
-`/data` contains:
-
-- SQLite, including Results and schedule records
-- login state and the protected API credential
-- Data Protection keys used for sessions and API-key encryption
-
-The production [Compose file](packaging/containers/compose.yml) uses the `speedtest-data` named volume. Do not run two dashboard instances against the same SQLite file.
-
-For native Proxmox LXC, durable state lives at `/var/lib/speedtest-dashboard`, not `/data`.
-
-## Authentication
-
-Login protection is off on a fresh database. Settings can create one local account and turn protection on or off. Turning protection off deletes the local account and password, so turning it on again creates fresh credentials. There is no registration, account list, email recovery, or role system.
-
-Usernames are 3–64 characters using letters, digits, `.`, `_`, or `-`. Passwords are 6–128 characters with no composition rule. Five failed logins lock the account for 15 minutes; login requests are also limited to 10 per minute per source IP.
-
-Browser sessions use an `HttpOnly`, `SameSite=Lax` cookie with a 12-hour sliding lifetime. Cookies are Secure unless `Authentication__AllowInsecureHttp=true`. Unsafe cookie-authenticated requests use an antiforgery token. Anonymous HTTP dashboards can also obtain antiforgery tokens; credential setup and login still require HTTPS unless the insecure-HTTP override is enabled. Health and session bootstrap routes remain anonymous.
-
-The machine API uses a separate instance-wide bearer key. Generate, view, rotate, or revoke it in Settings. A dashboard session does not authenticate `/api/v1`, and an API key does not sign in to the dashboard.
+![Saved speed-test results on a mobile viewport](docs/screenshots/results-mobile.png)
 
 ## Providers
 
 ### LibreSpeed
 
-Published OCI images and Proxmox templates include LibreSpeed CLI `1.0.13`, built from commit `2f2408764d88e9601aa64a03b340f8e3151003e4`. The source archive is checksum-verified and the LGPL-3.0 license is installed with the binary. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Published images and LXC templates include LibreSpeed CLI `1.0.13`, built from commit `2f2408764d88e9601aa64a03b340f8e3151003e4`. Tests run with `--json --no-icmp --secure`; result sharing and telemetry are not enabled. The public HTTPS server catalogue is cached for five minutes.
 
-Tests run with `--json --no-icmp --secure`. The application does not enable result sharing or telemetry. Server discovery uses LibreSpeed's public HTTPS catalogue and caches results for five minutes.
+The source archive is checksum-verified and its LGPL-3.0 licence is included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### Ookla
 
-The integration is included in the application; the official CLI is excluded from all public images and LXC templates. Local builds can add the pinned, checksum-verified CLI with one opt-in flag. Runtime use requires explicit licence and GDPR acceptance.
+The integration is built into the app, but the proprietary Ookla CLI is not included in public images or templates. Local builds can opt in to the pinned, checksum-verified package, then explicitly accept the licence and GDPR terms at runtime.
 
-See [Enable Ookla](docs/ookla.md) for complete Docker, Podman, and native Proxmox commands.
+See [Enable Ookla](docs/ookla.md) for the Docker, Podman, and native Proxmox steps.
 
-## Scheduling
+## Scheduling and history
 
-Schedules can run once, every 1–10080 minutes, daily, or weekly. Daily and weekly schedules use their saved IANA time zone and account for daylight-saving transitions.
+Schedules can run once, every 1–10080 minutes, daily, or weekly. Daily and weekly schedules use their saved IANA time zone, including daylight-saving changes.
 
-The scheduler checks every 30 seconds by default and submits through the same bounded queue as manual and API tests. A due run is recorded as skipped when the queue is full, the previous run is still active, or its provider selection is no longer valid. It is not retried. Occurrences missed while the application was offline are recorded once and are not replayed; the next future occurrence is calculated instead.
+Every manual, scheduled, or API test goes through the same bounded queue. A due run is recorded as skipped when that queue is full, the previous run is still active, or its chosen provider is no longer available. Missed runs are recorded once after downtime instead of being replayed in a burst.
 
-## Results and statistics
+Results are kept until you delete them. The Results page stores individual runs; Statistics handles summaries, trends, charts, and provider comparisons.
 
-Results contains individual terminal test records. `/results` is its browser route; `/history` redirects there for old bookmarks. Backend History route names remain available for compatibility.
+## Home Assistant and API
 
-Statistics owns aggregate analysis: summary values, prior-period trends, throughput charts, latency and jitter charts, and provider comparison. Supported ranges are `24h`, `7d` (default), `30d`, `90d`, and `all`.
+The API is there for anyone who wants to tinker. You could add a Home Assistant button that runs a test, start one from a voice command, pull the latest result into a sensor, or feed the history into your own dashboard.
 
-History list requests default to 50 records and allow up to 200. They support provider, terminal status, UTC start/end, and opaque cursor filters. There is no automatic retention or bulk delete.
+Generate an API key in Settings and send it as `Authorization: Bearer <api-key>`. Reads are limited to 120 requests per minute per source IP and writes to 10; the test queue has its own limit.
 
-## API
-
-Send the key as `Authorization: Bearer <api-key>`. Reads are limited to 120 requests per minute per source IP; writes are limited to 10. Queue capacity is enforced separately.
-
-| Method and route | Purpose |
+| Method and route | What it does |
 | --- | --- |
-| `GET /api/health` | Anonymous service health and version |
-| `GET /api/v1/network` | Backend IPv4 and IPv6 identity |
-| `GET /api/v1/providers` | Provider health and capabilities |
-| `GET /api/v1/providers/{id}` | One provider |
-| `GET /api/v1/providers/{id}/servers` | Provider server search |
-| `POST /api/v1/tests` | Queue a test |
+| `GET /api/health` | Anonymous health and version check |
+| `GET /api/v1/network` | Read the backend's IPv4 and IPv6 identity |
+| `GET /api/v1/providers` | List provider health and capabilities |
+| `GET /api/v1/providers/{id}` | Read one provider |
+| `GET /api/v1/providers/{id}/servers` | Search a provider's servers |
+| `POST /api/v1/tests` | Queue a speed test |
 | `GET /api/v1/tests/{id}` | Poll a test |
 | `GET /api/v1/tests/{id}/events` | Stream test status events |
-| `POST /api/v1/tests/{id}/cancel` | Cancel a test |
-| `GET /api/v1/history` | List terminal results |
-| `GET /api/v1/history/{id}` | Read one result |
+| `POST /api/v1/tests/{id}/cancel` | Cancel a queued or running test |
+| `GET /api/v1/history` | List saved results |
+| `GET /api/v1/history/{id}` | Read one saved result |
 | `GET /api/v1/statistics` | Read aggregate statistics |
 | `GET /api/v1/schedules` | List schedules |
 | `GET /api/v1/schedules/{id}` | Read one schedule |
 
-`POST /api/v1/tests` accepts `{ "providerId": "librespeed", "serverId": null }`. An optional `Idempotency-Key` of at most 128 characters is retained for 24 hours. Reusing it with the same request returns the original job, including concurrent retries; changing the request returns `409`.
+Queue a LibreSpeed test with:
 
-The `/api/v1` surface does not expose History deletion, schedule mutation, or authentication administration.
+```bash
+curl -X POST http://<server>:8008/api/v1/tests \
+  -H "Authorization: Bearer <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"providerId":"librespeed","serverId":null}'
+```
+
+An optional `Idempotency-Key` header is retained for 24 hours. The API intentionally does not expose result deletion, schedule changes, or login administration.
 
 ## Configuration
 
-Environment variables use double underscores for nested keys.
+Environment variables use double underscores for nested settings. These are the ones most people are likely to touch:
 
-| Variable | Default |
-| --- | --- |
-| `Authentication__AllowInsecureHttp` | `false` |
-| `Authentication__DataProtectionPath` | `/data/dataprotection` |
-| `ReverseProxy__TrustForwardedHeaders` | `false` |
-| `Storage__DatabasePath` | `/data/speedtest.db` |
-| `Storage__CommandTimeoutSeconds` | `10` |
-| `Scheduler__PollIntervalSeconds` | `30` |
-| `SpeedTests__QueueCapacity` | `4` |
-| `SpeedTests__QueueFullRetryAfterSeconds` | `5` |
-| `SpeedTests__SseHeartbeatSeconds` | `20` |
-| `Processes__DefaultTimeoutSeconds` | `120` |
-| `Processes__MaxTimeoutSeconds` | `600` |
-| `Processes__DefaultStdoutLimitBytes` | `2097152` |
-| `Processes__DefaultStderrLimitBytes` | `1048576` |
-| `Processes__AbsoluteOutputLimitBytes` | `8388608` |
-| `NetworkIdentity__SuccessCacheSeconds` | `300` |
-| `NetworkIdentity__FailureCacheSeconds` | `30` |
-| `NetworkIdentity__RefreshThrottleSeconds` | `10` |
-| `NetworkIdentity__RequestTimeoutSeconds` | `5` |
-| `NetworkIdentity__MetadataProvider` | `ipconfig` |
-| `Providers__LibreSpeed__Enabled` | `true` |
-| `Providers__LibreSpeed__ExecutablePath` | `/usr/local/bin/librespeed-cli` (OCI) |
-| `Providers__LibreSpeed__HealthTimeoutSeconds` | `5` |
-| `Providers__LibreSpeed__HealthCacheSeconds` | `45` |
-| `Providers__LibreSpeed__TestTimeoutSeconds` | `180` |
-| `Providers__LibreSpeed__ServerListTimeoutSeconds` | `20` |
-| `Providers__LibreSpeed__ServerCacheSeconds` | `300` |
-| `Providers__LibreSpeed__MaximumServers` | `250` |
-| `Providers__LibreSpeed__DisableIcmp` | `true` |
-| `Providers__LibreSpeed__PreferHttps` | `true` |
-| `Providers__Ookla__Enabled` | `true` |
-| `Providers__Ookla__ExecutablePath` | `/usr/bin/speedtest` |
-| `Providers__Ookla__AcceptLicense` | `false` |
-| `Providers__Ookla__AcceptGdpr` | `false` |
-| `Providers__Ookla__HealthTimeoutSeconds` | `5` |
-| `Providers__Ookla__HealthCacheSeconds` | `45` |
-| `Providers__Ookla__TestTimeoutSeconds` | `180` |
-| `Providers__Ookla__ServerListTimeoutSeconds` | `30` |
-| `Providers__Ookla__ServerCacheSeconds` | `300` |
-| `Providers__Ookla__MaximumServers` | `100` |
+| Variable | Default | Why change it |
+| --- | --- | --- |
+| `Authentication__AllowInsecureHttp` | `false` | Allow login cookies on a trusted HTTP-only LAN |
+| `DASHBOARD_PORT` | `8080` | Avoid a clash with another app, especially behind Gluetun |
+| `ReverseProxy__TrustForwardedHeaders` | `false` | Enable only behind a trusted reverse proxy |
+| `Scheduler__PollIntervalSeconds` | `30` | Change how often due schedules are checked |
+| `SpeedTests__QueueCapacity` | `4` | Change the number of waiting test jobs |
+| `Storage__DatabasePath` | `/data/speedtest.db` | Move the SQLite database inside the mounted data path |
 
-The LXC environment overrides the storage paths and LibreSpeed executable path for its filesystem layout. Configuration validation rejects unsafe or out-of-range values at startup.
+The full set of process, provider, caching, and queue options is documented in [Configuration reference](docs/configuration.md).
 
-When `ReverseProxy__TrustForwardedHeaders=true`, the app clears ASP.NET Core's known-proxy restrictions. Enable it only when untrusted clients cannot reach port 8080 directly and the proxy replaces forwarded headers.
+When `ReverseProxy__TrustForwardedHeaders=true`, the app trusts forwarded headers without ASP.NET Core's known-proxy restriction. Only use that when untrusted clients cannot reach the dashboard port directly and your proxy replaces those headers.
 
-### IP metadata
+## Backups and updates
 
-`NetworkIdentity__MetadataProvider` defaults to `ipconfig`, which annotates each discovered address using [IPConfig.io](https://ipconfig.io) without needing an account or token. Set it to `none` to perform address discovery without sending enrichment lookups to IPConfig.io.
+Back up before changing versions; database migrations run on startup and downgrades are not supported.
 
-The response supplies the country, country code, AS number, and AS organization. Region and city are included only when the address database can place the address: ordinary ISP addresses usually resolve to one, while anycast and datacenter addresses often do not. The dashboard shows those fields when they are present and leaves them empty otherwise; it never infers them. IPConfig.io reports no ISP separate from the AS organization, and no metadata field is used to claim VPN status.
+- Docker/Podman: stop the container before copying `/data`, then recreate it with the new image while keeping the same volume.
+- Proxmox: use normal PVE backup/snapshot tooling, or stop `speedtest-dashboard` before copying `/var/lib/speedtest-dashboard`.
 
-Each address is looked up separately over HTTPS, results are cached with the identity snapshot, and a failed or slow lookup leaves address discovery intact. The default enrichment sends each discovered public IP address to IPConfig.io.
+The [container guide](packaging/containers/README.md#storage-backups-and-updates) has copy/paste update commands. Native LXC templates are currently intended for new containers rather than in-place package upgrades.
 
-Installations that used the removed IPinfo Lite provider should replace `NetworkIdentity__MetadataProvider=ipinfo` with `ipconfig` and drop `NetworkIdentity__Ipinfo__Token`; `ipinfo` is no longer a valid selection and fails validation at startup. Results already stored keep the source label recorded when they were written.
+## Security notes
 
-## Backup and upgrade
+HTTP requests can choose only a provider and a provider-owned server ID. They cannot supply executable paths, URLs, shell commands, or arbitrary CLI flags. Provider processes use literal argument lists, timeouts, cancellation, bounded output, and process-tree termination.
 
-Stop the container before copying `/data` so SQLite and its WAL files are consistent. For LXC, use Proxmox backup/snapshot tooling or stop the service before copying `/var/lib/speedtest-dashboard`.
-
-Keep the durable path mounted while replacing the OCI container. Database migrations run before HTTP startup and preserve existing state. Back up before every version change; downgrades are not supported.
-
-## Security
-
-Speed-test requests accept only a provider ID and validated provider-owned server ID. Executable paths, URLs, command strings, and arbitrary flags are never accepted from HTTP. Child processes use literal argument lists without a shell, bounded output, timeouts, cancellation, and process-tree termination.
-
-Raw provider output and secrets are not returned by the API. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
-
-## Licensing
-
-Speedtest Dashboard is licensed under [MIT](LICENSE). LibreSpeed CLI remains LGPL-3.0. Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Ookla, Speedtest.net, LibreSpeed, Docker, Podman, or Proxmox.
+Browser login is deliberately small: one local operator, no registration, no roles, and no email recovery. The machine API key is independent from that browser session. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 ## Development
 
-Prerequisites are .NET SDK 10, Node.js 22+, and npm.
+You will need .NET SDK 10, Node.js 22+, and npm.
 
 ```bash
 mkdir -p .data
@@ -230,4 +258,8 @@ npm ci --prefix src/SpeedtestDashboard.Web
 npm run dev --prefix src/SpeedtestDashboard.Web
 ```
 
-Vite serves `http://localhost:5173` and proxies `/api` to the backend. See [CONTRIBUTING.md](CONTRIBUTING.md) for the verification commands and provider safety rules. See [architecture](docs/architecture.md) for implementation boundaries and [release maintenance](docs/releasing.md) for packaging validation.
+Vite serves `http://localhost:5173` and proxies `/api` to the backend. The deeper implementation notes are in [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/architecture.md), and [release maintenance](docs/releasing.md).
+
+## Licence
+
+Speedtest Dashboard is [MIT licensed](LICENSE). LibreSpeed CLI remains LGPL-3.0. Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Ookla, Speedtest.net, LibreSpeed, Docker, Podman, Gluetun, or Proxmox.
