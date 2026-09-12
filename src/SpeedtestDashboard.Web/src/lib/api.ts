@@ -84,7 +84,7 @@ export async function getNetworkIdentity(refresh = false, signal?: AbortSignal):
     const retryAfterSeconds = retryAfter === null ? undefined : Number.parseInt(retryAfter, 10)
     throw new ApiError(
       response.status === 429
-        ? 'Network identity was refreshed recently.'
+        ? "Easy tiger, let's not spam the IP lookup providers."
         : 'Network identity could not be loaded.',
       response.status,
       Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined,

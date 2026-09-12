@@ -12,10 +12,11 @@ public sealed class NetworkIdentityService(
     TimeProvider timeProvider,
     ILogger<NetworkIdentityService> logger) : INetworkIdentityService
 {
+    private const int ManualRefreshBurstLimit = 4;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly IIpMetadataProvider? _metadataProvider = metadataProviders.SingleOrDefault();
+    private readonly Queue<DateTimeOffset> _manualRefreshesUtc = new();
     private CacheEntry? _cache;
-    private DateTimeOffset? _lastManualRefreshUtc;
 
     public async Task<NetworkIdentity> GetAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
@@ -35,7 +36,7 @@ public sealed class NetworkIdentityService(
             if (forceRefresh)
             {
                 EnforceManualRefreshThrottle(now);
-                _lastManualRefreshUtc = now;
+                _manualRefreshesUtc.Enqueue(now);
             }
             else if (cached is not null && cached.ExpiresAtUtc > now)
             {
@@ -68,15 +69,16 @@ public sealed class NetworkIdentityService(
 
     private void EnforceManualRefreshThrottle(DateTimeOffset now)
     {
-        if (_lastManualRefreshUtc is not { } lastRefresh)
+        var interval = TimeSpan.FromSeconds(options.Value.RefreshThrottleSeconds);
+        var windowStart = now - interval;
+        while (_manualRefreshesUtc.TryPeek(out var refresh) && refresh <= windowStart)
         {
-            return;
+            _manualRefreshesUtc.Dequeue();
         }
 
-        var interval = TimeSpan.FromSeconds(options.Value.RefreshThrottleSeconds);
-        var retryAfter = interval - (now - lastRefresh);
-        if (retryAfter > TimeSpan.Zero)
+        if (_manualRefreshesUtc.Count >= ManualRefreshBurstLimit)
         {
+            var retryAfter = _manualRefreshesUtc.Peek().Add(interval) - now;
             throw new NetworkIdentityRefreshThrottledException(retryAfter);
         }
     }
@@ -186,4 +188,3 @@ public sealed class NetworkIdentityService(
 
     private sealed record LookupResult<T>(T? Value, bool Failed) where T : class;
 }
-

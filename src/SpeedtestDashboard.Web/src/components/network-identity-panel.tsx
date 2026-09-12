@@ -92,7 +92,7 @@ export function NetworkIdentityPanel() {
       {(data.isStale || refreshError) && (
         <p className="mt-3 text-sm font-semibold text-danger" role="status">
           {refreshError?.status === 429
-            ? `Refresh available in about ${refreshError.retryAfterSeconds ?? 10} seconds.`
+            ? `${refreshError.message} Try again in about ${refreshError.retryAfterSeconds ?? 10} seconds.`
             : 'Refresh failed. Showing the last result.'}
         </p>
       )}

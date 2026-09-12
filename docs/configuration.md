@@ -41,6 +41,8 @@ Docker users can put the values under `environment:` in Compose. Native Proxmox 
 | `NetworkIdentity__RequestTimeoutSeconds` | `5` |
 | `NetworkIdentity__MetadataProvider` | `ipconfig` |
 
+The Overview page allows four manual IP refreshes during each `NetworkIdentity__RefreshThrottleSeconds` window before asking you to cool off.
+
 `NetworkIdentity__MetadataProvider=ipconfig` annotates each discovered public address through [IPConfig.io](https://ipconfig.io). Set it to `none` to keep address discovery but skip enrichment.
 
 Each IPv4 and IPv6 address is looked up separately over HTTPS. A slow or failed metadata request leaves public-IP discovery intact. IPConfig.io may return country, AS number, AS organisation, region, and city. The dashboard only displays fields actually returned; it does not infer a location or claim that a VPN is active.

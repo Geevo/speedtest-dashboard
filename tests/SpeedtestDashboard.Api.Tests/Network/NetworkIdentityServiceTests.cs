@@ -135,17 +135,55 @@ public sealed class NetworkIdentityServiceTests
     }
 
     [Fact]
-    public async Task RepeatedManualRefresh_IsThrottledWithRetryDelay()
+    public async Task ManualRefresh_AllowsFourRequestsWithinThrottleWindow()
     {
         var resolver = new FakePublicIpResolver { IPv4Result = IPv4 };
         var service = CreateService(resolver, refreshThrottleSeconds: 10);
 
-        await service.GetAsync(true, CancellationToken.None);
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await service.GetAsync(true, CancellationToken.None);
+        }
+
+        Assert.Equal(4, resolver.IPv4Calls);
+    }
+
+    [Fact]
+    public async Task FifthManualRefresh_IsThrottledWithRetryDelay()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 3, 12, 0, 0, TimeSpan.Zero));
+        var resolver = new FakePublicIpResolver { IPv4Result = IPv4 };
+        var service = CreateService(resolver, clock: clock, refreshThrottleSeconds: 10);
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await service.GetAsync(true, CancellationToken.None);
+        }
+
+        clock.Advance(TimeSpan.FromSeconds(2));
         var exception = await Assert.ThrowsAsync<NetworkIdentityRefreshThrottledException>(
             () => service.GetAsync(true, CancellationToken.None));
 
-        Assert.InRange(exception.RetryAfter.TotalSeconds, 9.9, 10.0);
-        Assert.Equal(1, resolver.IPv4Calls);
+        Assert.Equal(TimeSpan.FromSeconds(8), exception.RetryAfter);
+        Assert.Equal(4, resolver.IPv4Calls);
+    }
+
+    [Fact]
+    public async Task ManualRefresh_IsAllowedAgainWhenThrottleWindowMoves()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 3, 12, 0, 0, TimeSpan.Zero));
+        var resolver = new FakePublicIpResolver { IPv4Result = IPv4 };
+        var service = CreateService(resolver, clock: clock, refreshThrottleSeconds: 10);
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await service.GetAsync(true, CancellationToken.None);
+        }
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        await service.GetAsync(true, CancellationToken.None);
+
+        Assert.Equal(5, resolver.IPv4Calls);
     }
 
     [Fact]
