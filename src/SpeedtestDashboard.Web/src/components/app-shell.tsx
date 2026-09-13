@@ -21,6 +21,7 @@ import {
 } from '../lib/navigation'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
+import { SpeedDialMark } from './speed-dial-mark'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -103,9 +104,7 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
     <>
       <div className={cn('flex h-20 items-center gap-3 border-b border-line px-5', collapsed && 'lg:justify-center lg:px-0')}>
         <div className={cn('flex min-w-0 items-center gap-3', collapsed && 'lg:hidden')}>
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-ink text-canvas">
-            <ChartNoAxesCombined aria-hidden="true" className="size-5" strokeWidth={2.2} />
-          </div>
+          <SpeedDialMark aria-hidden="true" className="size-12 shrink-0" />
           <div className="min-w-0">
             <div className="truncate text-[15px] font-bold tracking-[-0.02em]">Speedtest</div>
             <div className="truncate text-xs text-ink-muted">Dashboard</div>

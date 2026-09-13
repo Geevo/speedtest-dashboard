@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { ChartNoAxesCombined, LockKeyhole } from 'lucide-react'
+import { LockKeyhole } from 'lucide-react'
 import { ApiError, login, type SessionResponse } from '../lib/api'
+import { SpeedDialMark } from './speed-dial-mark'
 import { Button } from './ui/button'
 
 export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionResponse) => void }) {
@@ -38,9 +39,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionRespons
     <main className="grid min-h-screen bg-canvas px-5 py-8 text-ink sm:px-8 lg:grid-cols-[minmax(20rem,0.85fr)_minmax(28rem,1.15fr)] lg:p-0">
       <section className="relative hidden overflow-hidden border-r border-line bg-ink text-canvas lg:flex lg:flex-col lg:justify-between lg:p-14">
         <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-xl bg-canvas text-ink">
-            <ChartNoAxesCombined className="size-5" aria-hidden="true" />
-          </div>
+          <SpeedDialMark className="size-12" aria-hidden="true" />
           <span className="font-semibold tracking-[-0.02em]">Speedtest Dashboard</span>
         </div>
         <div className="max-w-md">
@@ -58,9 +57,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionRespons
       <section className="flex items-center justify-center lg:px-16">
         <div className="w-full max-w-[25rem] page-enter">
           <div className="mb-12 flex items-center gap-3 lg:hidden">
-            <div className="grid size-9 place-items-center rounded-xl bg-ink text-canvas">
-              <ChartNoAxesCombined className="size-5" aria-hidden="true" />
-            </div>
+            <SpeedDialMark className="size-11" aria-hidden="true" />
             <span className="font-semibold">Speedtest Dashboard</span>
           </div>
           <LockKeyhole className="mb-6 size-6 text-ink-muted" strokeWidth={1.7} aria-hidden="true" />
