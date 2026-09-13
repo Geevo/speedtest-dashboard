@@ -82,6 +82,7 @@ web_dist="$work_dir/web-dist"
 publish_dir="$work_dir/publish"
 librespeed_dir="$work_dir/librespeed"
 fastcom_dir="$work_dir/fastcom"
+mlab_dir="$work_dir/mlab"
 rootfs="$work_dir/rootfs"
 artifact_suffix=
 if [ "$install_ookla" = true ]; then
@@ -113,6 +114,7 @@ dotnet publish "$repo_root/src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csp
 
 TARGETARCH="$architecture" OUTPUT_DIR="$librespeed_dir" "$repo_root/packaging/providers/build-librespeed.sh"
 TARGETARCH="$architecture" OUTPUT_DIR="$fastcom_dir" "$repo_root/packaging/providers/download-fast-cli.sh"
+TARGETARCH="$architecture" OUTPUT_DIR="$mlab_dir" "$repo_root/packaging/providers/build-mlab.sh"
 
 $elevate "$bootstrap" \
   --arch="$architecture" \
@@ -145,11 +147,13 @@ $elevate install -d -m 0755 "$rootfs/opt/speedtest-dashboard"
 $elevate cp -R "$publish_dir/." "$rootfs/opt/speedtest-dashboard/"
 $elevate install -m 0755 "$librespeed_dir/librespeed-cli" "$rootfs/opt/speedtest-dashboard/librespeed-cli"
 $elevate install -m 0755 "$fastcom_dir/fast-cli" "$rootfs/opt/speedtest-dashboard/fast-cli"
+$elevate install -m 0755 "$mlab_dir/mlab-ndt7-client" "$rootfs/opt/speedtest-dashboard/mlab-ndt7-client"
 $elevate install -d -m 0755 "$rootfs/opt/speedtest-dashboard/third-party-licenses"
 $elevate install -m 0644 "$repo_root/LICENSE" "$rootfs/opt/speedtest-dashboard/LICENSE"
 $elevate install -m 0644 "$repo_root/THIRD_PARTY_NOTICES.md" "$rootfs/opt/speedtest-dashboard/THIRD_PARTY_NOTICES.md"
 $elevate install -m 0644 "$librespeed_dir/LICENSE.librespeed-cli" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.librespeed-cli"
 $elevate install -m 0644 "$fastcom_dir/LICENSE.fast-cli" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.fast-cli"
+$elevate install -m 0644 "$mlab_dir/LICENSE.mlab-ndt7-client" "$rootfs/opt/speedtest-dashboard/third-party-licenses/LICENSE.mlab-ndt7-client"
 if [ "$install_ookla" = true ]; then
   $elevate install -m 0644 "$repo_root/packaging/providers/OOKLA_NOTICE.md" "$rootfs/opt/speedtest-dashboard/third-party-licenses/OOKLA_NOTICE.md"
 fi

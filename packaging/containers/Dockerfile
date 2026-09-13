@@ -26,6 +26,25 @@ RUN chmod 0755 /usr/local/bin/build-librespeed \
       OUTPUT_DIR=/out \
       /usr/local/bin/build-librespeed
 
+FROM golang:1.27.1-bookworm AS mlab-build
+ARG TARGETARCH
+# Defaults are pinned once in packaging/providers/build-mlab.sh.
+ARG MLAB_VERSION
+ARG MLAB_COMMIT
+ARG MLAB_SOURCE_SHA256
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY packaging/providers/build-mlab.sh /usr/local/bin/build-mlab
+RUN chmod 0755 /usr/local/bin/build-mlab \
+    && mkdir -p /out \
+    && TARGETARCH="$TARGETARCH" \
+      MLAB_VERSION="$MLAB_VERSION" \
+      MLAB_COMMIT="$MLAB_COMMIT" \
+      MLAB_SOURCE_SHA256="$MLAB_SOURCE_SHA256" \
+      OUTPUT_DIR=/out \
+      /usr/local/bin/build-mlab
+
 FROM debian:bookworm-slim AS fastcom-fetch
 ARG TARGETARCH
 RUN apt-get update \
@@ -73,7 +92,7 @@ LABEL org.opencontainers.image.title="Speedtest Dashboard" \
       org.opencontainers.image.version="$APP_VERSION" \
       org.opencontainers.image.revision="$SOURCE_REVISION" \
       org.opencontainers.image.created="$BUILD_DATE" \
-      org.opencontainers.image.licenses="MIT AND LGPL-3.0-only"
+      org.opencontainers.image.licenses="MIT AND LGPL-3.0-only AND Apache-2.0"
 USER root
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends curl \
@@ -93,6 +112,8 @@ COPY --from=librespeed-build --chmod=0755 /out/librespeed-cli /usr/local/bin/lib
 COPY --from=librespeed-build --chmod=0644 /out/LICENSE.librespeed-cli /usr/share/licenses/librespeed-cli/LICENSE
 COPY --from=fastcom-fetch --chmod=0755 /out/fast-cli /usr/local/bin/fast-cli
 COPY --from=fastcom-fetch --chmod=0644 /out/LICENSE.fast-cli /usr/share/licenses/fast-cli/LICENSE
+COPY --from=mlab-build --chmod=0755 /out/mlab-ndt7-client /usr/local/bin/mlab-ndt7-client
+COPY --from=mlab-build --chmod=0644 /out/LICENSE.mlab-ndt7-client /usr/share/licenses/mlab-ndt7-client/LICENSE
 WORKDIR /app
 COPY --from=api-build --chown=app:app /app/publish/ ./
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/speedtest-dashboard/THIRD_PARTY_NOTICES.md

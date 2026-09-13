@@ -34,7 +34,7 @@ public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApp
         Assert.Equal(JsonValueKind.Array, providers.ValueKind);
         var registered = providers.EnumerateArray().ToArray();
         Assert.Equal(
-            ["librespeed", "fastcom", "ookla"],
+            ["librespeed", "fastcom", "mlab", "ookla"],
             registered.Select(provider => provider.GetProperty("id").GetString()));
         Assert.All(registered, provider =>
             Assert.Equal("unavailable", provider.GetProperty("healthState").GetString()));

@@ -36,7 +36,7 @@ public sealed class LibreSpeedEndpointIntegrationTests : IClassFixture<Dashboard
         var provider = await client.GetFromJsonAsync<JsonElement>("/api/providers/librespeed");
         var servers = await client.GetFromJsonAsync<JsonElement>("/api/providers/librespeed/servers?search=T%C5%8Dky%C5%8D&limit=100");
 
-        Assert.Equal(["librespeed", "fastcom", "ookla"], providers.EnumerateArray().Select(item => item.GetProperty("id").GetString()));
+        Assert.Equal(["librespeed", "fastcom", "mlab", "ookla"], providers.EnumerateArray().Select(item => item.GetProperty("id").GetString()));
         Assert.Equal("available", provider.GetProperty("healthState").GetString());
         Assert.Equal("1.0.13", provider.GetProperty("version").GetString());
         var capabilities = provider.GetProperty("capabilities").EnumerateArray().Select(item => item.GetString()).ToArray();

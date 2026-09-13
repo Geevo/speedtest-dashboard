@@ -1,6 +1,6 @@
 # Docker and Podman
 
-The same image runs on Docker and rootless Podman on `linux/amd64` and `linux/arm64`. LibreSpeed and FAST.com support are already inside it, so there is no helper database or second app to babysit.
+The same image runs on Docker and rootless Podman on `linux/amd64` and `linux/arm64`. LibreSpeed, FAST.com, and the official M-Lab NDT7 client are already inside it, so there is no helper database or second app to babysit. M-Lab publishes test data, including client IP and test time; review its [privacy policy](https://www.measurementlab.net/privacy/) before use.
 
 Replace `<owner>` with the GitHub repository owner. Release builds are published as `ghcr.io/<owner>/speedtest-dashboard`.
 

@@ -36,6 +36,8 @@ LibreSpeed CLI `1.0.13` is built from commit `2f2408764d88e9601aa64a03b340f8e315
 
 The experimental FAST.com adapter consumes the upstream fast-cli `0.3.5` release unchanged. Its amd64 and arm64 archives are checksum-pinned, and normal execution uses `--https --upload --json --duration 30`. FAST.com owns target selection. The adapter treats a non-null JSON `error` as failure even though this upstream version exits successfully after emitting it. Reported throughput values are deliberately not transformed during this viability pass; results outside the CLI's Mbps display range require validation before the provider is considered production-ready.
 
+The M-Lab adapter builds the official `m-lab/ndt7-client-go` `0.10.1` source at pinned commit `4a5f6325d1d586ab38afb84566a5781b5d6c3d9a`. Normal execution uses quiet JSON, TLS, automatic M-Lab discovery, and an inner 55-second client timeout. Download and upload throughput are consumed in `Mbit/s`; download minimum RTT is used for latency with upload minimum RTT as a fallback. NDT7 retransmission is retained as provider metadata rather than mislabelled as packet loss. M-Lab publishes measurement data, including client IP and test time, so the provider page and documentation disclose that behavior.
+
 Ookla CLI package `1.2.0.84-1.ea6b6773cf` is optional. Public artifacts do not include it. Local OCI builds can install the checksum-pinned package with `INSTALL_OOKLA=true`; runtime commands remain unavailable until both acceptance settings are true. Ookla bytes-per-second values are converted once using `Mbps = bytesPerSecond / 125000`.
 
 ## Persistence
@@ -68,8 +70,8 @@ Results owns individual records. Statistics owns aggregate charts and comparison
 
 ## Release artifacts
 
-The OCI job builds one `linux/amd64` and `linux/arm64` manifest from `packaging/containers/Dockerfile`. The normal image contains the application, .NET runtime, curl health check, LibreSpeed CLI, and fast-cli. It excludes the .NET SDK, Node, Go, source, test fixtures, caches, and Ookla CLI. BuildKit publishes SBOM and provenance attestations.
+The OCI job builds one `linux/amd64` and `linux/arm64` manifest from `packaging/containers/Dockerfile`. The normal image contains the application, .NET runtime, curl health check, LibreSpeed CLI, fast-cli, and the official M-Lab NDT7 client. It excludes the .NET SDK, Node, Go, source, test fixtures, caches, and Ookla CLI. BuildKit publishes SBOM and provenance attestations.
 
-The Proxmox job independently bootstraps Debian 12 with debootstrap, publishes self-contained `linux-x64` or `linux-arm64` application files, packages LibreSpeed and fast-cli, installs a systemd service, and creates a rootfs `tar.zst`. It never consumes OCI output. Native state lives under `/var/lib/speedtest-dashboard`.
+The Proxmox job independently bootstraps Debian 12 with debootstrap, publishes self-contained `linux-x64` or `linux-arm64` application files, packages LibreSpeed, fast-cli, and the M-Lab NDT7 client, installs a systemd service, and creates a rootfs `tar.zst`. It never consumes OCI output. Native state lives under `/var/lib/speedtest-dashboard`.
 
 Both jobs take version and revision from the same semantic-version tag and source commit. A release is incomplete until the OCI manifest, native artifact checksums, and release assets are verified. Native Proxmox support also requires a real unprivileged-container test; inspecting or unpacking the archive is not enough.

@@ -1,0 +1,10 @@
+{
+  "Download": {
+    "Throughput": { "Value": 100, "Unit": "MB/s" },
+    "Latency": { "Value": 12, "Unit": "ms" }
+  },
+  "Upload": {
+    "Throughput": { "Value": 20, "Unit": "Mbit/s" },
+    "Latency": { "Value": 14, "Unit": "ms" }
+  }
+}

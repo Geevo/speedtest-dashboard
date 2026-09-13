@@ -1,0 +1,7 @@
+{
+  "ServerFQDN": "ndt.example.measurement-lab.org",
+  "Download": {
+    "Throughput": { "Value": 100, "Unit": "Mbit/s" },
+    "Latency": { "Value": 12, "Unit": "ms" }
+  }
+}

@@ -79,6 +79,26 @@ Older installs that used the removed IPinfo Lite provider should change `Network
 and upload are separate phases, so `TestTimeoutSeconds` must be at least twice
 the duration plus ten seconds.
 
+## M-Lab
+
+| Variable | Default |
+| --- | --- |
+| `Providers__MLab__Enabled` | `true` |
+| `Providers__MLab__ExecutablePath` | `/usr/local/bin/mlab-ndt7-client` (container) |
+| `Providers__MLab__HealthTimeoutSeconds` | `5` |
+| `Providers__MLab__HealthCacheSeconds` | `45` |
+| `Providers__MLab__TestTimeoutSeconds` | `75` |
+| `Providers__MLab__ClientTimeoutSeconds` | `55` |
+
+`ClientTimeoutSeconds` is passed to the official NDT7 client. The outer
+`TestTimeoutSeconds` must leave at least five additional seconds for process
+cleanup. Server selection is automatic.
+
+M-Lab publishes test data, including the connection's IP address and test time,
+and retains it indefinitely. Review the [M-Lab privacy
+policy](https://www.measurementlab.net/privacy/) before leaving the provider
+enabled or adding it to a schedule.
+
 ## Ookla
 
 | Variable | Default |

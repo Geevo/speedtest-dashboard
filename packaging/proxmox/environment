@@ -43,6 +43,13 @@ Providers__FastCom__HealthCacheSeconds=45
 Providers__FastCom__TestTimeoutSeconds=90
 Providers__FastCom__DurationSeconds=30
 
+Providers__MLab__Enabled=true
+Providers__MLab__ExecutablePath=/opt/speedtest-dashboard/mlab-ndt7-client
+Providers__MLab__HealthTimeoutSeconds=5
+Providers__MLab__HealthCacheSeconds=45
+Providers__MLab__TestTimeoutSeconds=75
+Providers__MLab__ClientTimeoutSeconds=55
+
 Providers__Ookla__Enabled=true
 Providers__Ookla__ExecutablePath=/usr/bin/speedtest
 Providers__Ookla__AcceptLicense=false

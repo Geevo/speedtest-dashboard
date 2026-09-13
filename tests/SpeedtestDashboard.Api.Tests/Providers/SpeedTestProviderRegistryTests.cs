@@ -79,6 +79,7 @@ public sealed class SpeedTestProviderRegistryTests
     [InlineData("ookla", true)]
     [InlineData("librespeed", true)]
     [InlineData("fastcom", true)]
+    [InlineData("mlab", true)]
     [InlineData("fixture-2", true)]
     [InlineData("Fixture", false)]
     [InlineData("bad_id", false)]

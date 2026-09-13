@@ -165,6 +165,12 @@ Published images and LXC templates include the upstream fast-cli `0.3.5` static 
 
 The release archive is checksum-verified and its MIT licence is included. This first integration intentionally consumes upstream output as-is so its behavior can be validated before maintaining a fork or patches.
 
+### M-Lab
+
+Published images and LXC templates include Measurement Lab's official `ndt7-client-go` `0.10.1`, built from checksum-pinned source as a static binary. M-Lab chooses the test server automatically. The adapter reports download, upload, and NDT7 minimum RTT; retransmission remains provider metadata and is not presented as packet loss.
+
+M-Lab publishes test data, including the connection's IP address and test time, and retains it indefinitely. Review the [M-Lab privacy policy](https://www.measurementlab.net/privacy/) before running manual or scheduled tests.
+
 ### Ookla
 
 The integration is built into the app, but the proprietary Ookla CLI is not included in public images or templates. Local builds can opt in to the pinned, checksum-verified package, then explicitly accept the licence and GDPR terms at runtime.
@@ -268,4 +274,4 @@ Vite serves `http://localhost:5173` and proxies `/api` to the backend. The deepe
 
 ## Licence
 
-Speedtest Dashboard is [MIT licensed](LICENSE). fast-cli is MIT licensed, LibreSpeed CLI remains LGPL-3.0, and Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Netflix, FAST.com, Ookla, Speedtest.net, LibreSpeed, Docker, Podman, Gluetun, or Proxmox.
+Speedtest Dashboard is [MIT licensed](LICENSE). fast-cli is MIT licensed, LibreSpeed CLI remains LGPL-3.0, M-Lab's NDT7 client is Apache-2.0 licensed, and Ookla CLI is proprietary and is not included in public artifacts. Provider and platform names are descriptive; this project is not affiliated with Netflix, FAST.com, Measurement Lab, Ookla, Speedtest.net, LibreSpeed, Docker, Podman, Gluetun, or Proxmox.

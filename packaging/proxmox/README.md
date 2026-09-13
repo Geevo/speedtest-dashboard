@@ -1,6 +1,6 @@
 # Proxmox LXC
 
-This is the native option: a small Debian 12 root filesystem, the dashboard, LibreSpeed, fast-cli, and a systemd service. There is no Docker or Podman inside the LXC.
+This is the native option: a small Debian 12 root filesystem, the dashboard, LibreSpeed, fast-cli, the official M-Lab NDT7 client, and a systemd service. There is no Docker or Podman inside the LXC.
 
 The template is a good fit when your router or Proxmox network already sends this container through the VPN exit you want to measure. It does not configure a VPN by itself. If Gluetun owns your VPN connection, the [container setup](../containers/README.md#routing-tests-through-gluetun) is usually the more natural choice.
 
@@ -94,7 +94,7 @@ The appliance does not manage any of those routes. Once your network is in place
 
 | Path | Purpose |
 | --- | --- |
-| `/opt/speedtest-dashboard` | Application, web assets, LibreSpeed CLI, fast-cli, and notices |
+| `/opt/speedtest-dashboard` | Application, web assets, LibreSpeed CLI, fast-cli, M-Lab NDT7 client, and notices |
 | `/etc/speedtest-dashboard/environment` | Environment-based configuration |
 | `/etc/speedtest-dashboard/release` | Template build metadata |
 | `/var/lib/speedtest-dashboard` | SQLite database and Data Protection keys |
@@ -102,7 +102,7 @@ The appliance does not manage any of those routes. Once your network is in place
 
 The service runs as the unprivileged `speedtest` user with no extra capabilities. The LXC itself should also stay unprivileged.
 
-The template includes LibreSpeed CLI `1.0.13` from commit `2f2408764d88e9601aa64a03b340f8e3151003e4` and the upstream fast-cli `0.3.5` release. Public builds do not contain the proprietary Ookla CLI.
+The template includes LibreSpeed CLI `1.0.13`, the upstream fast-cli `0.3.5` release, and the official M-Lab NDT7 client `0.10.1`. Public builds do not contain the proprietary Ookla CLI. M-Lab publishes test data, including client IP and test time; review its [privacy policy](https://www.measurementlab.net/privacy/) before use.
 
 After changing configuration:
 

@@ -86,7 +86,7 @@ test('provider navigation and filters are populated from the provider catalog', 
   for (const providerUi of [shell, results, statistics]) {
     assert.match(providerUi, /getProviders/)
     assert.match(providerUi, /providers\.data/)
-    assert.doesNotMatch(providerUi, /value="(?:librespeed|fastcom|ookla)"/)
+    assert.doesNotMatch(providerUi, /value="(?:librespeed|fastcom|mlab|ookla)"/)
   }
 })
 
@@ -106,4 +106,6 @@ test('provider disclosures render generically before manual and scheduled tests'
   assert.match(schedules, /effectiveProvider\?\.disclosures\.map/)
   assert.match(providers, /disclosure\.kind === 'privacy'/)
   assert.match(schedules, /disclosure\.kind === 'privacy'/)
+  assert.doesNotMatch(providers, /measurementlab|mlab/i)
+  assert.doesNotMatch(schedules, /measurementlab|effectiveProviderId === 'mlab'/i)
 })

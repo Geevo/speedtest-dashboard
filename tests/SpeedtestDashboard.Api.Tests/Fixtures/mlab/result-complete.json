@@ -1,0 +1,17 @@
+{
+  "ServerFQDN": "ndt-iupui-mlab1-lhr03.mlab-oti.measurement-lab.org",
+  "ServerIP": "2001:db8::10",
+  "ClientIP": "2001:db8::20",
+  "Download": {
+    "UUID": "download-measurement-id",
+    "Throughput": { "Value": 507.25, "Unit": "Mbit/s" },
+    "Latency": { "Value": 8.75, "Unit": "ms" },
+    "Retransmission": { "Value": 0.012, "Unit": "%" }
+  },
+  "Upload": {
+    "UUID": "upload-measurement-id",
+    "Throughput": { "Value": 314.4, "Unit": "Mbit/s" },
+    "Latency": { "Value": 10.9, "Unit": "ms" },
+    "Retransmission": { "Value": 0, "Unit": "" }
+  }
+}

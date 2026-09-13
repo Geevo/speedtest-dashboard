@@ -51,3 +51,32 @@ In the native LXC appliance it is available at:
 Release archives are checksum-pinned by architecture in
 `packaging/providers/download-fast-cli.sh`. FAST.com and Netflix are not
 affiliated with this project.
+
+## Measurement Lab NDT7 client
+
+Public OCI images and native Proxmox templates include the official Measurement
+Lab `ndt7-client-go` `v0.10.1`, built from upstream commit
+`4a5f6325d1d586ab38afb84566a5781b5d6c3d9a`.
+
+Copyright belongs to the Measurement Lab contributors. The client is licensed
+under the Apache License 2.0. The complete license text is installed at:
+
+```text
+/usr/share/licenses/mlab-ndt7-client/LICENSE
+```
+
+In the native LXC appliance it is available at:
+
+```text
+/opt/speedtest-dashboard/third-party-licenses/LICENSE.mlab-ndt7-client
+```
+
+Upstream source: <https://github.com/m-lab/ndt7-client-go/tree/v0.10.1>
+
+Exact source archive: <https://github.com/m-lab/ndt7-client-go/archive/4a5f6325d1d586ab38afb84566a5781b5d6c3d9a.tar.gz>
+
+Source archive SHA-256:
+`6aae19abb130d53452ceeef2452ece3a54e653df745e02037726ed9742551ab6`
+
+Measurement Lab publishes measurement data. See
+<https://www.measurementlab.net/privacy/> before enabling or scheduling tests.
