@@ -125,7 +125,7 @@ public sealed class SqliteSpeedTestStoreTests
         using var database = await TestDatabase.CreateAsync();
         for (var index = 0; index < 5; index++)
         {
-            CreateCompleted(database, index % 2 == 0 ? ProviderId.Ookla : ProviderId.Parse("fixture"));
+            CreateCompleted(database, index % 2 == 0 ? ProviderId.Parse("provider-a") : ProviderId.Parse("fixture"));
             database.Clock.Advance(TimeSpan.FromMinutes(1));
         }
 
@@ -137,7 +137,7 @@ public sealed class SqliteSpeedTestStoreTests
         Assert.Equal(2, second.Items.Count);
         Assert.DoesNotContain(second.Items, item => first.Items.Any(firstItem => firstItem.Id == item.Id));
 
-        var ookla = await database.Store.ListAsync(new HistoryQuery(ProviderId.Ookla, SpeedTestJobStatus.Completed, null, null, 20, null), default);
+        var ookla = await database.Store.ListAsync(new HistoryQuery(ProviderId.Parse("provider-a"), SpeedTestJobStatus.Completed, null, null, 20, null), default);
         Assert.Equal(3, ookla.Items.Count);
         var window = await database.Store.ListAsync(new HistoryQuery(null, null, first.Items[1].CompletedAtUtc, first.Items[0].CompletedAtUtc, 20, null), default);
         Assert.Equal(2, window.Items.Count);
@@ -148,7 +148,7 @@ public sealed class SqliteSpeedTestStoreTests
     public async Task DeleteRemovesHistoryAndAssociatedTerminalJob()
     {
         using var database = await TestDatabase.CreateAsync();
-        var job = CreateCompleted(database, ProviderId.Ookla);
+        var job = CreateCompleted(database, ProviderId.Parse("provider-a"));
         var record = Assert.Single((await database.Store.ListAsync(new HistoryQuery(null, null, null, null, 10, null), default)).Items);
 
         var deleted = await database.Store.DeleteAsync(record.Id, default);
@@ -163,7 +163,7 @@ public sealed class SqliteSpeedTestStoreTests
     public async Task FileBackedDatabaseSurvivesStoreReplacement()
     {
         using var database = await TestDatabase.CreateAsync();
-        var job = CreateCompleted(database, ProviderId.Ookla);
+        var job = CreateCompleted(database, ProviderId.Parse("provider-a"));
 
         var replacement = database.CreateReplacementStore();
         var persisted = await replacement.GetTerminalJobAsync(job.Id, default);
@@ -193,7 +193,7 @@ public sealed class SqliteSpeedTestStoreTests
             }
             await context.SaveChangesAsync();
         }
-        var completed = CreateCompleted(database, ProviderId.Ookla);
+        var completed = CreateCompleted(database, ProviderId.Parse("provider-a"));
         var completedBefore = await database.Store.GetTerminalJobAsync(completed.Id, default);
 
         Assert.Equal(4, await database.Store.ReconcileInterruptedJobsAsync(default));
@@ -209,7 +209,7 @@ public sealed class SqliteSpeedTestStoreTests
     public async Task DuplicateTerminalResultIsRejectedAndCannotCreateSecondRow()
     {
         using var database = await TestDatabase.CreateAsync();
-        var job = CreateCompleted(database, ProviderId.Ookla);
+        var job = CreateCompleted(database, ProviderId.Parse("provider-a"));
         var terminal = await database.Store.GetTerminalJobAsync(job.Id, default);
 
         Assert.Throws<SpeedTestPersistenceException>(() => database.Store.PersistTransition(terminal!));
@@ -249,14 +249,14 @@ public sealed class SqliteSpeedTestStoreTests
 
     private static SpeedTestJob AdvanceToRunning(InMemorySpeedTestJobStore store, NetworkIdentity identity)
     {
-        var job = store.Create(new SpeedTestRequest(ProviderId.Ookla, "12345"));
+        var job = store.Create(new SpeedTestRequest(ProviderId.Parse("provider-a"), "12345"));
         store.Transition(job.Id, SpeedTestJobStatus.Starting, "Starting", out _);
         store.Transition(job.Id, SpeedTestJobStatus.Running, "Running", out var running, egressIdentity: identity);
         return running!;
     }
 
     private static SpeedTestResult Result(Guid jobId, NetworkIdentity identity) => new(
-        ProviderId.Ookla, "12345", "Fixture ISP", "London, United Kingdom",
+        ProviderId.Parse("provider-a"), "12345", "Fixture ISP", "London, United Kingdom",
         934.625m, 104.125m, 11.4m, 0.7m, 0m,
         "https://www.speedtest.net/result/c/fixture", jobId, identity,
         "{\"isp\":\"Fixture ISP\",\"downloadLatency\":{\"iqm\":18.2}}");

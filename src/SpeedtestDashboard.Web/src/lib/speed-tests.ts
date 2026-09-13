@@ -14,11 +14,21 @@ export type ProviderCapability =
 export type ProviderSummary = {
   id: string
   displayName: string
+  displayOrder: number
   capabilities: ProviderCapability[]
+  serverSearchLabel: string
+  unavailableGuidance: string
+  disclosures: ProviderDisclosure[]
   healthState: 'available' | 'unavailable' | 'degraded'
   version: string | null
   checkedAtUtc: string
   message: string | null
+}
+
+export type ProviderDisclosure = {
+  kind: string
+  message: string
+  url: string | null
 }
 
 export type SpeedTestServer = {

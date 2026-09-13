@@ -19,7 +19,8 @@ public sealed class StatisticsEndpointTests
         Assert.Equal(0, response.GetProperty("tests").GetProperty("total").GetInt32());
         Assert.Equal(JsonValueKind.Null, response.GetProperty("download").ValueKind);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/statistics?range=year")).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/statistics?provider=fixture")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/statistics?provider=fixture")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/statistics?provider=bad_id")).StatusCode);
     }
 
     [Fact]

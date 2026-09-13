@@ -88,6 +88,20 @@ public sealed class SqliteStatisticsServiceTests
     }
 
     [Fact]
+    public async Task ProviderComparisonsAreDerivedFromStoredProviderIds()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        database.Add("custom-provider", "completed", Now.AddMinutes(-5), 100, 50, 10, 1, 0);
+        await database.SaveAsync();
+
+        var result = await database.Service.GetAsync(new(StatisticsRange.Last24Hours, null), default);
+
+        var comparison = Assert.Single(result.Providers);
+        Assert.Equal("custom-provider", comparison.Provider);
+        Assert.Equal(1, comparison.Tests.Completed);
+    }
+
+    [Fact]
     public async Task ProviderFilterAndPreviousPeriodMedianTrendUseEqualAdjacentWindows()
     {
         using var database = await TestDatabase.CreateAsync();
@@ -98,14 +112,14 @@ public sealed class SqliteStatisticsServiceTests
         database.Add("librespeed", "completed", Now.AddDays(-1), 900, 400, 2, .1, null);
         await database.SaveAsync();
 
-        var result = await database.Service.GetAsync(new(StatisticsRange.Last7Days, ProviderId.Ookla), default);
+        var result = await database.Service.GetAsync(new(StatisticsRange.Last7Days, ProviderId.Parse("ookla")), default);
 
         Assert.Equal("ookla", result.Provider);
         Assert.Equal(2, result.Tests.Total);
         Assert.Equal(130m, result.Download?.Median);
         Assert.Equal(30m, result.Download?.TrendPercent);
         Assert.Equal(-15m, result.Latency?.TrendPercent);
-        Assert.Null((await database.Service.GetAsync(new(StatisticsRange.AllTime, ProviderId.Ookla), default)).Download?.TrendPercent);
+        Assert.Null((await database.Service.GetAsync(new(StatisticsRange.AllTime, ProviderId.Parse("ookla")), default)).Download?.TrendPercent);
     }
 
     [Theory]

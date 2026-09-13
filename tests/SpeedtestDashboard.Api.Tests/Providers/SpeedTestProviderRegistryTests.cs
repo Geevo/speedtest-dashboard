@@ -7,6 +7,15 @@ namespace SpeedtestDashboard.Api.Tests.Providers;
 public sealed class SpeedTestProviderRegistryTests
 {
     [Fact]
+    public void ProviderId_DoesNotExposeABuiltInProviderCatalog()
+    {
+        var publicStaticFields = typeof(ProviderId).GetFields(
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+        Assert.Empty(publicStaticFields);
+    }
+
+    [Fact]
     public void RegisteredProvider_ResolvesWithCapabilitiesPreserved()
     {
         var provider = new FakeSpeedTestProvider
@@ -15,23 +24,34 @@ public sealed class SpeedTestProviderRegistryTests
         };
         var registry = new SpeedTestProviderRegistry([provider]);
 
-        var found = registry.TryGet(provider.Id, out var resolved);
+        var found = registry.TryGet(provider.Descriptor.Id, out var resolved);
 
         Assert.True(found);
         Assert.Same(provider, resolved);
-        Assert.Equal(ProviderCapabilities.Download | ProviderCapabilities.IPv6, resolved.Capabilities);
+        Assert.Equal(ProviderCapabilities.Download | ProviderCapabilities.IPv6, resolved.Descriptor.Capabilities);
         Assert.Equal([provider], registry.GetAll());
     }
 
     [Fact]
-    public void ProductionProviders_HaveStableOrderRegardlessOfRegistrationOrder()
+    public void Providers_AreOrderedByDescriptorRegardlessOfRegistrationOrder()
     {
-        var ookla = new FakeSpeedTestProvider { Id = ProviderId.Ookla };
-        var fastCom = new FakeSpeedTestProvider { Id = ProviderId.FastCom };
-        var libreSpeed = new FakeSpeedTestProvider { Id = ProviderId.LibreSpeed };
-        var registry = new SpeedTestProviderRegistry([ookla, fastCom, libreSpeed]);
+        var last = new FakeSpeedTestProvider { Id = ProviderId.Parse("last"), DisplayOrder = 300 };
+        var first = new FakeSpeedTestProvider { Id = ProviderId.Parse("first"), DisplayOrder = 100 };
+        var middle = new FakeSpeedTestProvider { Id = ProviderId.Parse("middle"), DisplayOrder = 200 };
+        var registry = new SpeedTestProviderRegistry([last, first, middle]);
 
-        Assert.Equal([libreSpeed, fastCom, ookla], registry.GetAll());
+        Assert.Equal([first, middle, last], registry.GetAll());
+    }
+
+    [Fact]
+    public void EqualDisplayOrder_UsesProviderIdAsStableTieBreaker()
+    {
+        var second = new FakeSpeedTestProvider { Id = ProviderId.Parse("provider-b") };
+        var first = new FakeSpeedTestProvider { Id = ProviderId.Parse("provider-a") };
+
+        var registry = new SpeedTestProviderRegistry([second, first]);
+
+        Assert.Equal([first, second], registry.GetAll());
     }
 
     [Fact]
@@ -40,7 +60,7 @@ public sealed class SpeedTestProviderRegistryTests
         var provider = new FakeSpeedTestProvider();
         var registry = new SpeedTestProviderRegistry([provider]);
 
-        Assert.False(registry.TryGet(ProviderId.Ookla, out _));
+        Assert.False(registry.TryGet(ProviderId.Parse("missing"), out _));
     }
 
     [Fact]

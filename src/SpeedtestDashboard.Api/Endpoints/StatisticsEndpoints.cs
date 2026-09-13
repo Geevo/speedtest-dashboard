@@ -66,13 +66,13 @@ public static class StatisticsEndpoints
         if (values.TryGetValue("provider", out var suppliedProvider) && !string.IsNullOrWhiteSpace(suppliedProvider))
         {
             var providerValue = suppliedProvider.ToString().ToLowerInvariant();
-            if (providerValue is not ("librespeed" or "ookla"))
+            if (!ProviderId.TryParse(providerValue, out var parsedProvider))
             {
-                error = "Provider must be librespeed or ookla.";
+                error = "Provider must be a lowercase identifier between 1 and 32 characters.";
                 return false;
             }
 
-            provider = ProviderId.Parse(providerValue);
+            provider = parsedProvider;
         }
 
         query = new StatisticsQuery(range.Value, provider);

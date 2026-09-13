@@ -105,9 +105,30 @@ export const responseModels: Record<string, ModelField[]> = {
       "nullable": false
     },
     {
+      "name": "displayOrder",
+      "type": "integer (int32)",
+      "nullable": false
+    },
+    {
       "name": "capabilities",
       "type": "string[]",
       "nullable": false
+    },
+    {
+      "name": "serverSearchLabel",
+      "type": "string",
+      "nullable": false
+    },
+    {
+      "name": "unavailableGuidance",
+      "type": "string",
+      "nullable": false
+    },
+    {
+      "name": "disclosures",
+      "type": "ProviderDisclosureResponse[]",
+      "nullable": false,
+      "model": "ProviderDisclosureResponse"
     },
     {
       "name": "healthState",
@@ -126,6 +147,23 @@ export const responseModels: Record<string, ModelField[]> = {
     },
     {
       "name": "message",
+      "type": "string",
+      "nullable": true
+    }
+  ],
+  "ProviderDisclosureResponse": [
+    {
+      "name": "kind",
+      "type": "string",
+      "nullable": false
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "nullable": false
+    },
+    {
+      "name": "url",
       "type": "string",
       "nullable": true
     }

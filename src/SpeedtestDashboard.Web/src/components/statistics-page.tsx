@@ -21,6 +21,7 @@ import {
   type StatisticsRange,
 } from '../lib/statistics'
 import { cn } from '../lib/utils'
+import { getProviders } from '../lib/speed-tests'
 
 const ranges: { value: StatisticsRange; label: string }[] = [
   { value: '24h', label: '24h' },
@@ -33,6 +34,7 @@ const ranges: { value: StatisticsRange; label: string }[] = [
 export function StatisticsPage() {
   const [range, setRange] = useState<StatisticsRange>('7d')
   const [provider, setProvider] = useState<'all' | StatisticsProvider>('all')
+  const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
   const statistics = useQuery({
     queryKey: statisticsQueryKey(range, provider === 'all' ? undefined : provider),
     queryFn: ({ signal }) => getStatistics(range, provider === 'all' ? undefined : provider, signal),
@@ -75,9 +77,7 @@ export function StatisticsPage() {
           <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">Provider</span>
           <select value={provider} className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-semibold outline-none focus:border-signal" onChange={(event) => setProvider(event.target.value as typeof provider)}>
             <option value="all">All providers</option>
-            <option value="librespeed">LibreSpeed</option>
-            <option value="fastcom">FAST.com</option>
-            <option value="ookla">Ookla</option>
+            {providers.data?.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
           </select>
         </label>
       </section>
@@ -153,7 +153,7 @@ export function StatisticsPage() {
                 </ChartPanel>
               </div>
 
-              {provider === 'all' && <ProviderComparison providers={data.providers} />}
+              {provider === 'all' && <ProviderComparison providers={data.providers} providerNames={new Map(providers.data?.map((item) => [item.id, item.displayName]))} />}
             </>
           )}
         </>
@@ -175,8 +175,8 @@ function Trend({ value, lowerBetter }: { value: number | null | undefined; lower
   return <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold tabular-nums', improvement ? 'bg-ok/10 text-ok' : value === 0 ? 'bg-ink/5 text-ink-muted' : 'bg-danger-soft text-danger')}>{value > 0 ? '+' : ''}{formatNumber(value)}% vs prior</span>
 }
 
-function ProviderComparison({ providers }: { providers: Awaited<ReturnType<typeof getStatistics>>['providers'] }) {
-  return <section aria-labelledby="provider-comparison-heading" className="mt-10 border-t border-line pt-7"><div className="mb-5"><h2 id="provider-comparison-heading" className="text-2xl font-semibold tracking-[-0.035em]">Provider comparison</h2><p className="mt-1 text-sm text-ink-muted">Medians stay provider-specific because measurement support can differ.</p></div><div className="grid gap-4 lg:grid-cols-2">{providers.map((item) => <article key={item.provider} className="rounded-xl border border-line bg-paper p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold capitalize">{item.provider}</h3><span className="text-xs font-semibold text-ink-muted">{item.tests.completed} successful · {metricValue(item.tests.successRate, '%')}</span></div><dl className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4"><ComparisonMetric label="Download" value={item.medianDownloadMbps} unit="Mbps" /><ComparisonMetric label="Upload" value={item.medianUploadMbps} unit="Mbps" /><ComparisonMetric label="Latency" value={item.medianLatencyMilliseconds} unit="ms" /><ComparisonMetric label="Jitter" value={item.medianJitterMilliseconds} unit="ms" /></dl></article>)}</div></section>
+function ProviderComparison({ providers, providerNames }: { providers: Awaited<ReturnType<typeof getStatistics>>['providers']; providerNames: ReadonlyMap<string, string> }) {
+  return <section aria-labelledby="provider-comparison-heading" className="mt-10 border-t border-line pt-7"><div className="mb-5"><h2 id="provider-comparison-heading" className="text-2xl font-semibold tracking-[-0.035em]">Provider comparison</h2><p className="mt-1 text-sm text-ink-muted">Medians stay provider-specific because measurement support can differ.</p></div><div className="grid gap-4 lg:grid-cols-2">{providers.map((item) => <article key={item.provider} className="rounded-xl border border-line bg-paper p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold">{providerNames.get(item.provider) ?? item.provider}</h3><span className="text-xs font-semibold text-ink-muted">{item.tests.completed} successful · {metricValue(item.tests.successRate, '%')}</span></div><dl className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4"><ComparisonMetric label="Download" value={item.medianDownloadMbps} unit="Mbps" /><ComparisonMetric label="Upload" value={item.medianUploadMbps} unit="Mbps" /><ComparisonMetric label="Latency" value={item.medianLatencyMilliseconds} unit="ms" /><ComparisonMetric label="Jitter" value={item.medianJitterMilliseconds} unit="ms" /></dl></article>)}</div></section>
 }
 
 function ComparisonMetric({ label, value, unit }: { label: string; value: number | null; unit: string }) { return <div><dt className="text-[10px] font-bold uppercase tracking-[.12em] text-ink-muted">{label}</dt><dd className="mt-1.5 font-semibold tabular-nums">{metricValue(value, unit)}</dd></div> }

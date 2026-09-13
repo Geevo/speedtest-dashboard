@@ -4,26 +4,22 @@ namespace SpeedtestDashboard.Core.Providers;
 
 public interface ISpeedTestProvider
 {
-    ProviderId Id { get; }
-
-    string DisplayName { get; }
-
-    ProviderCapabilities Capabilities { get; }
+    ProviderDescriptor Descriptor { get; }
 
     Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(
-        ServerQuery query,
-        CancellationToken cancellationToken);
+    ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request);
 
     Task<SpeedTestResult> RunAsync(
         SpeedTestExecution execution,
         CancellationToken cancellationToken);
 }
 
-public interface ISpeedTestRequestValidator
+public interface ISpeedTestServerProvider
 {
-    ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request);
+    Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(
+        ServerQuery query,
+        CancellationToken cancellationToken);
 }
 
 public sealed record ProviderRequestValidationResult(bool IsValid, string? Code = null, string? Message = null)

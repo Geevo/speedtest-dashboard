@@ -14,7 +14,7 @@ public sealed partial class OoklaSpeedTestProvider(
     OoklaResultParser resultParser,
     IOptions<OoklaOptions> options,
     TimeProvider timeProvider,
-    ILogger<OoklaSpeedTestProvider> logger) : ISpeedTestProvider, ISpeedTestRequestValidator
+    ILogger<OoklaSpeedTestProvider> logger) : ISpeedTestProvider, ISpeedTestServerProvider
 {
     private readonly SemaphoreSlim _healthGate = new(1, 1);
     private readonly SemaphoreSlim _serverGate = new(1, 1);
@@ -23,19 +23,7 @@ public sealed partial class OoklaSpeedTestProvider(
     private IReadOnlyList<SpeedTestServer>? _cachedServers;
     private DateTimeOffset _serversExpireAtUtc;
 
-    public ProviderId Id => ProviderId.Ookla;
-
-    public string DisplayName => "Ookla Speedtest";
-
-    public ProviderCapabilities Capabilities =>
-        ProviderCapabilities.ServerDiscovery |
-        ProviderCapabilities.ServerSelection |
-        ProviderCapabilities.Download |
-        ProviderCapabilities.Upload |
-        ProviderCapabilities.Latency |
-        ProviderCapabilities.Jitter |
-        ProviderCapabilities.PacketLoss |
-        ProviderCapabilities.ResultUrl;
+    public ProviderDescriptor Descriptor => OoklaProviderDefinition.Descriptor;
 
     public async Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -87,7 +75,7 @@ public sealed partial class OoklaSpeedTestProvider(
 
     public ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request)
     {
-        if (request.ProviderId != Id)
+        if (request.ProviderId != Descriptor.Id)
         {
             return ProviderRequestValidationResult.Invalid(
                 SpeedTestFailureCodes.InvalidRequest,
@@ -133,8 +121,8 @@ public sealed partial class OoklaSpeedTestProvider(
                 BoundForLog(exception.Message));
             throw new ProviderExecutionException(
                 exception.Message.Contains("missing", StringComparison.OrdinalIgnoreCase)
-                    ? SpeedTestFailureCodes.OoklaResultIncomplete
-                    : SpeedTestFailureCodes.OoklaInvalidOutput,
+                    ? OoklaFailureCodes.ResultIncomplete
+                    : OoklaFailureCodes.InvalidOutput,
                 "Speedtest CLI returned an invalid result.");
         }
     }
@@ -217,7 +205,7 @@ public sealed partial class OoklaSpeedTestProvider(
             {
                 logger.LogWarning("Ookla server-list parsing failed: {ParserMessage}", BoundForLog(exception.Message));
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaInvalidOutput,
+                    OoklaFailureCodes.InvalidOutput,
                     "Speedtest CLI returned an invalid server list.");
             }
         }
@@ -231,13 +219,13 @@ public sealed partial class OoklaSpeedTestProvider(
     {
         if (!options.Value.Enabled)
         {
-            throw new ProviderExecutionException(SpeedTestFailureCodes.OoklaDisabled, "Ookla provider is disabled.");
+            throw new ProviderExecutionException(OoklaFailureCodes.Disabled, "Ookla provider is disabled.");
         }
 
         if (!options.Value.AcceptLicense || !options.Value.AcceptGdpr)
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.OoklaLicenseNotAccepted,
+                OoklaFailureCodes.LicenseNotAccepted,
                 "Ookla license and GDPR acceptance have not been configured.");
         }
     }
@@ -253,15 +241,15 @@ public sealed partial class OoklaSpeedTestProvider(
                 throw new OperationCanceledException(cancellationToken);
             case ProcessTerminationReason.TimedOut:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaTimeout,
+                    OoklaFailureCodes.Timeout,
                     $"Ookla {operation} timed out.");
             case ProcessTerminationReason.OutputLimitExceeded:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaInvalidOutput,
+                    OoklaFailureCodes.InvalidOutput,
                     $"Ookla {operation} returned too much output.");
             case ProcessTerminationReason.FailedToStart:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaNotInstalled,
+                    OoklaFailureCodes.NotInstalled,
                     "Speedtest CLI is not installed.");
         }
 
@@ -271,7 +259,7 @@ public sealed partial class OoklaSpeedTestProvider(
             if (stderr.Contains("license", StringComparison.Ordinal) || stderr.Contains("gdpr", StringComparison.Ordinal))
             {
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaLicenseNotAccepted,
+                    OoklaFailureCodes.LicenseNotAccepted,
                     "Ookla license acceptance was rejected by Speedtest CLI.");
             }
 
@@ -279,7 +267,7 @@ public sealed partial class OoklaSpeedTestProvider(
                 (stderr.Contains("not found", StringComparison.Ordinal) || stderr.Contains("invalid", StringComparison.Ordinal)))
             {
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaServerNotFound,
+                    OoklaFailureCodes.ServerNotFound,
                     "The selected Ookla server was not found.");
             }
 
@@ -289,12 +277,12 @@ public sealed partial class OoklaSpeedTestProvider(
                 stderr.Contains("failed to resolve", StringComparison.Ordinal))
             {
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.OoklaNetworkUnavailable,
+                    OoklaFailureCodes.NetworkUnavailable,
                     "Speedtest CLI could not reach the Ookla network.");
             }
 
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.OoklaFailed,
+                OoklaFailureCodes.Failed,
                 $"Ookla {operation} failed.");
         }
     }
@@ -303,7 +291,7 @@ public sealed partial class OoklaSpeedTestProvider(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Id, state, version, checkedAt, message);
+        string message) => new(Descriptor.Id, state, version, checkedAt, message);
 
     private static string? ParseVersion(string output)
     {

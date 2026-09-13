@@ -28,63 +28,26 @@ import { Button } from './ui/button'
 import { ServerCombobox } from './server-combobox'
 
 type ProviderPageProps = {
+  providerId: string
   jobId: string | null
   onJobIdChange: (jobId: string) => void
   onOpenSettings: () => void
 }
 
-type ProviderPageConfig = {
-  id: 'librespeed' | 'fastcom' | 'ookla'
-  displayName: string
-  serverSearchLabel: string
-  unavailableGuidance: string
-}
-
-const libreSpeedConfig: ProviderPageConfig = {
-  id: 'librespeed',
-  displayName: 'LibreSpeed',
-  serverSearchLabel: 'Search ID, sponsor, location, or host',
-  unavailableGuidance: 'Include the LibreSpeed CLI when building the image.',
-}
-
-const ooklaConfig: ProviderPageConfig = {
-  id: 'ookla',
-  displayName: 'Ookla',
-  serverSearchLabel: 'Search ID, sponsor, city, or country',
-  unavailableGuidance: 'Check the Ookla settings and license acceptance.',
-}
-
-const fastComConfig: ProviderPageConfig = {
-  id: 'fastcom',
-  displayName: 'FAST.com',
-  serverSearchLabel: '',
-  unavailableGuidance: 'Ensure the packaged fast-cli binary is available.',
-}
-
-export function LibreSpeedPage(props: ProviderPageProps) {
-  return <SpeedTestProviderPage {...props} config={libreSpeedConfig} />
-}
-
-export function OoklaPage(props: ProviderPageProps) {
-  return <SpeedTestProviderPage {...props} config={ooklaConfig} />
-}
-
-export function FastComPage(props: ProviderPageProps) {
-  return <SpeedTestProviderPage {...props} config={fastComConfig} />
-}
-
-function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }: ProviderPageProps & { config: ProviderPageConfig }) {
+export function SpeedTestProviderPage({ providerId, jobId, onJobIdChange, onOpenSettings }: ProviderPageProps) {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null)
   const provider = useQuery({
-    queryKey: ['provider', config.id],
-    queryFn: ({ signal }) => getProvider(config.id, signal),
+    queryKey: ['provider', providerId],
+    queryFn: ({ signal }) => getProvider(providerId, signal),
     refetchInterval: 60_000,
   })
+  const descriptor = provider.data
+  const providerName = descriptor?.displayName ?? providerId
   const operational = provider.data?.healthState !== 'unavailable'
   const supportsServerDiscovery = provider.data?.capabilities.includes('serverDiscovery') ?? false
   const servers = useQuery({
-    queryKey: ['provider-servers', config.id],
-    queryFn: ({ signal }) => getProviderServers(config.id, signal),
+    queryKey: ['provider-servers', providerId],
+    queryFn: ({ signal }) => getProviderServers(providerId, signal),
     enabled: provider.isSuccess && operational && supportsServerDiscovery,
     staleTime: 5 * 60_000,
   })
@@ -92,7 +55,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
   const activeJob = job.data && !isTerminalJob(job.data.status)
   const selectedServer = servers.data?.find((server) => server.id === selectedServerId)
   const createTest = useMutation({
-    mutationFn: () => createSpeedTest({ providerId: config.id, serverId: selectedServerId }),
+    mutationFn: () => createSpeedTest({ providerId, serverId: selectedServerId }),
     onSuccess: (created) => onJobIdChange(created.id),
   })
   const cancelTest = useMutation({
@@ -102,7 +65,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
   return (
     <div className="page-enter">
       <header className="mb-10 flex flex-col gap-3 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">{config.displayName}</h1>
+        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">{providerName}</h1>
         <ProviderStatus provider={provider.data} loading={provider.isLoading} error={provider.isError} />
       </header>
 
@@ -110,7 +73,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
         <div className="flex flex-col gap-4 border-b border-line pb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">{provider.data.message ?? 'Provider unavailable'}</p>
-            <p className="mt-1 text-sm text-ink-muted">{config.unavailableGuidance}</p>
+            <p className="mt-1 text-sm text-ink-muted">{provider.data.unavailableGuidance}</p>
           </div>
           <Button variant="outline" className="min-h-11 shrink-0" onClick={onOpenSettings}>
             <Settings className="size-4" /> Settings
@@ -118,20 +81,28 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
         </div>
       )}
 
-      {operational && provider.isSuccess && (
+      {operational && descriptor && (
         <section aria-labelledby="test-options-heading">
           <h2 id="test-options-heading" className="sr-only">Test options</h2>
+          {descriptor.disclosures.map((disclosure) => (
+            <aside key={`${disclosure.kind}:${disclosure.url ?? disclosure.message}`} className="mb-5 border-l-2 border-signal bg-signal-soft px-4 py-3 text-sm leading-6 text-ink-muted">
+              {disclosure.message}{' '}
+              {disclosure.url && <a className="inline-flex items-center gap-1 font-semibold text-ink underline underline-offset-4" href={disclosure.url} target="_blank" rel="noreferrer">
+                {disclosure.kind === 'privacy' ? 'Privacy details' : 'Learn more'} <ExternalLink className="size-3.5" aria-hidden="true" />
+              </a>}
+            </aside>
+          ))}
           <div className="flex flex-col gap-5 md:flex-row md:items-end">
             {supportsServerDiscovery ? (
               <div className="min-w-0 flex-1">
                 <p className="mb-2 text-sm font-semibold">Server</p>
                 <ServerCombobox
-                  providerName={config.displayName}
+                  providerName={providerName}
                   servers={servers.data ?? []}
                   selectedServerId={selectedServerId}
                   loading={servers.isLoading}
                   error={servers.isError}
-                  searchPlaceholder={config.serverSearchLabel}
+                  searchPlaceholder={descriptor.serverSearchLabel}
                   onSelect={setSelectedServerId}
                 />
               </div>
@@ -139,7 +110,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
               <div className="min-w-0 flex-1">
                 <p className="mb-2 text-sm font-semibold">Server</p>
                 <div className="flex h-12 items-center rounded-xl border border-line bg-paper px-4 text-sm text-ink-muted">
-                  Chosen automatically by {config.displayName}
+                  Chosen automatically by {providerName}
                 </div>
               </div>
             )}
@@ -158,7 +129,7 @@ function SpeedTestProviderPage({ jobId, onJobIdChange, onOpenSettings, config }:
         </section>
       )}
 
-      {job.data && <JobPanel job={job.data} selectedServer={selectedServer} provider={config} cancelling={cancelTest.isPending} onCancel={() => cancelTest.mutate()} />}
+      {job.data && <JobPanel job={job.data} selectedServer={selectedServer} providerName={providerName} cancelling={cancelTest.isPending} onCancel={() => cancelTest.mutate()} />}
     </div>
   )
 }
@@ -187,13 +158,13 @@ function ProviderStatus({
 function JobPanel({
   job,
   selectedServer,
-  provider,
+  providerName,
   cancelling,
   onCancel,
 }: {
   job: SpeedTestJob
   selectedServer: SpeedTestServer | undefined
-  provider: ProviderPageConfig
+  providerName: string
   cancelling: boolean
   onCancel: () => void
 }) {
@@ -208,7 +179,7 @@ function JobPanel({
           <div>
             <h2 id="job-heading" className="text-xl font-semibold tracking-[-0.025em]">{job.stage}</h2>
             <p className="mt-1 text-sm text-ink-muted">
-              {provider.displayName} · {selectedServer?.name ?? 'Automatic server'}
+              {providerName} · {selectedServer?.name ?? 'Automatic server'}
             </p>
           </div>
         </div>
@@ -228,12 +199,12 @@ function JobPanel({
         </div>
       )}
 
-      {job.result && <CompletedResult job={job} provider={provider} />}
+      {job.result && <CompletedResult job={job} providerName={providerName} />}
     </section>
   )
 }
 
-function CompletedResult({ job, provider }: { job: SpeedTestJob; provider: ProviderPageConfig }) {
+function CompletedResult({ job, providerName }: { job: SpeedTestJob; providerName: string }) {
   const result = job.result!
   const identity = job.egressIdentity?.ipv4 ?? job.egressIdentity?.ipv6
   return (
@@ -250,7 +221,7 @@ function CompletedResult({ job, provider }: { job: SpeedTestJob; provider: Provi
 
       <dl className="mt-7 grid gap-5 border-t border-line pt-6 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <ResultDetail label="Server" value={result.serverName ?? 'Not available'} detail={result.serverLocation} />
-        <ResultDetail label="Provider" value={provider.displayName} detail={result.serverId ? `Server ${result.serverId}` : null} />
+        <ResultDetail label="Provider" value={providerName} detail={result.serverId ? `Server ${result.serverId}` : null} />
         <ResultDetail label="Container egress" value={identity?.address ?? 'Not available'} detail={identity?.asn ?? identity?.countryName} />
         <ResultDetail label="Completed" value={job.completedAtUtc ? new Date(job.completedAtUtc).toLocaleString() : 'Not available'} />
       </dl>

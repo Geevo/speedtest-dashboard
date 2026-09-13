@@ -70,7 +70,7 @@ export function OverviewPage() {
       <section aria-labelledby="providers-heading" className="mt-12">
         <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
         {providers.data ? (
-          <div className="grid divide-y divide-line border-y border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="grid gap-px border-y border-line bg-line sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
             {providers.data.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
           </div>
         ) : (
@@ -91,7 +91,7 @@ function Metric({ icon: Icon, label, value, unit }: { icon: typeof ArrowDown; la
 function ProviderState({ provider }: { provider: ProviderSummary }) {
   const available = provider.healthState === 'available'
   return (
-    <div className="flex min-w-0 items-start gap-3 py-5 sm:px-6 sm:first:pl-0">
+    <div className="flex min-w-0 items-start gap-3 bg-canvas px-0 py-5 sm:px-6">
       <span className={available ? 'mt-1.5 size-2 shrink-0 rounded-full bg-ok' : 'mt-1.5 size-2 shrink-0 rounded-full bg-ink-muted/40'} />
       <div className="min-w-0">
         <p className="font-semibold">{provider.displayName}</p>

@@ -73,7 +73,7 @@ public sealed class OoklaResultParser
             });
 
             return new SpeedTestResult(
-                ProviderId.Ookla,
+                OoklaProviderDefinition.Id,
                 serverId,
                 serverName,
                 CombineLocation(serverLocation, serverCountry),

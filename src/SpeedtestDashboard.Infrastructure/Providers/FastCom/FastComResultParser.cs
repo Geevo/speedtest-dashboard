@@ -45,7 +45,7 @@ public sealed class FastComResultParser
             });
 
             return new SpeedTestResult(
-                ProviderId.FastCom,
+                FastComProviderDefinition.Id,
                 ServerId: null,
                 ServerName: null,
                 ServerLocation: null,

@@ -14,7 +14,7 @@ public sealed class LibreSpeedServerCatalogParserTests
 
         Assert.Equal(2, servers.Count);
         var london = servers[0];
-        Assert.Equal(ProviderId.LibreSpeed, london.Server.ProviderId);
+        Assert.Equal(LibreSpeedProviderDefinition.Id, london.Server.ProviderId);
         Assert.Equal("49", london.Server.Id);
         Assert.Equal("Example Network", london.Server.Name);
         Assert.Equal("Example Network", london.Server.Sponsor);

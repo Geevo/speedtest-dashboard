@@ -20,22 +20,19 @@ public static class SpeedTestRequestValidation
                 "The requested speed-test provider is not registered.");
         }
 
-        if (request.ServerId is not null && !provider.Capabilities.HasFlag(ProviderCapabilities.ServerSelection))
+        if (request.ServerId is not null && !provider.Descriptor.Capabilities.HasFlag(ProviderCapabilities.ServerSelection))
         {
             return SpeedTestRequestValidationResult.Invalid(
                 SpeedTestFailureCodes.CapabilityNotSupported,
                 "This provider does not support explicit server selection.");
         }
 
-        if (provider is ISpeedTestRequestValidator validator)
+        var validation = provider.ValidateRequest(request);
+        if (!validation.IsValid)
         {
-            var validation = validator.ValidateRequest(request);
-            if (!validation.IsValid)
-            {
-                return SpeedTestRequestValidationResult.Invalid(
-                    validation.Code ?? SpeedTestFailureCodes.InvalidRequest,
-                    validation.Message ?? "The provider-specific request is invalid.");
-            }
+            return SpeedTestRequestValidationResult.Invalid(
+                validation.Code ?? SpeedTestFailureCodes.InvalidRequest,
+                validation.Message ?? "The provider-specific request is invalid.");
         }
 
         return SpeedTestRequestValidationResult.Valid;

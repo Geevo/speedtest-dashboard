@@ -39,7 +39,7 @@ public sealed class SpeedTestSubmissionService(
         catch
         {
             health = new ProviderHealth(
-                provider!.Id,
+                provider!.Descriptor.Id,
                 ProviderHealthState.Unavailable,
                 Version: null,
                 DateTimeOffset.UtcNow,

@@ -59,7 +59,7 @@ public sealed class LibreSpeedServerCatalogParser
                 var displayName = sponsor ?? catalogName;
                 results.Add(new LibreSpeedServerDefinition(
                     new SpeedTestServer(
-                        ProviderId.LibreSpeed,
+                        LibreSpeedProviderDefinition.Id,
                         id.ToString(CultureInfo.InvariantCulture),
                         displayName,
                         sponsor,

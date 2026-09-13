@@ -13,7 +13,7 @@ public sealed class FastComResultParserTests
     {
         var result = _parser.Parse(FastComTestFactory.Fixture("result-complete.json"));
 
-        Assert.Equal(ProviderId.FastCom, result.ProviderId);
+        Assert.Equal(FastComProviderDefinition.Id, result.ProviderId);
         Assert.Equal(131m, result.DownloadMbps);
         Assert.Equal(42m, result.UploadMbps);
         Assert.Equal(20.8m, result.LatencyMilliseconds);

@@ -29,9 +29,9 @@ public sealed class HistoryEndpointTests
         using var factory = new DashboardWebApplicationFactory();
         using var client = factory.CreateClient();
         var store = factory.Services.GetRequiredService<ISpeedTestJobStore>();
-        CreateTerminal(store, ProviderId.Ookla, SpeedTestJobStatus.Completed);
+        CreateTerminal(store, ProviderId.Parse("provider-a"), SpeedTestJobStatus.Completed);
         CreateTerminal(store, ProviderId.Parse("fixture"), SpeedTestJobStatus.Failed);
-        CreateTerminal(store, ProviderId.Ookla, SpeedTestJobStatus.Cancelled);
+        CreateTerminal(store, ProviderId.Parse("provider-a"), SpeedTestJobStatus.Cancelled);
 
         var first = await client.GetFromJsonAsync<JsonElement>("/api/history?limit=1");
         Assert.Single(first.GetProperty("items").EnumerateArray());
@@ -39,10 +39,10 @@ public sealed class HistoryEndpointTests
         var second = await client.GetFromJsonAsync<JsonElement>($"/api/history?limit=1&cursor={cursor}");
         Assert.Single(second.GetProperty("items").EnumerateArray());
 
-        var completed = await client.GetFromJsonAsync<JsonElement>("/api/history?providerId=ookla&status=completed");
+        var completed = await client.GetFromJsonAsync<JsonElement>("/api/history?providerId=provider-a&status=completed");
         var completedItem = Assert.Single(completed.GetProperty("items").EnumerateArray());
         Assert.Equal("completed", completedItem.GetProperty("status").GetString());
-        Assert.Equal("ookla", completedItem.GetProperty("providerId").GetString());
+        Assert.Equal("provider-a", completedItem.GetProperty("providerId").GetString());
 
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/history?cursor=invalid")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/history?fromUtc=2026-01-01T00:00:00&toUtc=2026-01-02T00:00:00Z")).StatusCode);
@@ -56,7 +56,7 @@ public sealed class HistoryEndpointTests
         using var factory = new DashboardWebApplicationFactory();
         using var client = factory.CreateClient();
         var store = factory.Services.GetRequiredService<ISpeedTestJobStore>();
-        var job = CreateTerminal(store, ProviderId.Ookla, SpeedTestJobStatus.Completed);
+        var job = CreateTerminal(store, ProviderId.Parse("provider-a"), SpeedTestJobStatus.Completed);
         var list = await client.GetFromJsonAsync<JsonElement>("/api/history");
         var id = list.GetProperty("items")[0].GetProperty("id").GetInt64();
 

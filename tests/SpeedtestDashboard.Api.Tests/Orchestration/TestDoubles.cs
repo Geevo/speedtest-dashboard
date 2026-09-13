@@ -5,7 +5,7 @@ using SpeedtestDashboard.Core.Tests;
 
 namespace SpeedtestDashboard.Api.Tests.Orchestration;
 
-internal sealed class FakeSpeedTestProvider : ISpeedTestProvider
+internal sealed class FakeSpeedTestProvider : ISpeedTestProvider, ISpeedTestServerProvider
 {
     private int _activeRuns;
     private int _maximumConcurrentRuns;
@@ -18,6 +18,17 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider
 
     public ProviderCapabilities Capabilities { get; init; } =
         ProviderCapabilities.Download | ProviderCapabilities.Upload | ProviderCapabilities.Latency;
+
+    public int DisplayOrder { get; init; } = 100;
+
+    public ProviderDescriptor Descriptor => new(
+        Id,
+        DisplayName,
+        DisplayOrder,
+        Capabilities,
+        ServerSearchLabel: string.Empty,
+        UnavailableGuidance: "Fixture provider unavailable.",
+        Disclosures: []);
 
     public ProviderHealthState HealthState { get; set; } = ProviderHealthState.Available;
 
@@ -45,6 +56,9 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider
     public Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(
         ServerQuery query,
         CancellationToken cancellationToken) => Task.FromResult(Servers);
+
+    public ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request) =>
+        ProviderRequestValidationResult.Valid;
 
     public async Task<SpeedTestResult> RunAsync(
         SpeedTestExecution execution,

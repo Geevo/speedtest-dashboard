@@ -26,6 +26,12 @@ One `SpeedTestWorker` reads the queue. It captures backend Network Identity, inv
 
 All providers remain registered when disabled or unavailable so the UI can report their state without affecting application health.
 
+`ProviderId` is an open validated identifier rather than an enumeration of built-in providers. Each adapter owns its descriptor, capabilities, display order, disclosures, failure codes, configuration validation, dependency registration, commands, and parsing. The registry only validates uniqueness, orders descriptors, and resolves providers; it contains no provider-specific selection policy.
+
+The built-in provider list is explicit in one provider composition module. Adding or removing a provider may change that list, its packaging and configuration, and provider-specific tests or documentation. It must not require changes to Core, orchestration, persistence, statistics, generic API endpoints, or generic web navigation and filters. Provider-specific operational failures cross the shared boundary as opaque safe codes; Core owns only application-wide failure codes.
+
+Server discovery is an optional provider interface. Capability metadata drives the HTTP and browser surfaces, while the interface prevents providers without discovery from implementing meaningless no-op methods. The browser obtains provider names, ordering, capabilities, guidance, and disclosures from `/api/providers` and uses generic provider routes.
+
 LibreSpeed CLI `1.0.13` is built from commit `2f2408764d88e9601aa64a03b340f8e3151003e4`. Its JSON throughput values are already Mbps. Default execution uses HTTPS and HTTP-based ping (`--secure --no-icmp`). The application passes no sharing or telemetry flags.
 
 The experimental FAST.com adapter consumes the upstream fast-cli `0.3.5` release unchanged. Its amd64 and arm64 archives are checksum-pinned, and normal execution uses `--https --upload --json --duration 30`. FAST.com owns target selection. The adapter treats a non-null JSON `error` as failure even though this upstream version exits successfully after emitting it. Reported throughput values are deliberately not transformed during this viability pass; results outside the CLI's Mbps display range require validation before the provider is considered production-ready.
@@ -56,7 +62,7 @@ The schedule worker atomically claims an occurrence and advances its next run be
 
 ## Statistics
 
-Statistics are calculated from terminal History rows. Queries accept `24h`, `7d`, `30d`, `90d`, or `all`, plus an optional supported provider. The service returns test counts, success rate, latest/average/median/minimum/maximum values, P95 latency and jitter, prior-period trends, provider comparison, and bounded chart buckets.
+Statistics are calculated from terminal History rows. Queries accept `24h`, `7d`, `30d`, `90d`, or `all`, plus an optional syntactically valid provider ID, including a removed provider retained in history. Provider comparisons derive their provider set from stored rows rather than a built-in provider list. The service returns test counts, success rate, latest/average/median/minimum/maximum values, P95 latency and jitter, prior-period trends, provider comparison, and bounded chart buckets.
 
 Results owns individual records. Statistics owns aggregate charts and comparisons. Overview uses only Network Identity, the latest successful result, a short 7-day summary, next scheduled run, and provider availability.
 

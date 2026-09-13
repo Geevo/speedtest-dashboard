@@ -1,14 +1,16 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { AppShell, type NavigationItem } from './components/app-shell'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { AppShell } from './components/app-shell'
 import { OverviewPage } from './components/overview-page'
-import { FastComPage, LibreSpeedPage, OoklaPage } from './components/ookla-page'
+import { SpeedTestProviderPage } from './components/provider-page'
 import { SchedulesPage } from './components/schedules-page'
 import { SettingsPage } from './components/settings-page'
 import { useTheme } from './hooks/use-theme'
 import { authExpiredEvent, getSession, logout, type SessionResponse } from './lib/api'
 import { LoginPage } from './components/login-page'
 import { pathForNavigation, resolveNavigation } from './lib/routes'
+import { getProviders } from './lib/speed-tests'
+import { providerIdFromNavigation, type NavigationItem } from './lib/navigation'
 
 const ResultsPage = lazy(() => import('./components/results-page').then((module) => ({ default: module.ResultsPage })))
 const StatisticsPage = lazy(() => import('./components/statistics-page').then((module) => ({ default: module.StatisticsPage })))
@@ -19,9 +21,9 @@ export default function App() {
   const [session, setSession] = useState<SessionResponse | null>(null)
   const [sessionFailed, setSessionFailed] = useState(false)
   const [activeItem, setActiveItem] = useState<NavigationItem>(() => resolveNavigation(window.location.pathname).item)
-  const [ooklaJobId, setOoklaJobId] = useState<string | null>(null)
-  const [libreSpeedJobId, setLibreSpeedJobId] = useState<string | null>(null)
-  const [fastComJobId, setFastComJobId] = useState<string | null>(null)
+  const [providerJobIds, setProviderJobIds] = useState<Record<string, string | null>>({})
+  const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
+  const activeProviderId = providerIdFromNavigation(activeItem)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -30,9 +32,7 @@ export default function App() {
       .catch(() => setSessionFailed(true))
     const expired = () => {
       queryClient.clear()
-      setOoklaJobId(null)
-      setLibreSpeedJobId(null)
-      setFastComJobId(null)
+      setProviderJobIds({})
       setSession({ mode: 'local', authenticated: false, user: null, loginConfigured: true, showDisabledWarning: true })
     }
     window.addEventListener(authExpiredEvent, expired)
@@ -60,13 +60,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const pageName = activeItem === 'fastcom'
-      ? 'FAST.com'
-      : activeItem === 'results'
-        ? 'Results'
-        : activeItem[0].toUpperCase() + activeItem.slice(1)
+    const providerId = providerIdFromNavigation(activeItem)
+    const providerName = providers.data?.find((provider) => provider.id === providerId)?.displayName
+    const pageName = providerId === null
+      ? activeItem[0].toUpperCase() + activeItem.slice(1)
+      : providerName ?? providerId
     document.title = `${pageName} · Speedtest Dashboard`
-  }, [activeItem])
+  }, [activeItem, providers.data])
 
   if (session === null) {
     return (
@@ -110,22 +110,11 @@ export default function App() {
         <Suspense fallback={<div className="grid min-h-[60vh] place-items-center text-sm text-ink-muted">Loading statistics</div>}>
           <StatisticsPage />
         </Suspense>
-      ) : activeItem === 'librespeed' ? (
-        <LibreSpeedPage
-          jobId={libreSpeedJobId}
-          onJobIdChange={setLibreSpeedJobId}
-          onOpenSettings={() => navigate('settings')}
-        />
-      ) : activeItem === 'ookla' ? (
-        <OoklaPage
-          jobId={ooklaJobId}
-          onJobIdChange={setOoklaJobId}
-          onOpenSettings={() => navigate('settings')}
-        />
-      ) : activeItem === 'fastcom' ? (
-        <FastComPage
-          jobId={fastComJobId}
-          onJobIdChange={setFastComJobId}
+      ) : activeProviderId !== null ? (
+        <SpeedTestProviderPage
+          providerId={activeProviderId}
+          jobId={providerJobIds[activeProviderId] ?? null}
+          onJobIdChange={(jobId) => setProviderJobIds((current) => ({ ...current, [activeProviderId]: jobId }))}
           onOpenSettings={() => navigate('settings')}
         />
       ) : activeItem === 'schedules' ? (

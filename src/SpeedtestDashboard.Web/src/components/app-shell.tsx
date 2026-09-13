@@ -1,25 +1,26 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  Activity,
   CalendarClock,
   ChartNoAxesCombined,
   ChevronLeft,
   Gauge,
+  LayoutDashboard,
   ListChecks,
   Menu,
-  RadioTower,
   Settings,
   LogOut,
   UserRound,
-  Zap,
   X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getHealth, type SessionResponse } from '../lib/api'
+import { getProviders } from '../lib/speed-tests'
+import {
+  providerNavigationItem,
+  type NavigationItem,
+} from '../lib/navigation'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
-
-export type NavigationItem = 'overview' | 'librespeed' | 'fastcom' | 'ookla' | 'results' | 'statistics' | 'schedules' | 'settings'
 
 type AppShellProps = {
   activeItem: NavigationItem
@@ -30,16 +31,10 @@ type AppShellProps = {
 }
 
 const primaryNavigation = [
-  { id: 'overview' as const, label: 'Overview', icon: Gauge },
+  { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
   { id: 'results' as const, label: 'Results', icon: ListChecks },
   { id: 'statistics' as const, label: 'Statistics', icon: ChartNoAxesCombined },
   { id: 'schedules' as const, label: 'Schedules', icon: CalendarClock },
-]
-
-const providerNavigation = [
-  { id: 'librespeed' as const, label: 'LibreSpeed', icon: RadioTower },
-  { id: 'fastcom' as const, label: 'FAST.com', icon: Zap },
-  { id: 'ookla' as const, label: 'Ookla', icon: Activity },
 ]
 
 export function AppShell({ activeItem, onNavigate, children, session, onSignOut }: AppShellProps) {
@@ -52,6 +47,15 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
     queryFn: ({ signal }) => getHealth(signal),
     refetchInterval: 30_000,
   })
+  const providers = useQuery({
+    queryKey: ['providers'],
+    queryFn: ({ signal }) => getProviders(signal),
+  })
+  const providerNavigation = (providers.data ?? []).map((provider) => ({
+    id: providerNavigationItem(provider.id),
+    label: provider.displayName,
+    icon: Gauge,
+  }))
 
   const navigate = (item: NavigationItem) => {
     onNavigate(item)
@@ -257,7 +261,7 @@ function NavButton({ item, active, collapsed, onNavigate }: { item: NavItem; act
       )}
       onClick={() => onNavigate(item.id)}
     >
-      <Icon className="size-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+      <Icon aria-hidden="true" className="size-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.8} />
       <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
     </button>
   )

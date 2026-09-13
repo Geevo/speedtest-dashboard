@@ -15,7 +15,7 @@ public sealed class LibreSpeedResultParserTests
     {
         var result = _parser.Parse(LibreSpeedTestFactory.Fixture("result-complete.json"), catalog: _catalog);
 
-        Assert.Equal(ProviderId.LibreSpeed, result.ProviderId);
+        Assert.Equal(LibreSpeedProviderDefinition.Id, result.ProviderId);
         Assert.Equal(934.25m, result.DownloadMbps);
         Assert.Equal(104.2m, result.UploadMbps);
         Assert.Equal(11.4m, result.LatencyMilliseconds);

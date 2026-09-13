@@ -1,13 +1,15 @@
-import type { NavigationItem } from '../components/app-shell'
+import {
+  providerIdFromNavigation,
+  providerNavigationItem,
+  type NavigationItem,
+  type StaticNavigationItem,
+} from './navigation.ts'
 
-const paths: Record<NavigationItem, string> = {
+const paths: Record<StaticNavigationItem, string> = {
   overview: '/',
   results: '/results',
   statistics: '/statistics',
   schedules: '/schedules',
-  librespeed: '/librespeed',
-  fastcom: '/fastcom',
-  ookla: '/ookla',
   settings: '/settings',
 }
 
@@ -18,7 +20,8 @@ export type ResolvedNavigation = {
 }
 
 export function pathForNavigation(item: NavigationItem) {
-  return paths[item]
+  const providerId = providerIdFromNavigation(item)
+  return providerId === null ? paths[item as StaticNavigationItem] : `/providers/${encodeURIComponent(providerId)}`
 }
 
 export function resolveNavigation(pathname: string): ResolvedNavigation {
@@ -27,10 +30,25 @@ export function resolveNavigation(pathname: string): ResolvedNavigation {
     return { item: 'results', canonicalPath: paths.results, shouldRedirect: true }
   }
 
-  const match = (Object.entries(paths) as [NavigationItem, string][])
+  const match = (Object.entries(paths) as [StaticNavigationItem, string][])
     .find(([, path]) => path === normalized)
   if (match) {
     return { item: match[0], canonicalPath: match[1], shouldRedirect: normalized !== pathname }
+  }
+
+  const providerMatch = normalized.match(/^\/providers\/([a-z][a-z0-9-]{0,31})$/)
+  if (providerMatch) {
+    return {
+      item: providerNavigationItem(providerMatch[1]),
+      canonicalPath: normalized,
+      shouldRedirect: normalized !== pathname,
+    }
+  }
+
+  const legacyProviderMatch = normalized.match(/^\/([a-z][a-z0-9-]{0,31})$/)
+  if (legacyProviderMatch) {
+    const item = providerNavigationItem(legacyProviderMatch[1])
+    return { item, canonicalPath: pathForNavigation(item), shouldRedirect: true }
   }
 
   return { item: 'overview', canonicalPath: paths.overview, shouldRedirect: true }

@@ -59,9 +59,9 @@ public sealed class OoklaSpeedTestProviderTests
 
         Assert.Equal(ProviderHealthState.Available, health.State);
         Assert.Equal("1.2.0.84", health.Version);
-        Assert.True(provider.Capabilities.HasFlag(ProviderCapabilities.ServerDiscovery));
-        Assert.True(provider.Capabilities.HasFlag(ProviderCapabilities.ResultUrl));
-        Assert.False(provider.Capabilities.HasFlag(ProviderCapabilities.IPv6));
+        Assert.True(provider.Descriptor.Capabilities.HasFlag(ProviderCapabilities.ServerDiscovery));
+        Assert.True(provider.Descriptor.Capabilities.HasFlag(ProviderCapabilities.ResultUrl));
+        Assert.False(provider.Descriptor.Capabilities.HasFlag(ProviderCapabilities.IPv6));
     }
 
     [Fact]
@@ -151,15 +151,15 @@ public sealed class OoklaSpeedTestProviderTests
         var provider = OoklaTestFactory.Provider(new RecordingProcessRunner());
 
         var hostile = provider.ValidateRequest(new SpeedTestRequest(
-            ProviderId.Ookla, "123;touch /tmp/pwned"));
+            OoklaProviderDefinition.Id, "123;touch /tmp/pwned"));
 
         Assert.False(hostile.IsValid);
     }
 
     [Theory]
-    [InlineData(ProcessTerminationReason.TimedOut, SpeedTestFailureCodes.OoklaTimeout)]
-    [InlineData(ProcessTerminationReason.OutputLimitExceeded, SpeedTestFailureCodes.OoklaInvalidOutput)]
-    [InlineData(ProcessTerminationReason.FailedToStart, SpeedTestFailureCodes.OoklaNotInstalled)]
+    [InlineData(ProcessTerminationReason.TimedOut, OoklaFailureCodes.Timeout)]
+    [InlineData(ProcessTerminationReason.OutputLimitExceeded, OoklaFailureCodes.InvalidOutput)]
+    [InlineData(ProcessTerminationReason.FailedToStart, OoklaFailureCodes.NotInstalled)]
     public async Task RunMapsProcessTerminationToStableFailures(
         ProcessTerminationReason reason,
         string expectedCode)
@@ -174,9 +174,9 @@ public sealed class OoklaSpeedTestProviderTests
     }
 
     [Theory]
-    [InlineData("Server id not found", SpeedTestFailureCodes.OoklaServerNotFound)]
-    [InlineData("Configuration - Couldn't connect to server (Network is unreachable)", SpeedTestFailureCodes.OoklaNetworkUnavailable)]
-    [InlineData("unclassified internal failure", SpeedTestFailureCodes.OoklaFailed)]
+    [InlineData("Server id not found", OoklaFailureCodes.ServerNotFound)]
+    [InlineData("Configuration - Couldn't connect to server (Network is unreachable)", OoklaFailureCodes.NetworkUnavailable)]
+    [InlineData("unclassified internal failure", OoklaFailureCodes.Failed)]
     public async Task NonZeroExitMapsKnownConditionsWithoutExposingStderr(string stderr, string expectedCode)
     {
         var provider = OoklaTestFactory.Provider(RunnerReturning(stderr: stderr, exitCode: 2));
@@ -196,7 +196,7 @@ public sealed class OoklaSpeedTestProviderTests
         var exception = await Assert.ThrowsAsync<ProviderExecutionException>(() =>
             provider.RunAsync(Execution(null), CancellationToken.None));
 
-        Assert.Equal(SpeedTestFailureCodes.OoklaInvalidOutput, exception.Code);
+        Assert.Equal(OoklaFailureCodes.InvalidOutput, exception.Code);
         Assert.Equal("Speedtest CLI returned an invalid result.", exception.SafeMessage);
     }
 
@@ -230,7 +230,7 @@ public sealed class OoklaSpeedTestProviderTests
 
     private static SpeedTestExecution Execution(string? serverId) => new(
         Guid.NewGuid(),
-        new SpeedTestRequest(ProviderId.Ookla, serverId),
+        new SpeedTestRequest(OoklaProviderDefinition.Id, serverId),
         new NetworkIdentity(null, null, DateTimeOffset.UtcNow, NetworkIdentityState.Unavailable));
 
     private sealed class AdvancingTimeProvider(DateTimeOffset now) : TimeProvider

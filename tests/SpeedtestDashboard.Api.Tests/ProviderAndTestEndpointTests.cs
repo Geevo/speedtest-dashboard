@@ -65,6 +65,9 @@ public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApp
         var listed = Assert.Single(list.EnumerateArray());
         Assert.Equal("fixture", listed.GetProperty("id").GetString());
         Assert.Equal("available", detail.GetProperty("healthState").GetString());
+        Assert.Equal(100, detail.GetProperty("displayOrder").GetInt32());
+        Assert.Equal("Fixture provider unavailable.", detail.GetProperty("unavailableGuidance").GetString());
+        Assert.Equal(JsonValueKind.Array, detail.GetProperty("disclosures").ValueKind);
         Assert.Contains("serverDiscovery", detail.GetProperty("capabilities").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal("server-1", Assert.Single(servers.EnumerateArray()).GetProperty("id").GetString());
     }

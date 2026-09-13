@@ -181,9 +181,23 @@ public sealed class SqliteStatisticsService(
         DateTimeOffset toUtc,
         CancellationToken cancellationToken)
     {
-        var comparisons = new List<ProviderStatisticsComparison>(3);
-        foreach (var provider in new[] { ProviderId.LibreSpeed, ProviderId.FastCom, ProviderId.Ookla })
+        var providerValues = await Filter(
+                context.SpeedTestResults.AsNoTracking(),
+                providerId: null,
+                fromUtc,
+                toUtc)
+            .Select(result => result.ProviderId)
+            .Distinct()
+            .OrderBy(provider => provider)
+            .ToArrayAsync(cancellationToken);
+        var comparisons = new List<ProviderStatisticsComparison>(providerValues.Length);
+        foreach (var providerValue in providerValues)
         {
+            if (!ProviderId.TryParse(providerValue, out var provider))
+            {
+                continue;
+            }
+
             var filtered = Filter(context.SpeedTestResults.AsNoTracking(), provider, fromUtc, toUtc);
             var tests = await CountTestsAsync(filtered, cancellationToken);
             var completed = filtered.Where(result => result.Status == CompletedStatus);

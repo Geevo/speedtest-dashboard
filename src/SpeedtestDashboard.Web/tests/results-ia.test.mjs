@@ -19,6 +19,20 @@ test('results is canonical and legacy history bookmarks redirect', () => {
   })
 })
 
+test('provider routes are derived from opaque provider identifiers', () => {
+  assert.equal(pathForNavigation('provider:fixture'), '/providers/fixture')
+  assert.deepEqual(resolveNavigation('/providers/fixture'), {
+    item: 'provider:fixture',
+    canonicalPath: '/providers/fixture',
+    shouldRedirect: false,
+  })
+  assert.deepEqual(resolveNavigation('/fixture'), {
+    item: 'provider:fixture',
+    canonicalPath: '/providers/fixture',
+    shouldRedirect: true,
+  })
+})
+
 test('results retains record controls and contains no analytics charts', async () => {
   const results = await source('../src/components/results-page.tsx')
 
@@ -42,14 +56,13 @@ test('results filters do not add a duplicate divider above the results region', 
   assert.doesNotMatch(filters[1], /\bborder-b\b/)
 })
 
-test('overview provider states share one row when all three providers are present', async () => {
+test('overview provider states adapt to the registered provider count', async () => {
   const overview = await source('../src/components/overview-page.tsx')
   const providerGrid = overview.match(/providers\.data \? \(\s*<div className="([^"]+)"/)
 
   assert.ok(providerGrid)
-  assert.match(providerGrid[1], /\bsm:grid-cols-3\b/)
-  assert.match(providerGrid[1], /\bdivide-y\b/)
-  assert.match(providerGrid[1], /\bsm:divide-y-0\b/)
+  assert.match(providerGrid[1], /repeat\(auto-fit,minmax\(14rem,1fr\)\)/)
+  assert.match(providerGrid[1], /\bgap-px\b/)
 })
 
 test('statistics remains the sole owner of aggregates and charts', async () => {
@@ -65,13 +78,32 @@ test('statistics remains the sole owner of aggregates and charts', async () => {
   assert.doesNotMatch(shell, /label: 'History'/)
 })
 
-test('LibreSpeed, FAST.com, and Ookla keep their intended provider order', async () => {
+test('provider navigation and filters are populated from the provider catalog', async () => {
   const shell = await source('../src/components/app-shell.tsx')
   const results = await source('../src/components/results-page.tsx')
   const statistics = await source('../src/components/statistics-page.tsx')
 
   for (const providerUi of [shell, results, statistics]) {
-    assert.ok(providerUi.indexOf('LibreSpeed') < providerUi.indexOf('FAST.com'))
-    assert.ok(providerUi.indexOf('FAST.com') < providerUi.indexOf('Ookla'))
+    assert.match(providerUi, /getProviders/)
+    assert.match(providerUi, /providers\.data/)
+    assert.doesNotMatch(providerUi, /value="(?:librespeed|fastcom|ookla)"/)
   }
+})
+
+test('provider navigation uses a consistent speed-test dial', async () => {
+  const shell = await source('../src/components/app-shell.tsx')
+
+  assert.match(shell, /label: 'Overview', icon: LayoutDashboard/)
+  assert.match(shell, /label: provider\.displayName/)
+  assert.match(shell, /icon: Gauge/)
+})
+
+test('provider disclosures render generically before manual and scheduled tests', async () => {
+  const providers = await source('../src/components/provider-page.tsx')
+  const schedules = await source('../src/components/schedules-page.tsx')
+
+  assert.match(providers, /descriptor\.disclosures\.map/)
+  assert.match(schedules, /effectiveProvider\?\.disclosures\.map/)
+  assert.match(providers, /disclosure\.kind === 'privacy'/)
+  assert.match(schedules, /disclosure\.kind === 'privacy'/)
 })

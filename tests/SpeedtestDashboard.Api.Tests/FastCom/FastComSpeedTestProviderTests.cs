@@ -20,7 +20,7 @@ public sealed class FastComSpeedTestProviderTests
         Assert.Equal("0.3.5", health.Version);
         Assert.Equal(
             ProviderCapabilities.Download | ProviderCapabilities.Upload | ProviderCapabilities.Latency,
-            provider.Capabilities);
+            provider.Descriptor.Capabilities);
     }
 
     [Fact]
@@ -49,16 +49,16 @@ public sealed class FastComSpeedTestProviderTests
     public void ExplicitServerSelectionIsRejected()
     {
         var validation = FastComTestFactory.Provider(new FastComRecordingProcessRunner())
-            .ValidateRequest(new SpeedTestRequest(ProviderId.FastCom, "unexpected"));
+            .ValidateRequest(new SpeedTestRequest(FastComProviderDefinition.Id, "unexpected"));
 
         Assert.False(validation.IsValid);
         Assert.Equal(SpeedTestFailureCodes.CapabilityNotSupported, validation.Code);
     }
 
     [Theory]
-    [InlineData(ProcessTerminationReason.TimedOut, SpeedTestFailureCodes.FastComTimeout)]
-    [InlineData(ProcessTerminationReason.OutputLimitExceeded, SpeedTestFailureCodes.FastComInvalidOutput)]
-    [InlineData(ProcessTerminationReason.FailedToStart, SpeedTestFailureCodes.FastComNotInstalled)]
+    [InlineData(ProcessTerminationReason.TimedOut, FastComFailureCodes.Timeout)]
+    [InlineData(ProcessTerminationReason.OutputLimitExceeded, FastComFailureCodes.InvalidOutput)]
+    [InlineData(ProcessTerminationReason.FailedToStart, FastComFailureCodes.NotInstalled)]
     public async Task RunMapsProcessTerminationToStableFailures(
         ProcessTerminationReason reason,
         string expectedCode)
@@ -77,7 +77,7 @@ public sealed class FastComSpeedTestProviderTests
             FastComTestFactory.Provider(RunnerReturning(stdout: FastComTestFactory.Fixture("result-error.json")))
                 .RunAsync(Execution(), CancellationToken.None));
 
-        Assert.Equal(SpeedTestFailureCodes.FastComNetworkUnavailable, exception.Code);
+        Assert.Equal(FastComFailureCodes.NetworkUnavailable, exception.Code);
         Assert.Equal("FAST.com could not complete the speed test.", exception.SafeMessage);
     }
 
@@ -104,6 +104,6 @@ public sealed class FastComSpeedTestProviderTests
 
     private static SpeedTestExecution Execution() => new(
         Guid.NewGuid(),
-        new SpeedTestRequest(ProviderId.FastCom, null),
+        new SpeedTestRequest(FastComProviderDefinition.Id, null),
         new NetworkIdentity(null, null, DateTimeOffset.UtcNow, NetworkIdentityState.Unavailable));
 }

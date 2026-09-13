@@ -13,20 +13,13 @@ public sealed partial class FastComSpeedTestProvider(
     FastComResultParser resultParser,
     IOptions<FastComOptions> options,
     TimeProvider timeProvider,
-    ILogger<FastComSpeedTestProvider> logger) : ISpeedTestProvider, ISpeedTestRequestValidator
+    ILogger<FastComSpeedTestProvider> logger) : ISpeedTestProvider
 {
     private readonly SemaphoreSlim _healthGate = new(1, 1);
     private ProviderHealth? _cachedHealth;
     private DateTimeOffset _healthExpiresAtUtc;
 
-    public ProviderId Id => ProviderId.FastCom;
-
-    public string DisplayName => "FAST.com";
-
-    public ProviderCapabilities Capabilities =>
-        ProviderCapabilities.Download |
-        ProviderCapabilities.Upload |
-        ProviderCapabilities.Latency;
+    public ProviderDescriptor Descriptor => FastComProviderDefinition.Descriptor;
 
     public async Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -56,17 +49,9 @@ public sealed partial class FastComSpeedTestProvider(
         }
     }
 
-    public Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(
-        ServerQuery query,
-        CancellationToken cancellationToken)
-    {
-        EnsureOperational();
-        return Task.FromResult<IReadOnlyList<SpeedTestServer>>([]);
-    }
-
     public ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request)
     {
-        if (request.ProviderId != Id)
+        if (request.ProviderId != Descriptor.Id)
         {
             return ProviderRequestValidationResult.Invalid(
                 SpeedTestFailureCodes.InvalidRequest,
@@ -158,7 +143,7 @@ public sealed partial class FastComSpeedTestProvider(
         if (!options.Value.Enabled)
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.FastComDisabled,
+                FastComFailureCodes.Disabled,
                 "FAST.com provider is disabled.");
         }
     }
@@ -171,15 +156,15 @@ public sealed partial class FastComSpeedTestProvider(
                 throw new OperationCanceledException(cancellationToken);
             case ProcessTerminationReason.TimedOut:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.FastComTimeout,
+                    FastComFailureCodes.Timeout,
                     "FAST.com test timed out.");
             case ProcessTerminationReason.OutputLimitExceeded:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.FastComInvalidOutput,
+                    FastComFailureCodes.InvalidOutput,
                     "FAST.com test returned too much output.");
             case ProcessTerminationReason.FailedToStart:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.FastComNotInstalled,
+                    FastComFailureCodes.NotInstalled,
                     "FAST.com CLI is not installed.");
         }
 
@@ -194,12 +179,12 @@ public sealed partial class FastComSpeedTestProvider(
             output.Contains("resolve", StringComparison.Ordinal))
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.FastComNetworkUnavailable,
+                FastComFailureCodes.NetworkUnavailable,
                 "FAST.com CLI could not reach the FAST.com network.");
         }
 
         throw new ProviderExecutionException(
-            SpeedTestFailureCodes.FastComFailed,
+            FastComFailureCodes.Failed,
             "FAST.com test failed.");
     }
 
@@ -208,20 +193,20 @@ public sealed partial class FastComSpeedTestProvider(
         if (exception.ProviderReportedFailure)
         {
             return exception.Message.Contains("contact fast.com", StringComparison.OrdinalIgnoreCase)
-                ? SpeedTestFailureCodes.FastComNetworkUnavailable
-                : SpeedTestFailureCodes.FastComFailed;
+                ? FastComFailureCodes.NetworkUnavailable
+                : FastComFailureCodes.Failed;
         }
 
         return exception.Message.Contains("missing", StringComparison.OrdinalIgnoreCase)
-            ? SpeedTestFailureCodes.FastComResultIncomplete
-            : SpeedTestFailureCodes.FastComInvalidOutput;
+            ? FastComFailureCodes.ResultIncomplete
+            : FastComFailureCodes.InvalidOutput;
     }
 
     private ProviderHealth Health(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Id, state, version, checkedAt, message);
+        string message) => new(Descriptor.Id, state, version, checkedAt, message);
 
     internal static string? ParseVersion(string output)
     {

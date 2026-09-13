@@ -4,7 +4,7 @@ import { endpointResponseModels, responseModels } from '../lib/api-response-mode
 const endpoints = [
   ['GET', '/network', 'Read backend network identity', 'Returns public IPv4 and IPv6 identity.', '200 · Network identity'],
   ['GET', '/providers', 'List providers', 'Returns provider health and capabilities.', '200 · Provider array'],
-  ['GET', '/providers/{providerId}', 'Read a provider', 'providerId: librespeed or ookla.', '200 · Provider · 404 not found'],
+  ['GET', '/providers/{providerId}', 'Read a provider', 'providerId: any registered provider ID.', '200 · Provider · 404 not found'],
   ['GET', '/providers/{providerId}/servers', 'Search test servers', 'providerId: provider identifier. Optional query parameters: search (text), limit (integer).', '200 · Server array · 400 invalid query · 404 not found · 409 unavailable'],
   ['POST', '/tests', 'Queue a speed test', 'Optional Idempotency-Key header: up to 128 characters, retained for 24 hours. Reuse with the same request to retrieve the original job.', '202 · Created job · 400 invalid request · 404 not found · 409 conflict'],
   ['GET', '/tests/{jobId}', 'Read test status', 'jobId: the UUID returned when a test is queued.', '200 · Test job · 404 not found'],
@@ -38,7 +38,7 @@ export function ApiReference() {
             </summary>
             <div className="space-y-4 border-t border-line px-4 py-5 text-sm leading-6">
               <p>{detail}</p>
-              {method === 'POST' && path === '/tests' && <div><p className="mb-2 font-semibold">Request body · application/json</p><pre className="overflow-x-auto rounded bg-canvas p-3 text-xs"><code>{'{ "providerId": "librespeed", "serverId": null }'}</code></pre></div>}
+              {method === 'POST' && path === '/tests' && <div><p className="mb-2 font-semibold">Request body · application/json</p><pre className="overflow-x-auto rounded bg-canvas p-3 text-xs"><code>{'{ "providerId": "provider-id", "serverId": null }'}</code></pre></div>}
               <div><p className="font-semibold">Responses</p><p className="text-ink-muted">{response}</p></div>
               {endpointResponseModels[path] && (
                 <div className="min-w-0">

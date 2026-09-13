@@ -92,7 +92,7 @@ public sealed class LibreSpeedSpeedTestProviderTests
         var provider = LibreSpeedTestFactory.Provider(VersionRunner());
 
         var hostile = provider.ValidateRequest(new SpeedTestRequest(
-            ProviderId.LibreSpeed,
+            LibreSpeedProviderDefinition.Id,
             "49;touch /tmp/pwned"));
 
         Assert.False(hostile.IsValid);
@@ -127,9 +127,9 @@ public sealed class LibreSpeedSpeedTestProviderTests
     }
 
     [Theory]
-    [InlineData(ProcessTerminationReason.TimedOut, "librespeed_timeout")]
-    [InlineData(ProcessTerminationReason.OutputLimitExceeded, "librespeed_invalid_output")]
-    [InlineData(ProcessTerminationReason.FailedToStart, "librespeed_not_installed")]
+    [InlineData(ProcessTerminationReason.TimedOut, LibreSpeedFailureCodes.Timeout)]
+    [InlineData(ProcessTerminationReason.OutputLimitExceeded, LibreSpeedFailureCodes.InvalidOutput)]
+    [InlineData(ProcessTerminationReason.FailedToStart, LibreSpeedFailureCodes.NotInstalled)]
     public async Task ProcessFailures_AreSanitized(ProcessTerminationReason reason, string code)
     {
         var runner = new LibreSpeedRecordingProcessRunner
@@ -158,7 +158,7 @@ public sealed class LibreSpeedSpeedTestProviderTests
         var exception = await Assert.ThrowsAsync<ProviderExecutionException>(() =>
             LibreSpeedTestFactory.Provider(runner).RunAsync(Execution(null), CancellationToken.None));
 
-        Assert.Equal(SpeedTestFailureCodes.LibreSpeedInvalidOutput, exception.Code);
+        Assert.Equal(LibreSpeedFailureCodes.InvalidOutput, exception.Code);
         Assert.Equal("LibreSpeed CLI returned an invalid result.", exception.SafeMessage);
     }
 
@@ -176,6 +176,6 @@ public sealed class LibreSpeedSpeedTestProviderTests
 
     private static SpeedTestExecution Execution(string? serverId) => new(
         Guid.NewGuid(),
-        new SpeedTestRequest(ProviderId.LibreSpeed, serverId),
+        new SpeedTestRequest(LibreSpeedProviderDefinition.Id, serverId),
         new NetworkIdentity(null, null, DateTimeOffset.UtcNow, NetworkIdentityState.Unavailable));
 }

@@ -26,6 +26,7 @@ import {
   type HistoryListItem,
   type HistoryStatus,
 } from '../lib/history'
+import { getProviders } from '../lib/speed-tests'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 
@@ -33,6 +34,7 @@ type TimeRange = '24h' | '7d' | '30d' | 'all'
 
 export function ResultsPage() {
   const queryClient = useQueryClient()
+  const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
   const [provider, setProvider] = useState('all')
   const [status, setStatus] = useState<'all' | HistoryStatus>('all')
   const [range, setRange] = useState<TimeRange>('30d')
@@ -83,9 +85,7 @@ export function ResultsPage() {
       <section aria-label="Results filters" className="grid gap-3 pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
         <FilterSelect label="Provider" value={provider} onChange={(value) => { setProvider(value); resetPagination() }}>
           <option value="all">All providers</option>
-          <option value="librespeed">LibreSpeed</option>
-          <option value="fastcom">FAST.com</option>
-          <option value="ookla">Ookla</option>
+          {providers.data?.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
         </FilterSelect>
         <FilterSelect label="Status" value={status} onChange={(value) => { setStatus(value as typeof status); resetPagination() }}>
           <option value="all">All terminal states</option>

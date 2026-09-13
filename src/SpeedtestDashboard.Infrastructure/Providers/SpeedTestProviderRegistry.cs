@@ -10,18 +10,18 @@ public sealed class SpeedTestProviderRegistry : ISpeedTestProviderRegistry
     public SpeedTestProviderRegistry(IEnumerable<ISpeedTestProvider> providers)
     {
         var providerList = providers
-            .OrderBy(provider => ProviderPriority(provider.Id))
-            .ThenBy(provider => provider.Id.Value, StringComparer.Ordinal)
+            .OrderBy(provider => provider.Descriptor.DisplayOrder)
+            .ThenBy(provider => provider.Descriptor.Id.Value, StringComparer.Ordinal)
             .ToArray();
         var duplicate = providerList
-            .GroupBy(provider => provider.Id)
+            .GroupBy(provider => provider.Descriptor.Id)
             .FirstOrDefault(group => group.Count() > 1);
         if (duplicate is not null)
         {
             throw new InvalidOperationException($"Duplicate speed-test provider ID '{duplicate.Key.Value}' was registered.");
         }
 
-        _providers = providerList.ToDictionary(provider => provider.Id);
+        _providers = providerList.ToDictionary(provider => provider.Descriptor.Id);
         _all = Array.AsReadOnly(providerList);
     }
 
@@ -29,10 +29,4 @@ public sealed class SpeedTestProviderRegistry : ISpeedTestProviderRegistry
 
     public bool TryGet(ProviderId providerId, out ISpeedTestProvider provider) =>
         _providers.TryGetValue(providerId, out provider!);
-
-    private static int ProviderPriority(ProviderId providerId) =>
-        providerId == ProviderId.LibreSpeed ? 0 :
-        providerId == ProviderId.FastCom ? 1 :
-        providerId == ProviderId.Ookla ? 2 :
-        3;
 }

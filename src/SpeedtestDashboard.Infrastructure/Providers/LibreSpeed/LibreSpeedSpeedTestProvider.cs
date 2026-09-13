@@ -14,7 +14,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
     LibreSpeedResultParser resultParser,
     IOptions<LibreSpeedOptions> options,
     TimeProvider timeProvider,
-    ILogger<LibreSpeedSpeedTestProvider> logger) : ISpeedTestProvider, ISpeedTestRequestValidator
+    ILogger<LibreSpeedSpeedTestProvider> logger) : ISpeedTestProvider, ISpeedTestServerProvider
 {
     private readonly SemaphoreSlim _healthGate = new(1, 1);
     private readonly SemaphoreSlim _serverGate = new(1, 1);
@@ -23,17 +23,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
     private IReadOnlyList<LibreSpeedServerDefinition>? _cachedServers;
     private DateTimeOffset _serversExpireAtUtc;
 
-    public ProviderId Id => ProviderId.LibreSpeed;
-
-    public string DisplayName => "LibreSpeed";
-
-    public ProviderCapabilities Capabilities =>
-        ProviderCapabilities.ServerDiscovery |
-        ProviderCapabilities.ServerSelection |
-        ProviderCapabilities.Download |
-        ProviderCapabilities.Upload |
-        ProviderCapabilities.Latency |
-        ProviderCapabilities.Jitter;
+    public ProviderDescriptor Descriptor => LibreSpeedProviderDefinition.Descriptor;
 
     public async Task<ProviderHealth> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -76,7 +66,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
         catch (LibreSpeedOutputException)
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.LibreSpeedServerListFailed,
+                LibreSpeedFailureCodes.ServerListFailed,
                 "The LibreSpeed public server catalogue could not be loaded.");
         }
         IEnumerable<LibreSpeedServerDefinition> filtered = catalog;
@@ -99,7 +89,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
 
     public ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request)
     {
-        if (request.ProviderId != Id)
+        if (request.ProviderId != Descriptor.Id)
         {
             return ProviderRequestValidationResult.Invalid(
                 SpeedTestFailureCodes.InvalidRequest,
@@ -160,8 +150,8 @@ public sealed partial class LibreSpeedSpeedTestProvider(
             throw new ProviderExecutionException(
                 exception.Message.Contains("missing", StringComparison.OrdinalIgnoreCase) ||
                 exception.Message.Contains("no test results", StringComparison.OrdinalIgnoreCase)
-                    ? SpeedTestFailureCodes.LibreSpeedResultIncomplete
-                    : SpeedTestFailureCodes.LibreSpeedInvalidOutput,
+                    ? LibreSpeedFailureCodes.ResultIncomplete
+                    : LibreSpeedFailureCodes.InvalidOutput,
                 "LibreSpeed CLI returned an invalid result.");
         }
     }
@@ -247,7 +237,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
         if (!options.Value.Enabled)
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.LibreSpeedDisabled,
+                LibreSpeedFailureCodes.Disabled,
                 "LibreSpeed provider is disabled.");
         }
     }
@@ -263,15 +253,15 @@ public sealed partial class LibreSpeedSpeedTestProvider(
                 throw new OperationCanceledException(cancellationToken);
             case ProcessTerminationReason.TimedOut:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.LibreSpeedTimeout,
+                    LibreSpeedFailureCodes.Timeout,
                     $"LibreSpeed {operation} timed out.");
             case ProcessTerminationReason.OutputLimitExceeded:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.LibreSpeedInvalidOutput,
+                    LibreSpeedFailureCodes.InvalidOutput,
                     $"LibreSpeed {operation} returned too much output.");
             case ProcessTerminationReason.FailedToStart:
                 throw new ProviderExecutionException(
-                    SpeedTestFailureCodes.LibreSpeedNotInstalled,
+                    LibreSpeedFailureCodes.NotInstalled,
                     "LibreSpeed CLI is not installed.");
         }
 
@@ -287,7 +277,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
              stderr.Contains("invalid", StringComparison.Ordinal)))
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.LibreSpeedServerNotFound,
+                LibreSpeedFailureCodes.ServerNotFound,
                 "The selected LibreSpeed server was not found.");
         }
 
@@ -298,12 +288,12 @@ public sealed partial class LibreSpeedSpeedTestProvider(
             stderr.Contains("error when fetching server list", StringComparison.Ordinal))
         {
             throw new ProviderExecutionException(
-                SpeedTestFailureCodes.LibreSpeedNetworkUnavailable,
+                LibreSpeedFailureCodes.NetworkUnavailable,
                 "LibreSpeed CLI could not reach the public server network.");
         }
 
         throw new ProviderExecutionException(
-            SpeedTestFailureCodes.LibreSpeedFailed,
+            LibreSpeedFailureCodes.Failed,
             $"LibreSpeed {operation} failed.");
     }
 
@@ -311,7 +301,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Id, state, version, checkedAt, message);
+        string message) => new(Descriptor.Id, state, version, checkedAt, message);
 
     internal static string? ParseVersion(string output)
     {

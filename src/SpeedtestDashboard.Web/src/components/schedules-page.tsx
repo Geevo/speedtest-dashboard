@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, ChevronLeft, ChevronRight, Clock3, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Clock3, ExternalLink, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { ApiError } from '../lib/api'
 import {
   createSchedule,
@@ -30,6 +30,7 @@ const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 export function SchedulesPage() {
   const queryClient = useQueryClient()
   const schedules = useQuery({ queryKey: ['schedules'], queryFn: ({ signal }) => getSchedules(signal) })
+  const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
   const [editing, setEditing] = useState<'new' | Schedule | null>(null)
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['schedules'] })
@@ -50,6 +51,7 @@ export function SchedulesPage() {
             <ScheduleCard
               key={schedule.id}
               schedule={schedule}
+              providerName={providers.data?.find((provider) => provider.id === schedule.providerId)?.displayName ?? schedule.providerId}
               onEdit={() => setEditing(schedule)}
               onChanged={invalidate}
             />
@@ -75,7 +77,7 @@ export function SchedulesPage() {
   )
 }
 
-function ScheduleCard({ schedule, onEdit, onChanged }: { schedule: Schedule; onEdit: () => void; onChanged: () => void }) {
+function ScheduleCard({ schedule, providerName, onEdit, onChanged }: { schedule: Schedule; providerName: string; onEdit: () => void; onChanged: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,7 +123,7 @@ function ScheduleCard({ schedule, onEdit, onChanged }: { schedule: Schedule; onE
                 : schedule.completed && <Badge>Submitted</Badge>}
           </div>
           <p className="mt-1 text-sm capitalize text-ink-muted">
-            {providerLabel(schedule.providerId)}
+            {providerName}
             {schedule.serverId ? ` · Server ${schedule.serverId}` : ' · Automatic server'}
           </p>
           <p className="mt-1 text-sm text-ink-muted">
@@ -306,6 +308,15 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
           </label>
         </div>
 
+        {effectiveProvider?.disclosures.map((disclosure) => (
+          <aside key={`${disclosure.kind}:${disclosure.url ?? disclosure.message}`} className="border-l-2 border-signal bg-signal-soft px-4 py-3 text-sm leading-6 text-ink-muted">
+            {disclosure.message}{' '}
+            {disclosure.url && <a className="inline-flex items-center gap-1 font-semibold text-ink underline underline-offset-4" href={disclosure.url} target="_blank" rel="noreferrer">
+              {disclosure.kind === 'privacy' ? 'Privacy details' : 'Learn more'} <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>}
+          </aside>
+        ))}
+
         <label className="block text-sm font-semibold">Schedule type
           <select
             className={inputClass}
@@ -402,13 +413,6 @@ function ScheduleForm({ schedule, onSaved, onCancel }: {
       </footer>
     </form>
   )
-}
-
-function providerLabel(providerId: string) {
-  if (providerId === 'fastcom') return 'FAST.com'
-  if (providerId === 'librespeed') return 'LibreSpeed'
-  if (providerId === 'ookla') return 'Ookla'
-  return providerId
 }
 
 function CalendarPicker({ value, timeZoneId, onChange }: {

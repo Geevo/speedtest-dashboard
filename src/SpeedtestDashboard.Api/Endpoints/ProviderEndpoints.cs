@@ -96,7 +96,8 @@ public static class ProviderEndpoints
                 "The requested speed-test provider is not registered.");
         }
 
-        if (!provider.Capabilities.HasFlag(ProviderCapabilities.ServerDiscovery))
+        if (!provider.Descriptor.Capabilities.HasFlag(ProviderCapabilities.ServerDiscovery) ||
+            provider is not ISpeedTestServerProvider serverProvider)
         {
             return ProblemResponses.Conflict(
                 SpeedTestFailureCodes.CapabilityNotSupported,
@@ -112,7 +113,7 @@ public static class ProviderEndpoints
 
         try
         {
-            var servers = await provider.GetServersAsync(
+            var servers = await serverProvider.GetServersAsync(
                 new ServerQuery(search?.Trim(), limit ?? 25),
                 cancellationToken);
             return Results.Ok(servers.Select(SpeedTestServerResponse.From));
@@ -154,7 +155,7 @@ public static class ProviderEndpoints
         catch
         {
             health = new ProviderHealth(
-                provider.Id,
+                provider.Descriptor.Id,
                 ProviderHealthState.Unavailable,
                 Version: null,
                 DateTimeOffset.UtcNow,
@@ -162,9 +163,13 @@ public static class ProviderEndpoints
         }
 
         return new ProviderResponse(
-            provider.Id.Value,
-            SanitizeMessage(provider.DisplayName, 80),
-            GetCapabilities(provider.Capabilities),
+            provider.Descriptor.Id.Value,
+            SanitizeMessage(provider.Descriptor.DisplayName, 80),
+            provider.Descriptor.DisplayOrder,
+            GetCapabilities(provider.Descriptor.Capabilities),
+            SanitizeMessage(provider.Descriptor.ServerSearchLabel, 120),
+            SanitizeMessage(provider.Descriptor.UnavailableGuidance, 240),
+            provider.Descriptor.Disclosures.Select(ProviderDisclosureResponse.From).ToArray(),
             health.State.ToString().ToLowerInvariant(),
             SanitizeNullable(health.Version, 80),
             health.CheckedAtUtc,
@@ -203,11 +208,35 @@ public static class ProviderEndpoints
 public sealed record ProviderResponse(
     string Id,
     string DisplayName,
+    int DisplayOrder,
     IReadOnlyList<string> Capabilities,
+    string ServerSearchLabel,
+    string UnavailableGuidance,
+    IReadOnlyList<ProviderDisclosureResponse> Disclosures,
     string HealthState,
     string? Version,
     DateTimeOffset CheckedAtUtc,
     string? Message);
+
+public sealed record ProviderDisclosureResponse(
+    string Kind,
+    string Message,
+    string? Url)
+{
+    public static ProviderDisclosureResponse From(ProviderDisclosure disclosure) => new(
+        Sanitize(disclosure.Kind, 40),
+        Sanitize(disclosure.Message, 500),
+        SanitizeNullable(disclosure.Url, 500));
+
+    private static string Sanitize(string value, int maximumLength)
+    {
+        var clean = new string(value.Where(character => !char.IsControl(character)).ToArray()).Trim();
+        return clean.Length <= maximumLength ? clean : clean[..maximumLength];
+    }
+
+    private static string? SanitizeNullable(string? value, int maximumLength) =>
+        string.IsNullOrWhiteSpace(value) ? null : Sanitize(value, maximumLength);
+}
 
 public sealed record SpeedTestServerResponse(
     string ProviderId,

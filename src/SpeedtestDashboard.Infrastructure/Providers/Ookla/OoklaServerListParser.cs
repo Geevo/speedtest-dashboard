@@ -69,7 +69,7 @@ public sealed class OoklaServerListParser
             }
 
             servers.Add(new SpeedTestServer(
-                ProviderId.Ookla,
+                OoklaProviderDefinition.Id,
                 id,
                 name,
                 Sponsor: name,

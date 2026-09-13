@@ -72,7 +72,7 @@ public sealed class LibreSpeedResultParser
             });
 
             return new SpeedTestResult(
-                ProviderId.LibreSpeed,
+                LibreSpeedProviderDefinition.Id,
                 serverId,
                 serverName,
                 matchedServer?.Server.Location,
