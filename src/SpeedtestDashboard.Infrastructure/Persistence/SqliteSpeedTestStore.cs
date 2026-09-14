@@ -171,6 +171,25 @@ public sealed class SqliteSpeedTestStore(
         return new HistoryDeleteResult(true, jobId);
     }
 
+    public async Task<HistoryDeleteAllResult> DeleteAllAsync(CancellationToken cancellationToken)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var terminalJobs = await context.SpeedTestJobs
+            .Where(job => job.Result != null)
+            .ToListAsync(cancellationToken);
+        if (terminalJobs.Count == 0)
+        {
+            return new HistoryDeleteAllResult([]);
+        }
+
+        var jobIds = terminalJobs.Select(job => job.Id).ToArray();
+        context.SpeedTestJobs.RemoveRange(terminalJobs);
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new HistoryDeleteAllResult(jobIds);
+    }
+
     public async Task<int> ReconcileInterruptedJobsAsync(CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);

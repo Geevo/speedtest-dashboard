@@ -91,6 +91,7 @@ app.MapTestEndpoints();
 app.MapHistoryEndpoints();
 app.MapStatisticsEndpoints();
 app.MapScheduleEndpoints();
+app.MapDatabaseEndpoints();
 
 app.Map("/api/{**path}", () => Results.Problem(
     statusCode: StatusCodes.Status404NotFound,

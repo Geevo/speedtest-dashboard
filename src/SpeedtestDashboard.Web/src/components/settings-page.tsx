@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Copy, KeyRound, Laptop, Moon, ShieldCheck, ShieldOff, Sun, Terminal, X } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, Copy, Database, HardDrive, KeyRound, Laptop, LoaderCircle, Moon, ShieldCheck, ShieldOff, Sun, Terminal, Trash2, X } from 'lucide-react'
 import type { ThemePreference } from '../hooks/use-theme'
 import {
   ApiError,
@@ -14,6 +15,8 @@ import {
   type ApiKeyResponse,
   type SessionResponse,
 } from '../lib/api'
+import { deleteAllHistory } from '../lib/history'
+import { compactDatabase, getDatabaseStorage, type DatabaseStorage } from '../lib/database'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { ApiReference } from './api-reference'
@@ -34,7 +37,8 @@ type SettingsPageProps = {
 }
 
 export function SettingsPage({ theme, onThemeChange, session, onSessionChange }: SettingsPageProps) {
-  const [tab, setTab] = useState<'general' | 'api'>('general')
+  const [tab, setTab] = useState<'general' | 'database' | 'api'>('general')
+  const tabs = ['general', 'database', 'api'] as const
 
   return (
     <div className="page-enter">
@@ -42,20 +46,28 @@ export function SettingsPage({ theme, onThemeChange, session, onSessionChange }:
         <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Settings</h1>
       </header>
       <div role="tablist" aria-label="Settings" className="mt-6 flex gap-1 border-b border-line">
-        {(['general', 'api'] as const).map((id) => (
+        {tabs.map((id) => (
           <button key={id} id={`settings-tab-${id}`} type="button" role="tab" aria-selected={tab === id}
             aria-controls={`settings-panel-${id}`} tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault()
-                const next = event.key === 'Home' ? 'general' : event.key === 'End' ? 'api' : tab === 'general' ? 'api' : 'general'
+                const currentIndex = tabs.indexOf(tab)
+                const nextIndex = event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? tabs.length - 1
+                    : event.key === 'ArrowRight'
+                      ? (currentIndex + 1) % tabs.length
+                      : (currentIndex - 1 + tabs.length) % tabs.length
+                const next = tabs[nextIndex]
                 setTab(next)
                 document.getElementById(`settings-tab-${next}`)?.focus()
               }
             }}
             className={cn('min-h-11 border-b-2 px-5 text-sm font-semibold transition-colors', tab === id ? 'border-signal text-signal' : 'border-transparent text-ink-muted hover:border-ink-muted hover:text-ink')}>
-            {id === 'api' ? 'API' : 'General'}
+            {id === 'api' ? 'API' : id === 'database' ? 'Database' : 'General'}
           </button>
         ))}
       </div>
@@ -83,11 +95,185 @@ export function SettingsPage({ theme, onThemeChange, session, onSessionChange }:
       <AuthenticationSection session={session} onSessionChange={onSessionChange} />
       {session.mode === 'local' && <PasswordSection />}
       </div>
+      <div id="settings-panel-database" role="tabpanel" aria-labelledby="settings-tab-database" hidden={tab !== 'database'}>
+        <DatabaseSection />
+      </div>
       <div id="settings-panel-api" role="tabpanel" aria-labelledby="settings-tab-api" hidden={tab !== 'api'}>
         <ApiKeySection />
       </div>
     </div>
   )
+}
+
+function DatabaseSection() {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null)
+  const storage = useQuery({
+    queryKey: ['database-storage'],
+    queryFn: ({ signal }) => getDatabaseStorage(signal),
+  })
+  const compaction = useMutation({
+    mutationFn: compactDatabase,
+    onMutate: () => setStatus(null),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['database-storage'], result.after)
+      setStatus({
+        ok: true,
+        message: `Database compacted. Storage changed from ${formatBytes(result.before.totalBytes)} to ${formatBytes(result.after.totalBytes)}.`,
+      })
+    },
+    onError: (reason) => {
+      setStatus({ ok: false, message: reason instanceof ApiError ? reason.message : 'The database could not be compacted.' })
+    },
+  })
+
+  const close = () => {
+    setOpen(false)
+    setConfirmation('')
+  }
+
+  const removeAll = async (event: FormEvent) => {
+    event.preventDefault()
+    if (confirmation !== 'DELETE ALL') return
+    setDeleting(true)
+    setStatus(null)
+    try {
+      const deletedCount = await deleteAllHistory()
+      close()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['history'] }),
+        queryClient.invalidateQueries({ queryKey: ['history-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ])
+      setStatus({
+        ok: true,
+        message: deletedCount === 1 ? '1 speed-test result was deleted.' : `${deletedCount} speed-test results were deleted.`,
+      })
+    } catch (reason) {
+      setStatus({ ok: false, message: reason instanceof Error ? reason.message : 'Speed-test results could not be deleted.' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return <>
+    <section aria-labelledby="storage-heading" className="border-b border-line py-8">
+      <div className="flex max-w-2xl items-start gap-3">
+        <HardDrive className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+        <div>
+          <h2 id="storage-heading" className="text-xl font-semibold tracking-[-0.03em]">SQLite storage</h2>
+          <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+            Reclaim unused pages left behind after records are deleted. Compaction temporarily locks the database and may require additional free disk space while it runs.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex max-w-2xl flex-col items-start gap-5 border-y border-line py-5 sm:flex-row sm:items-center sm:justify-between">
+        <DatabaseSize storage={storage.data} loading={storage.isLoading} error={storage.isError} />
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0"
+          disabled={compaction.isPending || storage.isLoading}
+          onClick={() => compaction.mutate()}
+        >
+          {compaction.isPending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Database className="size-4" aria-hidden="true" />}
+          {compaction.isPending ? 'Compacting…' : 'Compact database'}
+        </Button>
+      </div>
+      {storage.isError && (
+        <Button type="button" variant="ghost" className="mt-3" onClick={() => void storage.refetch()}>Retry size check</Button>
+      )}
+      {status && <div className="mt-4"><StatusMessage status={status} /></div>}
+    </section>
+
+    <section aria-labelledby="database-heading" className="py-8">
+      <div className="flex max-w-2xl flex-col items-start gap-5 sm:flex-row sm:justify-between">
+        <div className="flex items-start gap-3">
+          <Database className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+          <div>
+            <h2 id="database-heading" className="text-xl font-semibold tracking-[-0.03em]">Speed-test results</h2>
+            <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+              Permanently remove every completed, failed, and cancelled speed-test result. Schedules and dashboard settings are kept.
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0 border-danger/40 text-danger hover:border-danger hover:bg-danger-soft"
+          onClick={() => { setOpen(true); setStatus(null) }}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+          Delete all results
+        </Button>
+      </div>
+
+      {open && (
+        <SettingsDialog
+          title="Delete all speed-test results?"
+          description="This permanently deletes the full results history and cannot be undone. Schedules and dashboard settings will not be affected."
+          onClose={close}
+          busy={deleting}
+        >
+          <form className="space-y-5" onSubmit={removeAll}>
+            <label className="block text-sm font-semibold">
+              Type <strong>DELETE ALL</strong> to confirm
+              <input
+                autoFocus
+                className={inputClass}
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="ghost" disabled={deleting} onClick={close}>Cancel</Button>
+              <Button
+                type="submit"
+                disabled={deleting || confirmation !== 'DELETE ALL'}
+                className="bg-danger text-white hover:bg-danger/90"
+              >
+                {deleting ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+                {deleting ? 'Deleting…' : 'Delete all results'}
+              </Button>
+            </div>
+          </form>
+        </SettingsDialog>
+      )}
+    </section>
+  </>
+}
+
+function DatabaseSize({ storage, loading, error }: {
+  storage: DatabaseStorage | undefined
+  loading: boolean
+  error: boolean
+}) {
+  if (loading) return <p role="status" className="text-sm text-ink-muted">Calculating storage…</p>
+  if (error || !storage) return <p role="alert" className="text-sm text-danger">Database storage could not be loaded.</p>
+
+  return (
+    <dl>
+      <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted">Current size</dt>
+      <dd className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.03em]">{formatBytes(storage.totalBytes)}</dd>
+      <dd className="mt-1 text-xs leading-5 text-ink-muted">
+        Database {formatBytes(storage.databaseBytes)} · WAL {formatBytes(storage.writeAheadLogBytes)} · shared memory {formatBytes(storage.sharedMemoryBytes)}
+      </dd>
+    </dl>
+  )
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length)
+  const value = bytes / (1024 ** exponent)
+  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: value >= 10 ? 1 : 2 }).format(value)} ${units[exponent - 1]}`
 }
 
 function AuthenticationSection({ session, onSessionChange }: Pick<SettingsPageProps, 'session' | 'onSessionChange'>) {

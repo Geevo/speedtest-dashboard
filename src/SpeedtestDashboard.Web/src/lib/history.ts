@@ -72,6 +72,16 @@ export async function deleteHistory(id: number): Promise<void> {
   if (!response.ok) throw new Error('The result could not be deleted.')
 }
 
+export async function deleteAllHistory(): Promise<number> {
+  const response = await apiFetch('/api/history', {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) throw new Error('Speed-test results could not be deleted.')
+  const body = (await response.json()) as { deletedCount: number }
+  return body.deletedCount
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await apiFetch(url, {
     ...init,

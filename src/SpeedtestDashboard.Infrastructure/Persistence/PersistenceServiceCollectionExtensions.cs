@@ -38,6 +38,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<ISpeedTestHistoryStore>(provider => provider.GetRequiredService<SqliteSpeedTestStore>());
         services.AddSingleton<ISpeedTestStatisticsService, SqliteStatisticsService>();
         services.AddSingleton<ISpeedTestScheduleStore, SqliteScheduleStore>();
+        services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<DashboardDatabaseInitializer>();
         return services;
     }

@@ -160,6 +160,23 @@ public sealed class SqliteSpeedTestStoreTests
     }
 
     [Fact]
+    public async Task DeleteAllRemovesEveryHistoryRecordAndAssociatedTerminalJob()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        var first = CreateCompleted(database, ProviderId.Parse("provider-a"));
+        var second = CreateCompleted(database, ProviderId.Parse("fixture"));
+
+        var deleted = await database.Store.DeleteAllAsync(default);
+
+        Assert.Equal(2, deleted.DeletedCount);
+        Assert.Contains(first.Id, deleted.JobIds);
+        Assert.Contains(second.Id, deleted.JobIds);
+        Assert.Empty((await database.Store.ListAsync(new HistoryQuery(null, null, null, null, 10, null), default)).Items);
+        Assert.Null(await database.Store.GetTerminalJobAsync(first.Id, default));
+        Assert.Null(await database.Store.GetTerminalJobAsync(second.Id, default));
+    }
+
+    [Fact]
     public async Task FileBackedDatabaseSurvivesStoreReplacement()
     {
         using var database = await TestDatabase.CreateAsync();

@@ -33,6 +33,12 @@ public static class HistoryEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        endpoints.MapDelete("/api/history", DeleteAllAsync)
+            .RequireCsrf()
+            .WithName("DeleteAllSpeedTestHistory")
+            .WithTags("History")
+            .Produces<HistoryDeleteAllResponse>();
+
         endpoints.MapGet("/api/v1/history", ListAsync)
             .RequireAuthorization(ApiKeyAuthenticationDefaults.PolicyName)
             .RequireRateLimiting(ApiKeyAuthenticationDefaults.ReadRateLimiterPolicy)
@@ -102,6 +108,20 @@ public static class HistoryEndpoints
 
         jobStore.TryRemoveTerminal(result.JobId.Value);
         return Results.NoContent();
+    }
+
+    private static async Task<IResult> DeleteAllAsync(
+        ISpeedTestHistoryStore history,
+        ISpeedTestJobStore jobStore,
+        CancellationToken cancellationToken)
+    {
+        var result = await history.DeleteAllAsync(cancellationToken);
+        foreach (var jobId in result.JobIds)
+        {
+            jobStore.TryRemoveTerminal(jobId);
+        }
+
+        return Results.Ok(new HistoryDeleteAllResponse(result.DeletedCount));
     }
 
     private static bool TryParseQuery(
@@ -189,6 +209,8 @@ public static class HistoryEndpoints
         return true;
     }
 }
+
+public sealed record HistoryDeleteAllResponse(int DeletedCount);
 
 public sealed record HistoryListResponse(
     IReadOnlyList<HistoryListItemResponse> Items,

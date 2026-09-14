@@ -72,6 +72,25 @@ public sealed class HistoryEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/tests/{job.Id}")).StatusCode);
     }
 
+    [Fact]
+    public async Task DeleteAllClearsHistoryAndEvictsEveryOperationalSnapshot()
+    {
+        using var factory = new DashboardWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var store = factory.Services.GetRequiredService<ISpeedTestJobStore>();
+        var first = CreateTerminal(store, ProviderId.Parse("provider-a"), SpeedTestJobStatus.Completed);
+        var second = CreateTerminal(store, ProviderId.Parse("fixture"), SpeedTestJobStatus.Failed);
+
+        var response = await client.DeleteAsync("/api/history");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, body.GetProperty("deletedCount").GetInt32());
+        Assert.Empty((await client.GetFromJsonAsync<JsonElement>("/api/history")).GetProperty("items").EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/tests/{first.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/tests/{second.Id}")).StatusCode);
+    }
+
     private static SpeedTestJob CreateTerminal(ISpeedTestJobStore store, ProviderId provider, SpeedTestJobStatus status)
     {
         var identity = new NetworkIdentity(

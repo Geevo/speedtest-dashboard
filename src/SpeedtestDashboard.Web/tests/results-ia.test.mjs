@@ -48,6 +48,20 @@ test('results retains record controls and contains no analytics charts', async (
   assert.doesNotMatch(results, /ReferenceLine|AreaChart|LineChart|ChartPanel/)
 })
 
+test('settings exposes guarded bulk result deletion under database management', async () => {
+  const settings = await source('../src/components/settings-page.tsx')
+
+  assert.match(settings, /'general', 'database', 'api'/)
+  assert.match(settings, /Delete all results/)
+  assert.match(settings, /confirmation !== 'DELETE ALL'/)
+  assert.match(settings, /Schedules and dashboard settings are kept/)
+  assert.match(settings, /deleteAllHistory/)
+  assert.match(settings, /SQLite storage/)
+  assert.match(settings, /Compact database/)
+  assert.match(settings, /getDatabaseStorage/)
+  assert.match(settings, /result\.after/)
+})
+
 test('results filters do not add a duplicate divider above the results region', async () => {
   const results = await source('../src/components/results-page.tsx')
   const filters = results.match(/<section aria-label="Results filters" className="([^"]+)"/)

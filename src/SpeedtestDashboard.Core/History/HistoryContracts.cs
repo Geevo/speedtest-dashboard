@@ -41,6 +41,11 @@ public sealed record HistoryPage(
 
 public sealed record HistoryDeleteResult(bool Deleted, Guid? JobId);
 
+public sealed record HistoryDeleteAllResult(IReadOnlyList<Guid> JobIds)
+{
+    public int DeletedCount => JobIds.Count;
+}
+
 public interface ISpeedTestHistoryStore
 {
     Task<HistoryPage> ListAsync(HistoryQuery query, CancellationToken cancellationToken);
@@ -50,4 +55,6 @@ public interface ISpeedTestHistoryStore
     Task<SpeedTestJob?> GetTerminalJobAsync(Guid jobId, CancellationToken cancellationToken);
 
     Task<HistoryDeleteResult> DeleteAsync(long id, CancellationToken cancellationToken);
+
+    Task<HistoryDeleteAllResult> DeleteAllAsync(CancellationToken cancellationToken);
 }
