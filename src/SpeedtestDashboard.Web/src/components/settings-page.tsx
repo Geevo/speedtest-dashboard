@@ -19,6 +19,7 @@ import { deleteAllHistory } from '../lib/history'
 import { compactDatabase, getDatabaseStorage, type DatabaseStorage } from '../lib/database'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
+import { Switch } from './ui/switch'
 import { ApiReference } from './api-reference'
 
 const choices = [
@@ -28,6 +29,7 @@ const choices = [
 ]
 
 const inputClass = 'mt-2 h-11 w-full rounded-lg border border-line bg-paper px-3.5 text-base outline-none transition focus:border-signal focus:ring-3 focus:ring-signal/15'
+const settingsRowClass = 'grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8 lg:gap-12'
 
 type SettingsPageProps = {
   theme: ThemePreference
@@ -72,28 +74,33 @@ export function SettingsPage({ theme, onThemeChange, session, onSessionChange }:
         ))}
       </div>
       <div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}>
-      <section aria-labelledby="theme-heading" className="border-b border-line py-8">
-        <h2 id="theme-heading" className="text-xl font-semibold tracking-[-0.03em]">Theme</h2>
-        <div className="mt-5 grid max-w-xl grid-cols-3 overflow-hidden rounded-xl border border-line bg-paper">
-          {choices.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={theme === id}
-              className={cn(
-                'flex min-h-14 items-center justify-center gap-2 border-r border-line px-3 text-sm font-semibold last:border-r-0',
-                theme === id ? 'bg-ink text-canvas' : 'text-ink-muted hover:bg-canvas hover:text-ink',
-              )}
-              onClick={() => onThemeChange(id)}
-            >
-              <Icon className="size-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-      <AuthenticationSection session={session} onSessionChange={onSessionChange} />
-      {session.mode === 'local' && <PasswordSection />}
+        <section aria-labelledby="theme-heading" className="border-b border-line py-8">
+          <div className={settingsRowClass}>
+            <div>
+              <h2 id="theme-heading" className="text-xl font-semibold tracking-[-0.03em]">Theme</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">Choose how the dashboard looks on this device.</p>
+            </div>
+            <div className="grid w-full grid-cols-3 overflow-hidden rounded-xl border border-line bg-paper md:w-96 lg:w-80 xl:w-[28rem]">
+              {choices.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={theme === id}
+                  className={cn(
+                    'flex min-h-14 items-center justify-center gap-2 border-r border-line px-3 text-sm font-semibold last:border-r-0',
+                    theme === id ? 'bg-ink text-canvas' : 'text-ink-muted hover:bg-canvas hover:text-ink',
+                  )}
+                  onClick={() => onThemeChange(id)}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+        <AuthenticationSection session={session} onSessionChange={onSessionChange} />
+        {session.mode === 'local' && <PasswordSection />}
       </div>
       <div id="settings-panel-database" role="tabpanel" aria-labelledby="settings-tab-database" hidden={tab !== 'database'}>
         <DatabaseSection />
@@ -161,28 +168,30 @@ function DatabaseSection() {
 
   return <>
     <section aria-labelledby="storage-heading" className="border-b border-line py-8">
-      <div className="flex max-w-2xl items-start gap-3">
-        <HardDrive className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
-        <div>
-          <h2 id="storage-heading" className="text-xl font-semibold tracking-[-0.03em]">SQLite storage</h2>
-          <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
-            Reclaim unused pages left behind after records are deleted. Compaction temporarily locks the database and may require additional free disk space while it runs.
-          </p>
+      <div className={settingsRowClass}>
+        <div className="flex min-w-0 items-start gap-3">
+          <HardDrive className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+          <div>
+            <h2 id="storage-heading" className="text-xl font-semibold tracking-[-0.03em]">SQLite storage</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
+              Reclaim unused pages left behind after records are deleted. Compaction temporarily locks the database and may require additional free disk space while it runs.
+            </p>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-6 flex max-w-2xl flex-col items-start gap-5 border-y border-line py-5 sm:flex-row sm:items-center sm:justify-between">
-        <DatabaseSize storage={storage.data} loading={storage.isLoading} error={storage.isError} />
         <Button
           type="button"
           variant="outline"
-          className="shrink-0"
+          className="shrink-0 justify-self-start md:justify-self-end"
           disabled={compaction.isPending || storage.isLoading}
           onClick={() => compaction.mutate()}
         >
           {compaction.isPending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Database className="size-4" aria-hidden="true" />}
           {compaction.isPending ? 'Compacting…' : 'Compact database'}
         </Button>
+      </div>
+
+      <div className="mt-6 border-y border-line py-5">
+        <DatabaseSize storage={storage.data} loading={storage.isLoading} error={storage.isError} />
       </div>
       {storage.isError && (
         <Button type="button" variant="ghost" className="mt-3" onClick={() => void storage.refetch()}>Retry size check</Button>
@@ -191,12 +200,12 @@ function DatabaseSection() {
     </section>
 
     <section aria-labelledby="database-heading" className="py-8">
-      <div className="flex max-w-2xl flex-col items-start gap-5 sm:flex-row sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Database className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+      <div className={settingsRowClass}>
+        <div className="flex min-w-0 items-start gap-3">
+          <Database className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden="true" />
           <div>
             <h2 id="database-heading" className="text-xl font-semibold tracking-[-0.03em]">Speed-test results</h2>
-            <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
               Permanently remove every completed, failed, and cancelled speed-test result. Schedules and dashboard settings are kept.
             </p>
           </div>
@@ -204,7 +213,7 @@ function DatabaseSection() {
         <Button
           type="button"
           variant="outline"
-          className="shrink-0 border-danger/40 text-danger hover:border-danger hover:bg-danger-soft"
+          className="shrink-0 justify-self-start border-danger/40 text-danger hover:border-danger hover:bg-danger-soft md:justify-self-end"
           onClick={() => { setOpen(true); setStatus(null) }}
         >
           <Trash2 className="size-4" aria-hidden="true" />
@@ -336,15 +345,12 @@ function AuthenticationSection({ session, onSessionChange }: Pick<SettingsPagePr
   const Icon = enabled ? ShieldCheck : ShieldOff
   return (
     <section aria-labelledby="authentication-heading" className="border-b border-line py-8">
-      <div className={cn(
-        'flex max-w-2xl items-start gap-5',
-        session.loginConfigured ? 'justify-between' : 'flex-col sm:flex-row sm:justify-between',
-      )}>
-        <div className="flex items-start gap-3">
-          <Icon className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+      <div className={settingsRowClass}>
+        <div className="flex min-w-0 items-start gap-3">
+          <Icon className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden="true" />
           <div>
             <h2 id="authentication-heading" className="text-xl font-semibold tracking-[-0.03em]">Login protection</h2>
-            <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
               {enabled
                 ? 'A password is required before anyone can use this dashboard.'
                 : session.loginConfigured
@@ -362,7 +368,7 @@ function AuthenticationSection({ session, onSessionChange }: Pick<SettingsPagePr
         ) : (
           <Button
             type="button"
-            className="shrink-0 whitespace-nowrap px-5"
+            className="shrink-0 justify-self-start whitespace-nowrap px-5 md:justify-self-end"
             onClick={() => { setDialog('enable'); setStatus(null) }}
           >
             Set up login
@@ -424,10 +430,10 @@ function AuthenticationSection({ session, onSessionChange }: Pick<SettingsPagePr
       )}
 
       {!enabled && (
-        <div className="mt-7 flex max-w-2xl items-start justify-between gap-5 border-t border-line pt-5 text-sm">
-          <div>
+        <div className="mt-7 grid gap-5 border-t border-line pt-5 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8 lg:gap-12">
+          <div className="md:pl-8">
             <p className="font-semibold">Anonymous-access notice</p>
-            <p className="mt-1 max-w-lg leading-5 text-ink-muted">Show a small reminder above the dashboard while login protection is off.</p>
+            <p className="mt-1 max-w-2xl leading-5 text-ink-muted">Show a small reminder above the dashboard while login protection is off.</p>
           </div>
           <Switch
             checked={session.showDisabledWarning}
@@ -447,16 +453,16 @@ function PasswordSection() {
 
   return (
     <section aria-labelledby="password-heading" className="py-8">
-      <div className="flex max-w-2xl flex-col items-start gap-5 sm:flex-row sm:justify-between">
-        <div className="flex items-start gap-3">
-          <KeyRound className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+      <div className={settingsRowClass}>
+        <div className="flex min-w-0 items-start gap-3">
+          <KeyRound className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden="true" />
           <div>
             <h2 id="password-heading" className="text-xl font-semibold tracking-[-0.03em]">Admin password</h2>
             <p className="mt-1 text-sm text-ink-muted">Update the password used to sign in to this dashboard.</p>
             {status && <div className="mt-3"><StatusMessage status={status} /></div>}
           </div>
         </div>
-        <Button type="button" variant="outline" className="shrink-0" onClick={() => { setOpen(true); setStatus(null) }}>
+        <Button type="button" variant="outline" className="shrink-0 justify-self-start md:justify-self-end" onClick={() => { setOpen(true); setStatus(null) }}>
           Change password
         </Button>
       </div>
@@ -637,11 +643,11 @@ function ApiKeySection() {
 
   return (
     <section aria-labelledby="api-key-heading" className="py-8">
-      <div className="flex items-start gap-3">
-        <Terminal className="mt-0.5 size-5 text-ink-muted" aria-hidden="true" />
+      <div className="flex min-w-0 items-start gap-3">
+        <Terminal className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden="true" />
         <div>
           <h2 id="api-key-heading" className="text-xl font-semibold tracking-[-0.03em]">API access</h2>
-          <p className="mt-1 max-w-lg text-sm leading-6 text-ink-muted">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
             One instance-wide key authenticates machine clients against the stable <code>/api/v1</code> surface. It has no roles or scopes, and it can be viewed again at any time.
           </p>
         </div>
@@ -700,31 +706,6 @@ function ApiKeySection() {
       )}
       {state?.enabled && <ApiReference />}
     </section>
-  )
-}
-
-function Switch({ checked, disabled = false, label, onChange }: {
-  checked: boolean
-  disabled?: boolean
-  label: string
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        'relative flex h-11 w-24 shrink-0 items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-40',
-        checked ? 'border-signal bg-signal text-canvas' : 'border-ink-muted bg-paper text-ink hover:border-ink',
-      )}
-    >
-      <span aria-hidden="true" className={cn('absolute left-0 top-2 size-6 rounded-full transition-transform', checked ? 'translate-x-15 bg-canvas' : 'translate-x-2 bg-ink-muted')} />
-      <span aria-hidden="true" className={cn('text-xs font-semibold', checked ? 'ml-4' : 'ml-11')}>{checked ? 'On' : 'Off'}</span>
-    </button>
   )
 }
 

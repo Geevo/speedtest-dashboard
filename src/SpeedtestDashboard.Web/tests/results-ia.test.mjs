@@ -62,6 +62,19 @@ test('settings exposes guarded bulk result deletion under database management', 
   assert.match(settings, /result\.after/)
 })
 
+test('settings and schedules share the same accessible switch control', async () => {
+  const settings = await source('../src/components/settings-page.tsx')
+  const schedules = await source('../src/components/schedules-page.tsx')
+  const switchControl = await source('../src/components/ui/switch.tsx')
+
+  assert.match(settings, /import \{ Switch \} from '\.\/ui\/switch'/)
+  assert.match(schedules, /import \{ Switch \} from '\.\/ui\/switch'/)
+  assert.match(switchControl, /role="switch"/)
+  assert.match(switchControl, /aria-checked=\{checked\}/)
+  assert.doesNotMatch(settings, /function Switch/)
+  assert.doesNotMatch(schedules, /function Switch/)
+})
+
 test('results filters do not add a duplicate divider above the results region', async () => {
   const results = await source('../src/components/results-page.tsx')
   const filters = results.match(/<section aria-label="Results filters" className="([^"]+)"/)

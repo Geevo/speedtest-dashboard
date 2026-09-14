@@ -22,6 +22,7 @@ import {
 import { getProviders } from '../lib/speed-tests'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
+import { Switch } from './ui/switch'
 
 const inputClass = 'mt-2 h-11 w-full rounded-lg border border-line bg-paper px-3.5 text-base outline-none transition focus:border-signal focus:ring-3 focus:ring-signal/15'
 
@@ -560,34 +561,5 @@ function Badge({ children }: { children: string }) {
     <span className="rounded-full bg-line px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
       {children}
     </span>
-  )
-}
-
-function Switch({ checked, disabled = false, label, onChange }: {
-  checked: boolean
-  disabled?: boolean
-  label: string
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className="grid h-11 w-12 shrink-0 place-items-center rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-signal/25 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'relative h-6 w-11 rounded-full transition-colors',
-          checked ? 'bg-signal' : 'bg-line',
-        )}
-      >
-        <span className={cn('absolute left-0.5 top-0.5 size-5 rounded-full bg-paper shadow-sm transition-transform', checked && 'translate-x-5')} />
-      </span>
-    </button>
   )
 }
