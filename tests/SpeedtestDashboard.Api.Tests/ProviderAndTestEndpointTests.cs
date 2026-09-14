@@ -38,6 +38,8 @@ public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApp
             registered.Select(provider => provider.GetProperty("id").GetString()));
         Assert.All(registered, provider =>
             Assert.Equal("unavailable", provider.GetProperty("healthState").GetString()));
+        Assert.All(registered, provider =>
+            Assert.False(provider.GetProperty("installed").GetBoolean()));
     }
 
     [Fact]
@@ -65,6 +67,7 @@ public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApp
         var listed = Assert.Single(list.EnumerateArray());
         Assert.Equal("fixture", listed.GetProperty("id").GetString());
         Assert.Equal("available", detail.GetProperty("healthState").GetString());
+        Assert.True(detail.GetProperty("installed").GetBoolean());
         Assert.Equal(100, detail.GetProperty("displayOrder").GetInt32());
         Assert.Equal("Fixture provider unavailable.", detail.GetProperty("unavailableGuidance").GetString());
         Assert.Equal(JsonValueKind.Array, detail.GetProperty("disclosures").ValueKind);
@@ -99,6 +102,7 @@ public sealed class ProviderAndTestEndpointTests : IClassFixture<DashboardWebApp
         var detail = await providerResponse.Content.ReadFromJsonAsync<JsonElement>();
 
         Assert.Equal("unavailable", detail.GetProperty("healthState").GetString());
+        Assert.True(detail.GetProperty("installed").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, healthResponse.StatusCode);
     }
 

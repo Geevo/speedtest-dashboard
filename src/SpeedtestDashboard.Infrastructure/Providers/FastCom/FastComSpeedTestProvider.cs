@@ -114,7 +114,7 @@ public sealed partial class FastComSpeedTestProvider(
 
         if (result.TerminationReason == ProcessTerminationReason.FailedToStart)
         {
-            return Health(ProviderHealthState.Unavailable, null, checkedAt, "FAST.com CLI is not installed.");
+            return Health(ProviderHealthState.Unavailable, null, checkedAt, "FAST.com CLI is not installed.", installed: false);
         }
 
         if (result.TerminationReason == ProcessTerminationReason.TimedOut)
@@ -206,7 +206,8 @@ public sealed partial class FastComSpeedTestProvider(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Descriptor.Id, state, version, checkedAt, message);
+        string message,
+        bool installed = true) => new(Descriptor.Id, state, version, checkedAt, message, installed);
 
     internal static string? ParseVersion(string output)
     {

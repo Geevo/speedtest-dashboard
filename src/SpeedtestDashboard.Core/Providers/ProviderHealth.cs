@@ -12,5 +12,5 @@ public sealed record ProviderHealth(
     ProviderHealthState State,
     string? Version,
     DateTimeOffset CheckedAtUtc,
-    string? Message);
-
+    string? Message,
+    bool Installed);

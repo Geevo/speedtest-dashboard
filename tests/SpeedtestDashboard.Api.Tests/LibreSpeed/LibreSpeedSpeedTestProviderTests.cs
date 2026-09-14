@@ -38,14 +38,15 @@ public sealed class LibreSpeedSpeedTestProviderTests
         var health = await LibreSpeedTestFactory.Provider(runner, options).CheckHealthAsync(CancellationToken.None);
 
         Assert.Equal(ProviderHealthState.Unavailable, health.State);
+        Assert.True(health.Installed);
         Assert.Contains("disabled", health.Message!, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(runner.Requests);
     }
 
     [Theory]
-    [InlineData(ProcessTerminationReason.FailedToStart, "not installed")]
-    [InlineData(ProcessTerminationReason.TimedOut, "timed out")]
-    public async Task Health_MapsUnavailableProcessStates(ProcessTerminationReason reason, string message)
+    [InlineData(ProcessTerminationReason.FailedToStart, "not installed", false)]
+    [InlineData(ProcessTerminationReason.TimedOut, "timed out", true)]
+    public async Task Health_MapsUnavailableProcessStates(ProcessTerminationReason reason, string message, bool installed)
     {
         var runner = new LibreSpeedRecordingProcessRunner
         {
@@ -55,6 +56,7 @@ public sealed class LibreSpeedSpeedTestProviderTests
         var health = await LibreSpeedTestFactory.Provider(runner).CheckHealthAsync(CancellationToken.None);
 
         Assert.Equal(ProviderHealthState.Unavailable, health.State);
+        Assert.Equal(installed, health.Installed);
         Assert.Contains(message, health.Message!, StringComparison.OrdinalIgnoreCase);
     }
 

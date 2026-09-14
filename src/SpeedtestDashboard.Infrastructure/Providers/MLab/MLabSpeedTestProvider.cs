@@ -111,7 +111,7 @@ public sealed class MLabSpeedTestProvider(
 
         if (result.TerminationReason == ProcessTerminationReason.FailedToStart)
         {
-            return Health(ProviderHealthState.Unavailable, null, checkedAt, "M-Lab NDT7 client is not installed.");
+            return Health(ProviderHealthState.Unavailable, null, checkedAt, "M-Lab NDT7 client is not installed.", installed: false);
         }
 
         if (result.TerminationReason == ProcessTerminationReason.TimedOut)
@@ -179,8 +179,12 @@ public sealed class MLabSpeedTestProvider(
         throw new ProviderExecutionException(MLabFailureCodes.Failed, "M-Lab test failed.");
     }
 
-    private ProviderHealth Health(ProviderHealthState state, string? version, DateTimeOffset checkedAt, string message) =>
-        new(Descriptor.Id, state, version, checkedAt, message);
+    private ProviderHealth Health(
+        ProviderHealthState state,
+        string? version,
+        DateTimeOffset checkedAt,
+        string message,
+        bool installed = true) => new(Descriptor.Id, state, version, checkedAt, message, installed);
 
     private static string BoundForLog(string value) => value.Length <= 512 ? value : value[..512];
 }

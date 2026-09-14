@@ -159,7 +159,8 @@ public static class ProviderEndpoints
                 ProviderHealthState.Unavailable,
                 Version: null,
                 DateTimeOffset.UtcNow,
-                "Provider health could not be determined.");
+                "Provider health could not be determined.",
+                Installed: true);
         }
 
         return new ProviderResponse(
@@ -170,6 +171,7 @@ public static class ProviderEndpoints
             SanitizeMessage(provider.Descriptor.ServerSearchLabel, 120),
             SanitizeMessage(provider.Descriptor.UnavailableGuidance, 240),
             provider.Descriptor.Disclosures.Select(ProviderDisclosureResponse.From).ToArray(),
+            health.Installed,
             health.State.ToString().ToLowerInvariant(),
             SanitizeNullable(health.Version, 80),
             health.CheckedAtUtc,
@@ -213,6 +215,7 @@ public sealed record ProviderResponse(
     string ServerSearchLabel,
     string UnavailableGuidance,
     IReadOnlyList<ProviderDisclosureResponse> Disclosures,
+    bool Installed,
     string HealthState,
     string? Version,
     DateTimeOffset CheckedAtUtc,

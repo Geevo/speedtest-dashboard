@@ -131,6 +131,11 @@ export const responseModels: Record<string, ModelField[]> = {
       "model": "ProviderDisclosureResponse"
     },
     {
+      "name": "installed",
+      "type": "boolean",
+      "nullable": false
+    },
+    {
       "name": "healthState",
       "type": "string",
       "nullable": false

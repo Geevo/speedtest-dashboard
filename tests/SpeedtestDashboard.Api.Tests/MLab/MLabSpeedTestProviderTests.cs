@@ -32,6 +32,19 @@ public sealed class MLabSpeedTestProviderTests
         Assert.Null(health.Version);
     }
 
+    [Theory]
+    [InlineData(ProcessTerminationReason.FailedToStart, false)]
+    [InlineData(ProcessTerminationReason.TimedOut, true)]
+    public async Task HealthDistinguishesMissingFromBrokenClient(ProcessTerminationReason reason, bool installed)
+    {
+        var provider = MLabTestFactory.Provider(RunnerReturning(exitCode: null, reason: reason));
+
+        var health = await provider.CheckHealthAsync(CancellationToken.None);
+
+        Assert.Equal(installed, health.Installed);
+        Assert.Equal(ProviderHealthState.Unavailable, health.State);
+    }
+
     [Fact]
     public async Task RunUsesAutomaticMlabTargetAndMapsOfficialSummary()
     {

@@ -32,6 +32,8 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider, ISpeedTestServ
 
     public ProviderHealthState HealthState { get; set; } = ProviderHealthState.Available;
 
+    public bool Installed { get; set; } = true;
+
     public IReadOnlyList<SpeedTestServer> Servers { get; init; } = [];
 
     public Func<SpeedTestExecution, CancellationToken, int, Task<SpeedTestResult>>? RunHandler { get; set; }
@@ -50,7 +52,8 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider, ISpeedTestServ
             HealthState,
             "1.2.3-fixture",
             DateTimeOffset.UtcNow,
-            HealthState == ProviderHealthState.Available ? "Ready" : "Unavailable"));
+            HealthState == ProviderHealthState.Available ? "Ready" : "Unavailable",
+            Installed));
     }
 
     public Task<IReadOnlyList<SpeedTestServer>> GetServersAsync(

@@ -19,6 +19,7 @@ export type ProviderSummary = {
   serverSearchLabel: string
   unavailableGuidance: string
   disclosures: ProviderDisclosure[]
+  installed: boolean
   healthState: 'available' | 'unavailable' | 'degraded'
   version: string | null
   checkedAtUtc: string
@@ -105,6 +106,10 @@ export const speedTestJobKey = (jobId: string) => ['speed-test-job', jobId] as c
 
 export function isTerminalJob(status: SpeedTestJobStatus) {
   return status === 'completed' || status === 'failed' || status === 'cancelled'
+}
+
+export function isProviderInstalled(provider: ProviderSummary) {
+  return provider.installed
 }
 
 export async function getProviders(signal?: AbortSignal): Promise<ProviderSummary[]> {

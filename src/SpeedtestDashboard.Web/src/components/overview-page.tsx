@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, CalendarClock, CheckCircle2, Waves } from 'lucide-react'
 import { getHistory } from '../lib/history'
 import { formatInTimeZone, getSchedules } from '../lib/schedules'
-import { getProviders, type ProviderSummary } from '../lib/speed-tests'
+import { getProviders, isProviderInstalled, type ProviderSummary } from '../lib/speed-tests'
 import { getStatistics, statisticsQueryKey } from '../lib/statistics'
 import { NetworkIdentityPanel } from './network-identity-panel'
 
@@ -15,6 +15,8 @@ export function OverviewPage() {
   const providers = useQuery({ queryKey: ['providers'], queryFn: ({ signal }) => getProviders(signal) })
   const statistics = useQuery({ queryKey: statisticsQueryKey('7d'), queryFn: ({ signal }) => getStatistics('7d', undefined, signal) })
   const last = latest.data?.items[0]
+  const visibleProviders = providers.data?.filter(isProviderInstalled)
+  const showProviderSection = visibleProviders === undefined || visibleProviders.length > 0
   const nextSchedule = schedules.data
     ?.filter((schedule) => schedule.enabled && schedule.nextRunAtUtc !== null)
     .sort((a, b) => (a.nextRunAtUtc! < b.nextRunAtUtc! ? -1 : 1))[0]
@@ -67,18 +69,20 @@ export function OverviewPage() {
         )}
       </section>
 
-      <section aria-labelledby="providers-heading" className="mt-12">
-        <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
-        {providers.data ? (
-          <div className="grid gap-px border-y border-line bg-line sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
-            {providers.data.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
-          </div>
-        ) : (
-          <p className="border-y border-line py-8 text-sm text-ink-muted">
-            {providers.isError ? 'Provider status could not be loaded.' : 'Checking providers…'}
-          </p>
-        )}
-      </section>
+      {showProviderSection && (
+        <section aria-labelledby="providers-heading" className="mt-12">
+          <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
+          {visibleProviders ? (
+            <div className="grid gap-px border-y border-line bg-line sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
+              {visibleProviders.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
+            </div>
+          ) : (
+            <p className="border-y border-line py-8 text-sm text-ink-muted">
+              {providers.isError ? 'Provider status could not be loaded.' : 'Checking providers…'}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   )
 }

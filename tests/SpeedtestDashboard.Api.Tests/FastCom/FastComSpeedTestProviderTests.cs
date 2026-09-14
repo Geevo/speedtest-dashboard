@@ -35,6 +35,19 @@ public sealed class FastComSpeedTestProviderTests
         Assert.Equal("0.4.0", health.Version);
     }
 
+    [Theory]
+    [InlineData(ProcessTerminationReason.FailedToStart, false)]
+    [InlineData(ProcessTerminationReason.TimedOut, true)]
+    public async Task HealthDistinguishesMissingFromBrokenCli(ProcessTerminationReason reason, bool installed)
+    {
+        var provider = FastComTestFactory.Provider(RunnerReturning(exitCode: null, reason: reason));
+
+        var health = await provider.CheckHealthAsync(CancellationToken.None);
+
+        Assert.Equal(installed, health.Installed);
+        Assert.Equal(ProviderHealthState.Unavailable, health.State);
+    }
+
     [Fact]
     public async Task RunUsesAutomaticFastComTargetsAndMapsResult()
     {

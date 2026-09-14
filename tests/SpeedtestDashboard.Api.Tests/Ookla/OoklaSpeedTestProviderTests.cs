@@ -19,6 +19,7 @@ public sealed class OoklaSpeedTestProviderTests
         var health = await provider.CheckHealthAsync(CancellationToken.None);
 
         Assert.Equal(ProviderHealthState.Unavailable, health.State);
+        Assert.True(health.Installed);
         Assert.Contains("disabled", health.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(runner.Requests);
     }
@@ -32,6 +33,7 @@ public sealed class OoklaSpeedTestProviderTests
         var health = await provider.CheckHealthAsync(CancellationToken.None);
 
         Assert.Equal(ProviderHealthState.Unavailable, health.State);
+        Assert.False(health.Installed);
         Assert.Equal("Speedtest CLI is not installed.", health.Message);
         Assert.Null(health.Version);
     }
@@ -45,6 +47,7 @@ public sealed class OoklaSpeedTestProviderTests
         var health = await provider.CheckHealthAsync(CancellationToken.None);
 
         Assert.Equal(ProviderHealthState.Unavailable, health.State);
+        Assert.True(health.Installed);
         Assert.Equal("1.2.0.84", health.Version);
         Assert.Contains("acceptance", health.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -86,6 +89,7 @@ public sealed class OoklaSpeedTestProviderTests
         var health = await provider.CheckHealthAsync(CancellationToken.None);
 
         Assert.NotEqual(ProviderHealthState.Available, health.State);
+        Assert.True(health.Installed);
         Assert.Contains(expectedMessage, health.Message, StringComparison.OrdinalIgnoreCase);
     }
 

@@ -172,7 +172,7 @@ public sealed partial class LibreSpeedSpeedTestProvider(
 
         if (result.TerminationReason == ProcessTerminationReason.FailedToStart)
         {
-            return Health(ProviderHealthState.Unavailable, null, checkedAt, "LibreSpeed CLI is not installed.");
+            return Health(ProviderHealthState.Unavailable, null, checkedAt, "LibreSpeed CLI is not installed.", installed: false);
         }
 
         if (result.TerminationReason == ProcessTerminationReason.TimedOut)
@@ -301,7 +301,8 @@ public sealed partial class LibreSpeedSpeedTestProvider(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Descriptor.Id, state, version, checkedAt, message);
+        string message,
+        bool installed = true) => new(Descriptor.Id, state, version, checkedAt, message, installed);
 
     internal static string? ParseVersion(string output)
     {

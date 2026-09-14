@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getHealth, type SessionResponse } from '../lib/api'
-import { getProviders } from '../lib/speed-tests'
+import { getProviders, isProviderInstalled } from '../lib/speed-tests'
 import {
   providerNavigationItem,
   type NavigationItem,
@@ -52,11 +52,13 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
     queryKey: ['providers'],
     queryFn: ({ signal }) => getProviders(signal),
   })
-  const providerNavigation = (providers.data ?? []).map((provider) => ({
-    id: providerNavigationItem(provider.id),
-    label: provider.displayName,
-    icon: Gauge,
-  }))
+  const providerNavigation = (providers.data ?? [])
+    .filter(isProviderInstalled)
+    .map((provider) => ({
+      id: providerNavigationItem(provider.id),
+      label: provider.displayName,
+      icon: Gauge,
+    }))
 
   const navigate = (item: NavigationItem) => {
     onNavigate(item)
@@ -123,11 +125,15 @@ export function AppShell({ activeItem, onNavigate, children, session, onSignOut 
 
       <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-5">
         <NavGroup collapsed={collapsed} items={primaryNavigation} activeItem={activeItem} onNavigate={navigate} />
-        <div className={cn('mb-2 mt-7 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted/75', collapsed && 'lg:text-center')}>
-          <span className={cn(collapsed && 'lg:hidden')}>Speed tests</span>
-          <span className={cn('hidden', collapsed && 'lg:inline')}>•••</span>
-        </div>
-        <NavGroup collapsed={collapsed} items={providerNavigation} activeItem={activeItem} onNavigate={navigate} />
+        {providerNavigation.length > 0 && (
+          <>
+            <div className={cn('mb-2 mt-7 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted/75', collapsed && 'lg:text-center')}>
+              <span className={cn(collapsed && 'lg:hidden')}>Speed tests</span>
+              <span className={cn('hidden', collapsed && 'lg:inline')}>•••</span>
+            </div>
+            <NavGroup collapsed={collapsed} items={providerNavigation} activeItem={activeItem} onNavigate={navigate} />
+          </>
+        )}
       </nav>
 
       <div className="border-t border-line p-3">

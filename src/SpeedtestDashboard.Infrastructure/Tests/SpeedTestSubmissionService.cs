@@ -43,7 +43,8 @@ public sealed class SpeedTestSubmissionService(
                 ProviderHealthState.Unavailable,
                 Version: null,
                 DateTimeOffset.UtcNow,
-                Message: null);
+                Message: null,
+                Installed: true);
         }
 
         if (health.State == ProviderHealthState.Unavailable)

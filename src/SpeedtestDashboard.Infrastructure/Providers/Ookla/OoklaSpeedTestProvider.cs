@@ -143,7 +143,7 @@ public sealed partial class OoklaSpeedTestProvider(
 
         if (result.TerminationReason == ProcessTerminationReason.FailedToStart)
         {
-            return Health(ProviderHealthState.Unavailable, null, checkedAt, "Speedtest CLI is not installed.");
+            return Health(ProviderHealthState.Unavailable, null, checkedAt, "Speedtest CLI is not installed.", installed: false);
         }
 
         if (result.TerminationReason == ProcessTerminationReason.TimedOut)
@@ -291,7 +291,8 @@ public sealed partial class OoklaSpeedTestProvider(
         ProviderHealthState state,
         string? version,
         DateTimeOffset checkedAt,
-        string message) => new(Descriptor.Id, state, version, checkedAt, message);
+        string message,
+        bool installed = true) => new(Descriptor.Id, state, version, checkedAt, message, installed);
 
     private static string? ParseVersion(string output)
     {

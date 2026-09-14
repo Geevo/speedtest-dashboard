@@ -85,7 +85,7 @@ test('results filters do not add a duplicate divider above the results region', 
 
 test('overview provider states adapt to the registered provider count', async () => {
   const overview = await source('../src/components/overview-page.tsx')
-  const providerGrid = overview.match(/providers\.data \? \(\s*<div className="([^"]+)"/)
+  const providerGrid = overview.match(/visibleProviders \? \(\s*<div className="([^"]+)"/)
 
   assert.ok(providerGrid)
   assert.match(providerGrid[1], /repeat\(auto-fit,minmax\(14rem,1fr\)\)/)
@@ -115,6 +115,19 @@ test('provider navigation and filters are populated from the provider catalog', 
     assert.match(providerUi, /providers\.data/)
     assert.doesNotMatch(providerUi, /value="(?:librespeed|fastcom|mlab|ookla)"/)
   }
+})
+
+test('provider navigation and overview omit uninstalled providers but retain broken ones', async () => {
+  const shell = await source('../src/components/app-shell.tsx')
+  const overview = await source('../src/components/overview-page.tsx')
+  const providers = await source('../src/lib/speed-tests.ts')
+
+  assert.match(providers, /function isProviderInstalled/)
+  assert.match(providers, /return provider\.installed/)
+  assert.match(shell, /filter\(isProviderInstalled\)/)
+  assert.match(shell, /providerNavigation\.length > 0/)
+  assert.match(overview, /filter\(isProviderInstalled\)/)
+  assert.match(overview, /visibleProviders\.length > 0/)
 })
 
 test('provider navigation uses a consistent speed-test dial', async () => {
