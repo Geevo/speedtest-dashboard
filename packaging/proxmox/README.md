@@ -12,13 +12,14 @@ Release assets follow this pattern:
 - `speedtest-dashboard_<version>_arm64.tar.zst`
 - `SHA256SUMS`
 
-On a normal x86-64 Proxmox host, download the `amd64` archive straight into local template storage. Replace `<release-url>` with the release's asset URL:
+On a normal x86-64 Proxmox host, download the `amd64` archive straight into
+local template storage:
 
 ```bash
 cd /var/lib/vz/template/cache
 
-wget <release-url>/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
-wget <release-url>/SHA256SUMS
+wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
+wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/SHA256SUMS
 
 grep 'speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst$' SHA256SUMS \
   | sha256sum --check -
@@ -127,7 +128,48 @@ Release templates are currently intended for new containers. There is no native 
 
 ## Build a template from source
 
-Install .NET SDK 10.0.400, Node.js 22.23.2, npm, Go 1.27.1, `debootstrap`, `debian-archive-keyring`, `qemu-user-static`, `curl`, and `zstd`. From the repository root:
+Make and Docker or Podman on a Linux host are the only prerequisites. The .NET,
+Node, and Go toolchains and the Debian bootstrap tools all come from the pinned
+builder image in `Containerfile.builder`, so none of those need to be installed
+alongside them. From a fresh clone at the repository root:
+
+```bash
+make proxmox-template
+```
+
+That targets your host architecture and stamps the version for a clean checkout
+of a tagged commit, falling back to `0.0.0-local` otherwise. Override either:
+
+```bash
+make proxmox-template ARCH=arm64 VERSION=0.12.0-rc.1
+```
+
+Cross-architecture builds use `qemu-debootstrap`; the emulator is removed from
+the finished root filesystem. The builder container needs `--privileged` for
+`debootstrap`, which `make` passes for you; the finished appliance does not.
+
+The output is `artifacts/speedtest-dashboard_<version>_<architecture>.tar.zst`
+plus a SHA-256 file. Public-style builds exclude Ookla. Add `INSTALL_OOKLA=true`
+only for your own build after reading [Enable Ookla](../../docs/ookla.md).
+
+Under rootful Docker the builder writes to `artifacts/` as root, so the files
+land root-owned; rootless Podman maps them to your own user. Use
+`sudo chown -R "$USER:$USER" artifacts` if you hit that.
+
+A real PVE host should still verify upload, `pct create`, unprivileged boot,
+systemd, HTTP, persistence, and provider operation.
+
+### Building on a host that already has the toolchain
+
+With .NET SDK 10.0.400, Node.js 22.23.2, npm, Go 1.27.1, `debootstrap`,
+`debian-archive-keyring`, `qemu-user-static`, `curl`, and `zstd` installed, skip
+the builder container:
+
+```bash
+make proxmox-template-native
+```
+
+Or call the script directly, which is what both `make` targets and CI do:
 
 ```bash
 packaging/proxmox/build-template.sh \
@@ -135,31 +177,5 @@ packaging/proxmox/build-template.sh \
   --commit "$(git rev-parse HEAD)" \
   --architecture amd64
 ```
-
-Use `--architecture arm64` for the ARM template. Cross-architecture builds use `qemu-debootstrap`; the emulator is removed from the finished root filesystem.
-
-The default output is `artifacts/speedtest-dashboard_<version>_<architecture>.tar.zst` plus a SHA-256 file. Public-style builds exclude Ookla. Add `--install-ookla` only for your own build after reading [Enable Ookla](../../docs/ookla.md).
-
-A real PVE host should still verify upload, `pct create`, unprivileged boot, systemd, HTTP, persistence, and provider operation.
-
-### Build with the pinned container toolchain
-
-On Linux without the Debian bootstrap tools, use the included builder container. The builder itself needs `--privileged` for `debootstrap`; the finished appliance does not.
-
-```bash
-podman build \
-  --file packaging/proxmox/Containerfile.builder \
-  --tag speedtest-dashboard-proxmox-builder .
-
-podman run --rm --privileged \
-  --volume "$PWD:/source:Z" \
-  speedtest-dashboard-proxmox-builder \
-  packaging/proxmox/build-template.sh \
-    --version 0.12.0-rc.1 \
-    --commit "$(git rev-parse HEAD)" \
-    --architecture amd64
-```
-
-Docker can use the same commands by replacing `podman` with `docker`.
 
 [Back to the main README](../../README.md) · [Release validation](../../docs/releasing.md)

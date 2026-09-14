@@ -42,12 +42,16 @@ Commit lockfiles. Non-Microsoft packages use a 14-day release-age cooldown enfor
 
 Keep changes focused. Update tests, user-facing copy, configuration documentation, and third-party notices when behavior changes. Describe manual checks and anything that could not be verified, especially architecture, container, or Proxmox runtime claims.
 
+Pull requests and pushes to `main` run the backend and frontend checks in
+`.github/workflows/ci.yml`. Version tags run those same checks again before the
+release workflow publishes any image or template.
+
 ## Repository hygiene and packaging
 
-Keep local evaluations and scratch notes in ignored `.local/` or outside the
-checkout. `artifacts/` is ignored build output. Never commit runtime databases,
-Data Protection keys, local environment files, credentials, or built appliances.
-Use sanitized examples and fixtures when adding documentation or tests.
+Keep scratch notes in ignored `.local/` or outside the checkout. `artifacts/` is
+ignored build output. Never commit runtime databases, Data Protection keys,
+local environment files, credentials, or built appliances. Documentation and
+tests must use non-sensitive examples and fixtures.
 
 Before staging, review `git status --short` and
 `git ls-files -ci --exclude-standard`; ignore rules do not untrack existing files

@@ -18,24 +18,20 @@ Run the build commands below from the repository root.
 Build and start with Ookla, after accepting its terms:
 
 ```bash
-INSTALL_OOKLA=true OOKLA_ACCEPT_LICENSE=true OOKLA_ACCEPT_GDPR=true \
-  docker compose -f packaging/containers/compose.local.yml up --build -d
+make run INSTALL_OOKLA=true OOKLA_ACCEPT_LICENSE=true OOKLA_ACCEPT_GDPR=true
 ```
 
-Use `podman compose` or `podman-compose` instead of `docker compose` for Podman.
-Keep these same variables when recreating the service. You can put them in an
-ignored `.env` file and pass `--env-file .env` on subsequent Compose commands.
-Both acceptance values default to `false` when omitted.
+This works the same on Docker and Podman; `make` uses whichever you have. Keep
+these same variables when recreating the service, since both acceptance values
+default to `false` when omitted.
 
 For a build only:
 
 ```bash
-docker build -f packaging/containers/Dockerfile \
-  --build-arg INSTALL_OOKLA=true -t speedtest-dashboard:local-ookla .
+make image INSTALL_OOKLA=true TAG=speedtest-dashboard:local-ookla
 ```
 
-The same build command works with `podman build`. When running that image in
-your own deployment, set:
+When running that image in your own deployment, set:
 
 ```yaml
 environment:
@@ -53,15 +49,13 @@ for persistence, project names, and HTTPS configuration.
 Add one flag to the normal native build:
 
 ```bash
-packaging/proxmox/build-template.sh \
-  --version 0.12.0-rc.1 \
-  --commit "$(git rev-parse HEAD)" \
-  --architecture amd64 \
-  --install-ookla
+make proxmox-template INSTALL_OOKLA=true
 ```
 
-Use `--architecture arm64` for ARM. Build prerequisites and the optional
-container toolchain are in the [Proxmox guide](../packaging/proxmox/README.md).
+Use `ARCH=arm64` for ARM. This builds inside the pinned toolchain container, so
+Make and Docker or Podman are the only prerequisites; the
+[Proxmox guide](../packaging/proxmox/README.md) covers building on a host that
+already has the full toolchain.
 The output is `artifacts/speedtest-dashboard_<version>_<architecture>_ookla.tar.zst`
 with a checksum file. Install it using the normal Proxmox template procedure,
 substituting this filename.

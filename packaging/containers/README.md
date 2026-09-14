@@ -1,15 +1,20 @@
 # Docker and Podman
 
-The same image runs on Docker and rootless Podman on `linux/amd64` and `linux/arm64`. LibreSpeed, FAST.com, and the official M-Lab NDT7 client are already inside it, so there is no helper database or second app to babysit. M-Lab publishes test data, including client IP and test time; review its [privacy policy](https://www.measurementlab.net/privacy/) before use.
+The same image runs on Docker and rootless Podman on `linux/amd64` and
+`linux/arm64`. It includes LibreSpeed, FAST.com, and the official M-Lab NDT7
+client and requires no supporting service. M-Lab publishes test data, including
+client IP and test time; review its [privacy policy](https://www.measurementlab.net/privacy/)
+before use.
 
-Replace `<owner>` with the GitHub repository owner. Release builds are published as `ghcr.io/<owner>/speedtest-dashboard`.
+Release builds are published as `ghcr.io/geevo/speedtest-dashboard` from the
+[`Geevo/speedtest-app`](https://github.com/Geevo/speedtest-app) repository.
 
 ## Docker Compose
 
 The quickest route is the Compose file already in this repo:
 
 ```bash
-export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/<owner>/speedtest-dashboard:latest
+export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/geevo/speedtest-dashboard:latest
 export DASHBOARD_PORT=8008
 docker compose -f packaging/containers/compose.yml up -d
 docker compose -f packaging/containers/compose.yml logs -f
@@ -20,7 +25,7 @@ Or drop this into your own `compose.yml`:
 ```yaml
 services:
   speedtest-dashboard:
-    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    image: ghcr.io/geevo/speedtest-dashboard:latest
     container_name: speedtest-dashboard
     restart: unless-stopped
     ports:
@@ -67,7 +72,7 @@ docker run -d \
   --tmpfs /tmp:size=64m,mode=1777 \
   --cap-drop ALL \
   --security-opt no-new-privileges \
-  ghcr.io/<owner>/speedtest-dashboard:latest
+  ghcr.io/geevo/speedtest-dashboard:latest
 ```
 
 Useful checks while getting settled:
@@ -96,7 +101,7 @@ services:
       - "8008:8008" # Speedtest Dashboard
 
   speedtest-dashboard:
-    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    image: ghcr.io/geevo/speedtest-dashboard:latest
     container_name: speedtest-dashboard
     network_mode: "service:gluetun"
     restart: unless-stopped
@@ -116,7 +121,9 @@ volumes:
   speedtest-data:
 ```
 
-There is intentionally no `ports` block on `speedtest-dashboard`. Gluetun owns the shared network stack, so Docker publishes the dashboard port from the `gluetun` service.
+There is no `ports` block on `speedtest-dashboard`. Gluetun owns the shared
+network stack, so Docker publishes the dashboard port from the `gluetun`
+service.
 
 The dashboard does not need `NET_ADMIN` or access to `/dev/net/tun`; those stay with Gluetun.
 
@@ -137,7 +144,7 @@ Then use the running container's network namespace in the dashboard project:
 ```yaml
 services:
   speedtest-dashboard:
-    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    image: ghcr.io/geevo/speedtest-dashboard:latest
     container_name: speedtest-dashboard
     network_mode: "container:gluetun"
     restart: unless-stopped
@@ -176,7 +183,7 @@ docker run -d \
   --tmpfs /tmp:size=64m,mode=1777 \
   --cap-drop ALL \
   --security-opt no-new-privileges \
-  ghcr.io/<owner>/speedtest-dashboard:latest
+  ghcr.io/geevo/speedtest-dashboard:latest
 ```
 
 Again, there is no `-p` flag on this command. The port is published by Gluetun.
@@ -221,22 +228,41 @@ podman run -d \
   --tmpfs /tmp:rw,size=64m,mode=1777 \
   --cap-drop ALL \
   --security-opt no-new-privileges \
-  ghcr.io/<owner>/speedtest-dashboard:latest
+  ghcr.io/geevo/speedtest-dashboard:latest
 ```
 
 With a Compose provider installed, replace `docker compose` with `podman compose` or `podman-compose`.
 
 ## Build it locally
 
-From the repository root:
+Make and Docker or Podman are the only prerequisites; the .NET, Node, and Go
+toolchains all live inside the build. From a fresh clone at the repository root:
 
 ```bash
-DASHBOARD_PORT=8008 docker compose -f packaging/containers/compose.local.yml up --build -d
+make run DASHBOARD_PORT=8008
 ```
 
-That builds `speedtest-dashboard:local` and starts it. The local build excludes Ookla by default. Add `ALLOW_INSECURE_HTTP=true` to the command if you need to test login over trusted local HTTP.
+That builds `speedtest-dashboard:local` and starts it on port `8008`, picking up
+whichever engine you have installed. Follow it with `make logs`, and `make stop`
+when you are done.
 
-To build without starting anything:
+To build the image without starting anything:
+
+```bash
+make image
+```
+
+Both targets exclude Ookla by default. Useful overrides:
+
+| Override | Effect |
+| --- | --- |
+| `ENGINE=podman` | Force an engine instead of preferring `docker` |
+| `TAG=speedtest-dashboard:test` | Name the built image something else |
+| `INSTALL_OOKLA=true` | Include the proprietary Ookla CLI |
+| `ALLOW_INSECURE_HTTP=true` | Read by `make run` for login over trusted local HTTP |
+
+Run `make doctor` if a build fails before it starts, and `make help` for the full
+list. The underlying commands are still there if you prefer them:
 
 ```bash
 docker build -f packaging/containers/Dockerfile -t speedtest-dashboard:local .
@@ -277,7 +303,7 @@ docker start speedtest-dashboard
 To update a Compose install:
 
 ```bash
-export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/<owner>/speedtest-dashboard:<new-tag>
+export SPEEDTEST_DASHBOARD_IMAGE=ghcr.io/geevo/speedtest-dashboard:<new-tag>
 docker compose -f packaging/containers/compose.yml pull
 docker compose -f packaging/containers/compose.yml up -d
 ```

@@ -54,8 +54,6 @@ data/
 /private/
 /scratch/
 /tmp/
-/RELEASE_READINESS.md
-/IMPLEMENTATION_PLAN.md
 *.local
 *.log
 logs/

@@ -29,7 +29,8 @@ The tests run wherever the dashboard is installed. Put it behind Gluetun and it 
 
 Pick whichever flavour fits your lab. The examples use `latest` to keep the first run simple; pin a release tag once you are happy with it.
 
-Replace `<owner>` with the GitHub repository owner in the image and release URLs.
+Images are published from the [`Geevo/speedtest-app`](https://github.com/Geevo/speedtest-app)
+repository.
 
 ### Docker command
 
@@ -42,7 +43,7 @@ docker run -d \
   -p 8008:8008 \
   -e DASHBOARD_PORT=8008 \
   -v speedtest-data:/data \
-  ghcr.io/<owner>/speedtest-dashboard:latest
+  ghcr.io/geevo/speedtest-dashboard:latest
 ```
 
 Open `http://<docker-host>:8008`. Port `8008` is only an example; set `DASHBOARD_PORT` and the port mapping to any free port.
@@ -52,7 +53,7 @@ Open `http://<docker-host>:8008`. Port `8008` is only an example; set `DASHBOARD
 ```yaml
 services:
   speedtest-dashboard:
-    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    image: ghcr.io/geevo/speedtest-dashboard:latest
     container_name: speedtest-dashboard
     restart: unless-stopped
     ports:
@@ -89,7 +90,7 @@ services:
       - "8008:8008" # Speedtest Dashboard UI
 
   speedtest-dashboard:
-    image: ghcr.io/<owner>/speedtest-dashboard:latest
+    image: ghcr.io/geevo/speedtest-dashboard:latest
     container_name: speedtest-dashboard
     network_mode: "service:gluetun"
     restart: unless-stopped
@@ -111,7 +112,7 @@ Already running Gluetun elsewhere? The equivalent Docker flag is `--network cont
 Download the template matching your host, verify it, and create an unprivileged container. On the Proxmox host that looks roughly like this:
 
 ```bash
-wget <release-url>/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
+wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
   -O /var/lib/vz/template/cache/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
 
 pct create 120 \
@@ -126,6 +127,26 @@ pct create 120 \
 ```
 
 Browse to `http://<container-ip>:8080`. The template runs the app directly with systemd and keeps its data under `/var/lib/speedtest-dashboard`. Upload locations, checksums, firewall notes, ARM templates, and build instructions live in the [Proxmox LXC guide](packaging/proxmox/README.md).
+
+### Build it yourself
+
+Prefer to build from source rather than pull a published artifact? Clone the
+repo and run one command. Make plus Docker or Podman are the only prerequisites.
+The .NET, Node, Go, and Debian bootstrap toolchains all live inside the builds,
+so none of those need installing on your machine.
+
+```bash
+make run                # build the image and start it on http://localhost:8080
+make image              # build the image only
+make proxmox-template   # build a Proxmox LXC template into artifacts/
+```
+
+`make` detects your container engine and CPU architecture. Run `make doctor` to
+check the machine is ready, or `make help` for every target and override such as
+`ARCH=arm64`, `DASHBOARD_PORT=8008`, and `INSTALL_OOKLA=true`. Full details are
+in the [packaging guide](packaging/README.md).
+
+On Windows, run these from WSL or use the Compose files directly.
 
 ## First few minutes
 
@@ -163,7 +184,8 @@ The source archive is checksum-verified and its LGPL-3.0 licence is included. Se
 
 Published images and LXC templates include the upstream fast-cli `0.3.5` static binary for amd64 and arm64. The experimental integration uses HTTPS, FAST.com-managed targets, upload testing, and the upstream JSON output. It reports download, upload, and HTTP HEAD latency; server selection, jitter, packet loss, and result sharing are not available.
 
-The release archive is checksum-verified and its MIT licence is included. This first integration intentionally consumes upstream output as-is so its behavior can be validated before maintaining a fork or patches.
+The release archive is checksum-verified and includes its MIT licence. The
+integration currently consumes the upstream output without patches.
 
 ### M-Lab
 
@@ -187,7 +209,8 @@ Results are kept until you delete them. The Results page stores individual runs;
 
 ## Home Assistant and API
 
-The API is there for anyone who wants to tinker. You could add a Home Assistant button that runs a test, start one from a voice command, pull the latest result into a sensor, or feed the history into your own dashboard.
+The API can trigger tests, supply the latest result to a Home Assistant sensor,
+or feed the saved history into another dashboard.
 
 Generate an API key in Settings and send it as `Authorization: Bearer <api-key>`. Reads are limited to 120 requests per minute per source IP and writes to 10; the test queue has its own limit.
 
@@ -217,7 +240,8 @@ curl -X POST http://<server>:8008/api/v1/tests \
   -d '{"providerId":"librespeed","serverId":null}'
 ```
 
-An optional `Idempotency-Key` header is retained for 24 hours. The API intentionally does not expose result deletion, schedule changes, or login administration.
+An optional `Idempotency-Key` header is retained for 24 hours. The API does not
+expose result deletion, schedule changes, or login administration.
 
 ## Configuration
 
@@ -249,9 +273,14 @@ The [container guide](packaging/containers/README.md#storage-backups-and-updates
 
 HTTP requests can choose only a provider and a provider-owned server ID. They cannot supply executable paths, URLs, shell commands, or arbitrary CLI flags. Provider processes use literal argument lists, timeouts, cancellation, bounded output, and process-tree termination.
 
-Browser login is deliberately small: one local operator, no registration, no roles, and no email recovery. The machine API key is independent from that browser session. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+Browser login supports one local operator, with no registration, roles, or email
+recovery. The machine API key is independent from that browser session. See
+[SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 ## Development
+
+This is for working on the code itself; to just build and run a release
+artifact, see [Build it yourself](#build-it-yourself) above.
 
 You will need .NET SDK 10, Node.js 22+, and npm.
 

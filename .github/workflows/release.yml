@@ -9,32 +9,40 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  metadata:
+    name: Release metadata
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      stable: ${{ steps.release.outputs.stable }}
+      image: ${{ steps.release.outputs.image }}
+      created: ${{ steps.release.outputs.created }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.400
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22.23.2
-          cache: npm
-          cache-dependency-path: src/SpeedtestDashboard.Web/package-lock.json
-      - run: dotnet tool restore
-      - run: dotnet restore SpeedtestDashboard.sln --locked-mode -p:AuditPipeline=true
-      - run: dotnet format SpeedtestDashboard.sln --verify-no-changes --no-restore
-      - run: dotnet build SpeedtestDashboard.sln --configuration Release --no-restore -p:AuditPipeline=true
-      - run: dotnet test SpeedtestDashboard.sln --configuration Release --no-build
-      - run: dotnet ef migrations has-pending-model-changes --project src/SpeedtestDashboard.Infrastructure --startup-project src/SpeedtestDashboard.Api --configuration Release --no-build
-      - run: npm ci --prefix src/SpeedtestDashboard.Web
-      - run: npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
-      - run: npm run check --prefix src/SpeedtestDashboard.Web
-      - run: npm test --prefix src/SpeedtestDashboard.Web
-      - run: npm run build --prefix src/SpeedtestDashboard.Web
+      - id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid semantic-version tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          stable=false
+          if [[ "$version" != *-* ]]; then stable=true; fi
+          image_owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/$image_owner/speedtest-dashboard" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: metadata
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
 
   build-oci:
-    needs: verify
+    needs: [metadata, verify]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -42,20 +50,6 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
-      - id: release
-        name: Read release metadata
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid semantic-version tag: $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
-          image_owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "stable=$([[ "$version" != *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/$image_owner/speedtest-dashboard" >> "$GITHUB_OUTPUT"
-          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -66,12 +60,12 @@ jobs:
       - id: metadata
         uses: docker/metadata-action@v6
         with:
-          images: ${{ steps.release.outputs.image }}
+          images: ${{ needs.metadata.outputs.image }}
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.release.outputs.stable }}
-            type=semver,pattern={{major}},enable=${{ steps.release.outputs.stable }}
-            type=raw,value=latest,enable=${{ steps.release.outputs.stable }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ needs.metadata.outputs.stable }}
+            type=semver,pattern={{major}},enable=${{ needs.metadata.outputs.stable }}
+            type=raw,value=latest,enable=${{ needs.metadata.outputs.stable }}
             type=sha,prefix=sha-
       - name: Build amd64 smoke image
         uses: docker/build-push-action@v7
@@ -82,9 +76,9 @@ jobs:
           load: true
           tags: speedtest-dashboard:smoke-amd64
           build-args: |
-            APP_VERSION=${{ steps.release.outputs.version }}
+            APP_VERSION=${{ needs.metadata.outputs.version }}
             SOURCE_REVISION=${{ github.sha }}
-            BUILD_DATE=${{ steps.release.outputs.created }}
+            BUILD_DATE=${{ needs.metadata.outputs.created }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
             DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
             INSTALL_OOKLA=false
@@ -144,9 +138,9 @@ jobs:
           load: true
           tags: speedtest-dashboard:smoke-arm64
           build-args: |
-            APP_VERSION=${{ steps.release.outputs.version }}
+            APP_VERSION=${{ needs.metadata.outputs.version }}
             SOURCE_REVISION=${{ github.sha }}
-            BUILD_DATE=${{ steps.release.outputs.created }}
+            BUILD_DATE=${{ needs.metadata.outputs.created }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
             DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
             INSTALL_OOKLA=false
@@ -177,9 +171,9 @@ jobs:
           provenance: mode=max
           sbom: true
           build-args: |
-            APP_VERSION=${{ steps.release.outputs.version }}
+            APP_VERSION=${{ needs.metadata.outputs.version }}
             SOURCE_REVISION=${{ github.sha }}
-            BUILD_DATE=${{ steps.release.outputs.created }}
+            BUILD_DATE=${{ needs.metadata.outputs.created }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
             DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
             INSTALL_OOKLA=false
@@ -187,13 +181,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image="${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}"
+          image="${{ needs.metadata.outputs.image }}:${{ needs.metadata.outputs.version }}"
           manifest=$(docker buildx imagetools inspect "$image")
           grep -q 'linux/amd64' <<< "$manifest"
           grep -q 'linux/arm64' <<< "$manifest"
 
   build-proxmox-lxc:
-    needs: verify
+    needs: [metadata, verify]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -214,16 +208,13 @@ jobs:
           go-version: 1.27.1
       - name: Install rootfs tools
         run: sudo apt-get update && sudo apt-get install --yes debian-archive-keyring debootstrap qemu-user-static zstd
-      - id: release
-        shell: bash
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Build native LXC template
-        run: packaging/proxmox/build-template.sh --version "${{ steps.release.outputs.version }}" --commit "${{ github.sha }}" --architecture "${{ matrix.architecture }}" --output artifacts
+        run: packaging/proxmox/build-template.sh --version "${{ needs.metadata.outputs.version }}" --commit "${{ github.sha }}" --architecture "${{ matrix.architecture }}" --output artifacts
       - name: Inspect native template
         shell: bash
         run: |
           set -euo pipefail
-          archive="artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst"
+          archive="artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.tar.zst"
           contents=$(tar --zstd -tf "$archive")
           grep -q './etc/systemd/system/speedtest-dashboard.service' <<< "$contents"
           grep -q './opt/speedtest-dashboard/SpeedtestDashboard.Api' <<< "$contents"
@@ -246,25 +237,25 @@ jobs:
         shell: bash
         run: |
           mkdir sbom-rootfs
-          tar --zstd -xf "artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst" -C sbom-rootfs
+          tar --zstd -xf "artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.tar.zst" -C sbom-rootfs
       - name: Create native artifact SBOM
         uses: anchore/sbom-action@v0
         with:
           path: sbom-rootfs
           format: spdx-json
-          output-file: artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.spdx.json
+          output-file: artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.spdx.json
           upload-artifact: false
       - uses: actions/upload-artifact@v6
         with:
           name: proxmox-${{ matrix.architecture }}
           path: |
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.tar.zst.sha256
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_${{ matrix.architecture }}.spdx.json
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.tar.zst
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_${{ matrix.architecture }}.spdx.json
           if-no-files-found: error
 
   release:
-    needs: [build-oci, build-proxmox-lxc]
+    needs: [metadata, build-oci, build-proxmox-lxc]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -274,25 +265,23 @@ jobs:
           pattern: proxmox-*
           path: artifacts
           merge-multiple: true
-      - id: release
-        name: Create public artifact checksums
+      - name: Create public artifact checksums
         working-directory: artifacts
         shell: bash
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          version="${{ needs.metadata.outputs.version }}"
           sha256sum "speedtest-dashboard_${version}_amd64.tar.zst" "speedtest-dashboard_${version}_arm64.tar.zst" > SHA256SUMS
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.tar.zst
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.tar.zst.sha256
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_amd64.spdx.json
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.tar.zst
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.tar.zst.sha256
-            artifacts/speedtest-dashboard_${{ steps.release.outputs.version }}_arm64.spdx.json
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_amd64.tar.zst
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_amd64.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_amd64.spdx.json
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_arm64.tar.zst
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_arm64.tar.zst.sha256
+            artifacts/speedtest-dashboard_${{ needs.metadata.outputs.version }}_arm64.spdx.json
             artifacts/SHA256SUMS
           fail_on_unmatched_files: true
           generate_release_notes: true

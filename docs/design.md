@@ -1,21 +1,26 @@
-# Design guidelines
+# Interface design
 
-### Users
+## Audience
 
-Self-hosters, homelab operators, and small-network administrators. They need to confirm the backend's public egress identity, compare connection quality over time, choose public speed-test servers, and schedule repeatable checks.
+The dashboard is for self-hosters and small-network administrators who need to
+check public egress identity and connection quality over time.
 
-### Brand Personality
+## Visual system
 
-Dependable, restrained, and exact. The interface should create confidence that measurements are honest and clearly identify whether information comes from the backend, while avoiding claims that an IP address alone proves VPN state.
+Use Instrument Sans, neutral black, grey, and off-white surfaces, and one cool
+blue accent for focus, selection, links, and charts. Reserve green and red for
+status. Support light, dark, and system themes with the same information and
+controls at desktop and mobile sizes.
 
-### Aesthetic Direction
+Avoid decorative animation, glass effects, oversized headings, heavy gradients,
+and neon-on-dark styling. The result should look like a compact network tool,
+not a generic administration template.
 
-A high-contrast network operations console with neutral black, grey, and off-white surfaces. Support light, dark, and system themes. Use a single cool blue accent for focus, selection, links, and charts; reserve semantic green and red for status only. Information-dense without becoming a generic CRUD admin panel. Avoid warm page tints, excessive gradients, glassmorphism, oversized hero treatments, neon-on-dark styling, and decorative animation. Support desktop and mobile equally.
+## Interaction rules
 
-### Design Principles
-
-1. Make origin and status explicit: always distinguish backend-container measurements from browser state.
-2. Prefer operational clarity over decoration: labels, units, timestamps, errors, and unavailable states must be unambiguous.
-3. Use progressive disclosure: keep the common automatic-server path obvious and reveal advanced controls when needed.
-4. Preserve trust: never fabricate provider progress or imply that an egress IP proves VPN connectivity.
-5. Adapt rather than amputate: mobile layouts retain all critical actions with touch-friendly controls.
+- Label whether data comes from the backend or the browser.
+- Show units, timestamps, errors, and unavailable states explicitly.
+- Keep automatic server selection prominent and place advanced controls behind
+  an additional action.
+- Do not imply that an observed egress address proves VPN connectivity.
+- Keep all critical actions available on mobile with touch-sized controls.

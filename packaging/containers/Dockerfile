@@ -10,9 +10,9 @@ RUN npm run build
 FROM golang:1.27.1-bookworm AS librespeed-build
 ARG TARGETARCH
 # Defaults are pinned once in packaging/providers/build-librespeed.sh.
-ARG LIBRESPEED_VERSION
-ARG LIBRESPEED_COMMIT
-ARG LIBRESPEED_SOURCE_SHA256
+ARG LIBRESPEED_VERSION=""
+ARG LIBRESPEED_COMMIT=""
+ARG LIBRESPEED_SOURCE_SHA256=""
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
@@ -29,9 +29,9 @@ RUN chmod 0755 /usr/local/bin/build-librespeed \
 FROM golang:1.27.1-bookworm AS mlab-build
 ARG TARGETARCH
 # Defaults are pinned once in packaging/providers/build-mlab.sh.
-ARG MLAB_VERSION
-ARG MLAB_COMMIT
-ARG MLAB_SOURCE_SHA256
+ARG MLAB_VERSION=""
+ARG MLAB_COMMIT=""
+ARG MLAB_SOURCE_SHA256=""
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
@@ -55,6 +55,7 @@ RUN chmod 0755 /usr/local/bin/download-fast-cli \
     && TARGETARCH="$TARGETARCH" OUTPUT_DIR=/out /usr/local/bin/download-fast-cli
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS api-build
+ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
 WORKDIR /source
 COPY SpeedtestDashboard.sln Directory.Build.props ./
@@ -71,6 +72,7 @@ RUN dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
     --no-restore \
     --output /app/publish \
     -p:FrontendDist=/source/web-dist \
+    -p:Version="$APP_VERSION" \
     -p:SourceRevisionId="$SOURCE_REVISION" \
     -p:DebugSymbols=false \
     -p:DebugType=None \

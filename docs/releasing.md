@@ -16,13 +16,13 @@ templates; OCI publication enables SBOM and provenance attestations.
 1. Run the checks in [CONTRIBUTING.md](../CONTRIBUTING.md).
 2. Review the staged file list and check for ignored tracked files with
    `git ls-files -ci --exclude-standard`. Keep runtime databases, Data Protection
-   keys, local `.env` files, generated archives, and personal assessments out of
-   Git. Use `.local/` for disposable local notes or keep them outside the checkout.
+   keys, local `.env` files, generated archives, and scratch notes out of Git.
+   Use `.local/` for disposable notes or keep them outside the checkout.
 3. Review history before making an existing private repository public. Deleting
    a file or adding it to `.gitignore` does not remove earlier commits. Decide
    whether to publish a fresh history or remove unwanted historical paths before
    pushing the public repository. Rotate any credential that was committed.
-4. Set the repository owner in deployment examples and verify GHCR visibility.
+4. Confirm deployment examples still point to `Geevo` and verify GHCR visibility.
 5. Update the changelog and version. Start with a release candidate when a
    platform has not yet been validated.
 
@@ -41,6 +41,5 @@ tests deliberately, accounting for the bandwidth they consume. Verify that the
 public template excludes Ookla and contains the expected LibreSpeed, fast-cli,
 and M-Lab NDT7 client licences.
 
-Record machine-specific measurements and evaluation results outside the
-repository. This document describes a repeatable procedure, not a claim that
-a candidate has passed it. Promote to a stable release only after validation.
+Keep machine-specific test results outside the repository. Promote a candidate
+to a stable release only after completing the validation above.

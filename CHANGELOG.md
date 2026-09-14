@@ -23,7 +23,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 - allowed four manual network-identity refreshes per cooldown window and made the cooldown message friendlier
 - grouped Docker/Podman and native Proxmox packaging into parallel directories with shared provider tooling and an optional Ookla build guide
-- excluded generated artifacts and local evaluations from version control and container build contexts
+- excluded generated artifacts and local build output from version control and container build contexts
 - enabled token-free IPConfig.io network identity enrichment by default; set `NetworkIdentity__MetadataProvider=none` to opt out
 - deleted the local account and password when disabling login protection so re-enabling it uses fresh credentials
 - moved admin account setup and password changes into focused dialogs
