@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
@@ -16,7 +15,7 @@ public sealed record DatabaseCompactionResult(
     DatabaseStorageInfo After);
 
 public sealed class DatabaseMaintenanceService(
-    IDbContextFactory<DashboardDbContext> contextFactory,
+    SqliteConnectionFactory connectionFactory,
     IOptions<StorageOptions> storageOptions)
 {
     private readonly SemaphoreSlim _compactionLock = new(1, 1);
@@ -33,12 +32,13 @@ public sealed class DatabaseMaintenanceService(
         try
         {
             var before = GetStorageInfo();
-            await using (var context = await contextFactory.CreateDbContextAsync(cancellationToken))
+            await using (var connection = await connectionFactory.OpenConnectionAsync(cancellationToken))
             {
-                await context.Database.OpenConnectionAsync(cancellationToken);
-                await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE);", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync("VACUUM;", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE);", cancellationToken);
+                foreach (var sql in new[] { "PRAGMA wal_checkpoint(TRUNCATE);", "VACUUM;", "PRAGMA wal_checkpoint(TRUNCATE);" })
+                {
+                    await using var command = connectionFactory.CreateCommand(connection, sql);
+                    await command.ExecuteNonQueryAsync(cancellationToken);
+                }
             }
 
             return new DatabaseCompactionResult(before, GetStorageInfo());

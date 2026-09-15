@@ -2,15 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Api.Tests.ApiKeys;
 using SpeedtestDashboard.Api.Tests.Orchestration;
+using SpeedtestDashboard.Infrastructure.Authentication;
 using SpeedtestDashboard.Infrastructure.Persistence;
-using SpeedtestDashboard.Infrastructure.Persistence.Entities;
 
 namespace SpeedtestDashboard.Api.Tests.Authentication;
 
@@ -53,12 +51,10 @@ public sealed class AuthenticationRegressionTests
     [Fact]
     public async Task ConcurrentPreferenceChangeDoesNotDisableNewlyEnabledAuthentication()
     {
-        var interceptor = new PreferenceBarrier();
         var state = new ObservedAuthenticationState();
         using var parent = new AuthWebApplicationFactory();
         using var factory = parent.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.ConfigureDbContext<DashboardDbContext>(options => options.AddInterceptors(interceptor));
             services.RemoveAll<DashboardAuthenticationState>();
             services.AddSingleton<DashboardAuthenticationState>(state);
         }));
@@ -75,7 +71,7 @@ public sealed class AuthenticationRegressionTests
         Task<HttpResponseMessage> enabling;
         try
         {
-            await interceptor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await state.FirstMutationEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             enabling = setup.PostAsJsonAsync("/api/auth/setup", new { username = "admin", password = "review-password" });
             // Observe the real semaphore wait, not elapsed time or HTTP scheduling.
             var setupIsWaiting = await state.SecondMutationWait.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -84,7 +80,7 @@ public sealed class AuthenticationRegressionTests
         }
         finally
         {
-            interceptor.Release.TrySetResult();
+            state.ReleaseFirstMutation.TrySetResult();
         }
         using var enabled = await enabling;
         Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
@@ -93,10 +89,9 @@ public sealed class AuthenticationRegressionTests
         using var anonymous = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
         using var protectedResponse = await anonymous.GetAsync("/api/history");
         Assert.Equal(HttpStatusCode.Unauthorized, protectedResponse.StatusCode);
-        await using var database = await factory.Services.GetRequiredService<IDbContextFactory<DashboardDbContext>>().CreateDbContextAsync();
-        var settings = await database.DashboardSettings.SingleAsync();
+        var settings = await factory.Services.GetRequiredService<LocalAccountService>().GetSettingsAsync();
         Assert.True(settings.AuthenticationEnabled);
-        Assert.False(settings.ShowAuthenticationDisabledWarning);
+        Assert.False(settings.ShowDisabledWarning);
         using var httpClient = factory.CreateClient();
         using var httpCsrf = await httpClient.GetAsync("/api/auth/csrf");
         Assert.Equal(HttpStatusCode.BadRequest, httpCsrf.StatusCode);
@@ -111,32 +106,23 @@ public sealed class AuthenticationRegressionTests
     {
         private int _mutationCalls;
         public TaskCompletionSource<bool> SecondMutationWait { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FirstMutationEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseFirstMutation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public override Task WaitForMutationAsync(CancellationToken cancellationToken)
+        public override async Task WaitForMutationAsync(CancellationToken cancellationToken)
         {
+            var call = Interlocked.Increment(ref _mutationCalls);
             var wait = base.WaitForMutationAsync(cancellationToken);
-            if (Interlocked.Increment(ref _mutationCalls) == 2)
+            if (call == 2)
             {
                 SecondMutationWait.TrySetResult(!wait.IsCompleted);
             }
-            return wait;
-        }
-    }
-
-    private sealed class PreferenceBarrier : SaveChangesInterceptor
-    {
-        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
-            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
-        {
-            if (eventData.Context!.ChangeTracker.Entries<DashboardSettingsEntity>().Any(entry =>
-                entry.State == EntityState.Modified && entry.Property(item => item.ShowAuthenticationDisabledWarning).IsModified))
+            await wait;
+            if (call == 1)
             {
-                Entered.TrySetResult();
-                await Release.Task.WaitAsync(cancellationToken);
+                FirstMutationEntered.TrySetResult();
+                await ReleaseFirstMutation.Task.WaitAsync(cancellationToken);
             }
-            return result;
         }
     }
 }

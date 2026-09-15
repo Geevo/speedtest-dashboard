@@ -1,6 +1,6 @@
 # Architecture
 
-This document records the current boundaries that are easy to miss during maintenance. Code, migrations, and automated tests are authoritative.
+This document records the current boundaries that are easy to miss during maintenance. Code, schema scripts, and automated tests are authoritative.
 
 ## Repository structure
 
@@ -42,7 +42,7 @@ Ookla CLI package `1.2.0.84-1.ea6b6773cf` is optional. Public artifacts do not i
 
 ## Persistence
 
-SQLite is the only database. OCI uses `/data/speedtest.db`; native LXC uses `/var/lib/speedtest-dashboard/speedtest.db`. EF Core applies committed migrations before serving HTTP.
+SQLite is the only database. OCI uses `/data/speedtest.db`; native LXC uses `/var/lib/speedtest-dashboard/speedtest.db`. Persistence uses `Microsoft.Data.Sqlite` directly so the application can be compiled with NativeAOT. The application validates `PRAGMA user_version` and creates the current schema before serving HTTP.
 
 Startup attempts WAL and continues with a warning if the filesystem cannot support it. A terminal job update and its result insert share a transaction. Startup reconciliation marks interrupted jobs as `failed/application_restarted`; it never resumes or re-enqueues them.
 
@@ -50,7 +50,7 @@ History pages use descending completion time and result ID with opaque keyset cu
 
 ## Authentication and API keys
 
-A fresh database uses anonymous dashboard access. Settings can create one ASP.NET Core Identity account and enable login protection. Cookie sessions are Secure by default, and unsafe authenticated browser requests require antiforgery validation.
+A fresh database uses anonymous dashboard access. Settings can create one local operator account and enable login protection. Passwords use ASP.NET Core's versioned PBKDF2 hasher; sessions use its cookie and Data Protection middleware. Five failed attempts trigger a 15-minute lockout, and changing a password rotates the security stamp so other sessions are rejected. Cookies are Secure by default, and unsafe authenticated browser requests require antiforgery validation.
 
 The machine API accepts one instance-wide bearer key. The credential is generated from 256 bits of randomness and protected with the same durable Data Protection key ring as browser sessions. It is independent of cookie authentication. Successful use updates `LastUsedAtUtc` at most once per minute.
 
@@ -72,6 +72,6 @@ Results owns individual records. Statistics owns aggregate charts and comparison
 
 The OCI job builds one `linux/amd64` and `linux/arm64` manifest from `packaging/containers/Dockerfile`. The normal image contains the application, .NET runtime, curl health check, LibreSpeed CLI, fast-cli, and the official M-Lab NDT7 client. It excludes the .NET SDK, Node, Go, source, test fixtures, caches, and Ookla CLI. BuildKit publishes SBOM and provenance attestations.
 
-The Proxmox job independently bootstraps Debian 12 with debootstrap, publishes self-contained `linux-x64` or `linux-arm64` application files, packages LibreSpeed, fast-cli, and the M-Lab NDT7 client, installs a systemd service, and creates a rootfs `tar.zst`. It never consumes OCI output. Native state lives under `/var/lib/speedtest-dashboard`.
+The Proxmox job independently bootstraps Debian 12 with debootstrap, publishes a NativeAOT `linux-x64` or `linux-arm64` executable, packages LibreSpeed, fast-cli, and the M-Lab NDT7 client, installs a systemd service, and creates a rootfs `tar.zst`. It never consumes OCI output. Native state lives under `/var/lib/speedtest-dashboard`.
 
 Both jobs take version and revision from the same semantic-version tag and source commit. A release is incomplete until the OCI manifest, native artifact checksums, and release assets are verified. Native Proxmox support also requires a real unprivileged-container test; inspecting or unpacking the archive is not enough.

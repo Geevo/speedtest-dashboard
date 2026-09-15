@@ -79,21 +79,39 @@ RUN set -eu; \
       echo "INSTALL_OOKLA must be true or false" >&2; exit 1; \
     fi
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS api-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23 AS api-build
 ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
+ARG TARGETARCH
 WORKDIR /source
+RUN apk add --no-cache clang build-base zlib-dev
 COPY SpeedtestDashboard.sln Directory.Build.props ./
 COPY src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj src/SpeedtestDashboard.Api/packages.lock.json src/SpeedtestDashboard.Api/
 COPY src/SpeedtestDashboard.Core/SpeedtestDashboard.Core.csproj src/SpeedtestDashboard.Core/packages.lock.json src/SpeedtestDashboard.Core/
 COPY src/SpeedtestDashboard.Infrastructure/SpeedtestDashboard.Infrastructure.csproj src/SpeedtestDashboard.Infrastructure/packages.lock.json src/SpeedtestDashboard.Infrastructure/
 RUN dotnet restore src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj --locked-mode -p:AuditPipeline=true
+RUN case "$TARGETARCH" in \
+      amd64) runtime=linux-musl-x64 ;; \
+      arm64) runtime=linux-musl-arm64 ;; \
+      *) echo "Unsupported target architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && dotnet restore src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
+      --runtime "$runtime" \
+      --force-evaluate \
+      -p:PublishAot=true \
+      -p:AuditPipeline=true
 COPY src/SpeedtestDashboard.Api/ src/SpeedtestDashboard.Api/
 COPY src/SpeedtestDashboard.Core/ src/SpeedtestDashboard.Core/
 COPY src/SpeedtestDashboard.Infrastructure/ src/SpeedtestDashboard.Infrastructure/
 COPY --from=web-build /source/web/dist/ /source/web-dist/
-RUN dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
+RUN case "$TARGETARCH" in \
+      amd64) runtime=linux-musl-x64 ;; \
+      arm64) runtime=linux-musl-arm64 ;; \
+      *) echo "Unsupported target architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
     --configuration Release \
+    --runtime "$runtime" \
     --no-restore \
     --output /app/publish \
     -p:FrontendDist=/source/web-dist \
@@ -102,9 +120,10 @@ RUN dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
     -p:DebugSymbols=false \
     -p:DebugType=None \
     -p:IsTransformWebConfigDisabled=true \
-    -p:UseAppHost=false
+    -p:PublishAot=true \
+    && rm -f /app/publish/*.dbg
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-noble-chiseled-extra AS runtime
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0.11-alpine3.23 AS runtime
 ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
 ARG BUILD_DATE=unknown
@@ -118,6 +137,7 @@ LABEL org.opencontainers.image.title="Speedtest Dashboard" \
       org.opencontainers.image.revision="$SOURCE_REVISION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.licenses="MIT AND LGPL-3.0-only AND Apache-2.0"
+RUN apk add --no-cache tzdata
 COPY --from=ookla-fetch /out/ /
 COPY --from=ookla-fetch --chown=1654:1654 /data /data
 COPY --from=librespeed-build --chmod=0755 /out/librespeed-cli /usr/local/bin/librespeed-cli
@@ -132,8 +152,9 @@ COPY --from=api-build --chown=app:app /app/publish/ ./
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/speedtest-dashboard/THIRD_PARTY_NOTICES.md
 COPY LICENSE /usr/share/licenses/speedtest-dashboard/LICENSE
 ENV DASHBOARD_PORT=8080
+USER app
 EXPOSE 8080
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/usr/local/bin/healthcheck"]
-ENTRYPOINT ["dotnet", "SpeedtestDashboard.Api.dll"]
+ENTRYPOINT ["/app/SpeedtestDashboard.Api"]

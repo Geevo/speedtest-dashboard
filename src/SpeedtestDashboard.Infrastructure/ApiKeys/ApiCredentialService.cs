@@ -1,9 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using SpeedtestDashboard.Infrastructure.Persistence;
-using SpeedtestDashboard.Infrastructure.Persistence.Entities;
 
 namespace SpeedtestDashboard.Infrastructure.ApiKeys;
 
@@ -14,32 +13,34 @@ public sealed class ApiCredentialService : IApiCredentialService
     private const int SecretEntropyBytes = 32;
     private static readonly TimeSpan LastUsedWriteThrottle = TimeSpan.FromMinutes(1);
 
-    private readonly IDbContextFactory<DashboardDbContext> _contextFactory;
+    private readonly SqliteConnectionFactory _connectionFactory;
     private readonly IDataProtector _protector;
     private readonly TimeProvider _timeProvider;
     private long _lastPersistedTouchTicks;
 
     public ApiCredentialService(
-        IDbContextFactory<DashboardDbContext> contextFactory,
+        SqliteConnectionFactory connectionFactory,
         IDataProtectionProvider dataProtectionProvider,
         TimeProvider timeProvider)
     {
-        _contextFactory = contextFactory;
+        _connectionFactory = connectionFactory;
         _protector = dataProtectionProvider.CreateProtector(DataProtectionPurpose);
         _timeProvider = timeProvider;
     }
 
     public async Task<ApiCredentialSnapshot?> GetAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await context.ApiCredentials.SingleOrDefaultAsync(cancellationToken);
-        if (entity is null)
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = _connectionFactory.CreateCommand(connection,
+            "SELECT ProtectedSecret, CreatedAtUtc, LastUsedAtUtc FROM ApiCredentials WHERE Id = 1;");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
         {
             return null;
         }
 
-        return TryUnprotect(entity.ProtectedSecret, out var key)
-            ? new ApiCredentialSnapshot(key, entity.CreatedAtUtc, entity.LastUsedAtUtc)
+        return TryUnprotect(reader.GetString(0), out var key)
+            ? new ApiCredentialSnapshot(key, reader.GetDateTimeOffset(1), reader.IsDBNull(2) ? null : reader.GetDateTimeOffset(2))
             : null;
     }
 
@@ -49,18 +50,14 @@ public sealed class ApiCredentialService : IApiCredentialService
         var protectedSecret = _protector.Protect(secret);
         var now = _timeProvider.GetUtcNow();
 
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await context.ApiCredentials.SingleOrDefaultAsync(cancellationToken);
-        if (entity is null)
-        {
-            entity = new ApiCredentialEntity { Id = ApiCredentialEntity.SingletonId };
-            context.ApiCredentials.Add(entity);
-        }
-
-        entity.ProtectedSecret = protectedSecret;
-        entity.CreatedAtUtc = now;
-        entity.LastUsedAtUtc = null;
-        await context.SaveChangesAsync(cancellationToken);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = _connectionFactory.CreateCommand(connection, """
+            INSERT INTO ApiCredentials (Id, ProtectedSecret, CreatedAtUtc, LastUsedAtUtc) VALUES (1, @secret, @created, NULL)
+            ON CONFLICT(Id) DO UPDATE SET ProtectedSecret = excluded.ProtectedSecret, CreatedAtUtc = excluded.CreatedAtUtc, LastUsedAtUtc = NULL;
+            """);
+        command.Parameters.AddWithValue("@secret", protectedSecret);
+        command.Parameters.AddWithValue("@created", now);
+        await command.ExecuteNonQueryAsync(cancellationToken);
 
         Interlocked.Exchange(ref _lastPersistedTouchTicks, 0);
         return new ApiCredentialSnapshot(secret, now, null);
@@ -68,10 +65,9 @@ public sealed class ApiCredentialService : IApiCredentialService
 
     public async Task<bool> RevokeAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var deleted = await context.ApiCredentials
-            .Where(credential => credential.Id == ApiCredentialEntity.SingletonId)
-            .ExecuteDeleteAsync(cancellationToken);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = _connectionFactory.CreateCommand(connection, "DELETE FROM ApiCredentials WHERE Id = 1;");
+        var deleted = await command.ExecuteNonQueryAsync(cancellationToken);
         return deleted > 0;
     }
 
@@ -82,9 +78,10 @@ public sealed class ApiCredentialService : IApiCredentialService
             return false;
         }
 
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await context.ApiCredentials.SingleOrDefaultAsync(cancellationToken);
-        if (entity is null || !TryUnprotect(entity.ProtectedSecret, out var actualKey))
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = _connectionFactory.CreateCommand(connection, "SELECT ProtectedSecret FROM ApiCredentials WHERE Id = 1;");
+        var protectedSecret = await command.ExecuteScalarAsync(cancellationToken) as string;
+        if (protectedSecret is null || !TryUnprotect(protectedSecret, out var actualKey))
         {
             return false;
         }
@@ -94,11 +91,11 @@ public sealed class ApiCredentialService : IApiCredentialService
             return false;
         }
 
-        await TouchLastUsedAsync(entity.Id, cancellationToken);
+        await TouchLastUsedAsync(cancellationToken);
         return true;
     }
 
-    private async Task TouchLastUsedAsync(int id, CancellationToken cancellationToken)
+    private async Task TouchLastUsedAsync(CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
         var nowTicks = now.UtcTicks;
@@ -113,10 +110,11 @@ public sealed class ApiCredentialService : IApiCredentialService
             return;
         }
 
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        await context.ApiCredentials
-            .Where(credential => credential.Id == id)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(credential => credential.LastUsedAtUtc, now), cancellationToken);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = _connectionFactory.CreateCommand(connection,
+            "UPDATE ApiCredentials SET LastUsedAtUtc = @now WHERE Id = 1;");
+        command.Parameters.AddWithValue("@now", now);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private bool TryUnprotect(string protectedSecret, out string key)

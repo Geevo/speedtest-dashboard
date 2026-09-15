@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SpeedtestDashboard.Infrastructure.Authentication;
 using SpeedtestDashboard.Infrastructure.Persistence;
 
 namespace SpeedtestDashboard.Api.Tests.Authentication;
@@ -59,12 +59,13 @@ public sealed class AuthenticationEndpointTests
         Assert.Contains("secure", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
 
-        await using var scope = factory.Services.CreateAsyncScope();
-        var database = scope.ServiceProvider.GetRequiredService<DashboardDbContext>();
-        var user = Assert.Single(await database.Users.ToListAsync());
+        var accounts = factory.Services.GetRequiredService<LocalAccountService>();
+        Assert.Equal(1, await accounts.GetAccountCountAsync());
+        var user = await accounts.FindByIdAsync(body.GetProperty("user").GetProperty("id").GetGuid());
+        Assert.NotNull(user);
         Assert.NotEqual(Password, user.PasswordHash);
         Assert.StartsWith("AQAAAA", user.PasswordHash);
-        Assert.True((await database.DashboardSettings.SingleAsync()).AuthenticationEnabled);
+        Assert.True((await accounts.GetSettingsAsync()).AuthenticationEnabled);
     }
 
     [Fact]
@@ -153,11 +154,7 @@ public sealed class AuthenticationEndpointTests
         Assert.Equal("none", disabledSession.GetProperty("mode").GetString());
         Assert.False(disabledSession.GetProperty("loginConfigured").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/providers")).StatusCode);
-        await using (var scope = factory.Services.CreateAsyncScope())
-        {
-            var database = scope.ServiceProvider.GetRequiredService<DashboardDbContext>();
-            Assert.Empty(await database.Users.ToListAsync());
-        }
+        Assert.Equal(0, await factory.Services.GetRequiredService<LocalAccountService>().GetAccountCountAsync());
 
         token = await GetCsrfAsync(client);
         using var reenabled = await PostWithCsrfAsync(client, "/api/auth/setup", token,

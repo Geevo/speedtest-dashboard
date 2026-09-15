@@ -1,8 +1,6 @@
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Schedules;
 using SpeedtestDashboard.Core.Statistics;
@@ -26,13 +24,7 @@ public static class PersistenceServiceCollectionExtensions
                 "Storage command timeout must be between 1 and 60 seconds.")
             .ValidateOnStart();
 
-        services.AddDbContextFactory<DashboardDbContext>((serviceProvider, dbContextOptions) =>
-        {
-            var storage = serviceProvider.GetRequiredService<IOptions<StorageOptions>>().Value;
-            dbContextOptions.UseSqlite(
-                BuildConnectionString(storage),
-                sqlite => sqlite.CommandTimeout(storage.CommandTimeoutSeconds));
-        });
+        services.AddSingleton<SqliteConnectionFactory>();
         services.AddSingleton<SqliteSpeedTestStore>();
         services.AddSingleton<ISpeedTestPersistenceWriter>(provider => provider.GetRequiredService<SqliteSpeedTestStore>());
         services.AddSingleton<ISpeedTestHistoryStore>(provider => provider.GetRequiredService<SqliteSpeedTestStore>());

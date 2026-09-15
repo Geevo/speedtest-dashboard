@@ -1,11 +1,10 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using SpeedtestDashboard.Infrastructure.Persistence;
-using SpeedtestDashboard.Infrastructure.Persistence.Entities;
 
 namespace SpeedtestDashboard.Infrastructure.ApiKeys;
 
 public sealed class ApiIdempotencyStore(
-    IDbContextFactory<DashboardDbContext> contextFactory,
+    SqliteConnectionFactory connectionFactory,
     TimeProvider timeProvider) : IApiIdempotencyStore
 {
     private static readonly TimeSpan RetentionPeriod = TimeSpan.FromHours(24);
@@ -29,12 +28,18 @@ public sealed class ApiIdempotencyStore(
     public async Task<ApiIdempotencyRecord?> TryGetAsync(string key, CancellationToken cancellationToken = default)
     {
         var cutoff = (timeProvider.GetUtcNow() - RetentionPeriod).UtcDateTime;
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await context.ApiIdempotencyRecords
-            .SingleOrDefaultAsync(record => record.Key == key && record.CreatedAtUtc >= cutoff, cancellationToken);
-        return entity is null
-            ? null
-            : new ApiIdempotencyRecord(entity.Key, entity.RequestHash, entity.JobId, new DateTimeOffset(entity.CreatedAtUtc, TimeSpan.Zero));
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connectionFactory.CreateCommand(connection, """
+            SELECT Key, RequestHash, JobId, CreatedAtUtc FROM ApiIdempotencyRecords
+            WHERE Key = @key AND CreatedAtUtc >= @cutoff;
+            """);
+        command.Parameters.AddWithValue("@key", key);
+        command.Parameters.AddWithValue("@cutoff", cutoff);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new ApiIdempotencyRecord(reader.GetString(0), reader.GetString(1), reader.GetGuid(2),
+                new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc)))
+            : null;
     }
 
     public async Task SaveAsync(string key, string requestHash, Guid jobId, CancellationToken cancellationToken = default)
@@ -42,29 +47,23 @@ public sealed class ApiIdempotencyStore(
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var cutoff = now - RetentionPeriod;
 
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        await context.ApiIdempotencyRecords
-            .Where(record => record.CreatedAtUtc < cutoff)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        var existing = await context.ApiIdempotencyRecords.SingleOrDefaultAsync(record => record.Key == key, cancellationToken);
-        if (existing is null)
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using (var cleanup = connectionFactory.CreateCommand(connection,
+            "DELETE FROM ApiIdempotencyRecords WHERE CreatedAtUtc < @cutoff;", transaction))
         {
-            context.ApiIdempotencyRecords.Add(new ApiIdempotencyRecordEntity
-            {
-                Key = key,
-                RequestHash = requestHash,
-                JobId = jobId,
-                CreatedAtUtc = now
-            });
+            cleanup.Parameters.AddWithValue("@cutoff", cutoff);
+            await cleanup.ExecuteNonQueryAsync(cancellationToken);
         }
-        else
+        await using (var save = connectionFactory.CreateCommand(connection, """
+            INSERT INTO ApiIdempotencyRecords (Key, RequestHash, JobId, CreatedAtUtc) VALUES (@key, @hash, @jobId, @created)
+            ON CONFLICT(Key) DO UPDATE SET RequestHash = excluded.RequestHash, JobId = excluded.JobId, CreatedAtUtc = excluded.CreatedAtUtc;
+            """, transaction))
         {
-            existing.RequestHash = requestHash;
-            existing.JobId = jobId;
-            existing.CreatedAtUtc = now;
+            save.Parameters.AddWithValue("@key", key); save.Parameters.AddWithValue("@hash", requestHash);
+            save.Parameters.AddWithValue("@jobId", jobId); save.Parameters.AddWithValue("@created", now);
+            await save.ExecuteNonQueryAsync(cancellationToken);
         }
-
-        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -32,24 +33,9 @@ public static class AuthenticationServiceCollectionExtensions
                 keyOptions.XmlRepository = new FileSystemXmlRepository(
                     new DirectoryInfo(authOptions.Value.DataProtectionPath), loggerFactory));
 
-        services.AddIdentityCore<ApplicationUser>(options =>
-            {
-                options.Password.RequiredLength = 6;
-                options.Password.RequireDigit = false;
-                options.Password.RequireLowercase = false;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequiredUniqueChars = 1;
-                options.Lockout.AllowedForNewUsers = true;
-                options.Lockout.MaxFailedAccessAttempts = 5;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-                options.User.RequireUniqueEmail = false;
-            })
-            .AddSignInManager()
-            .AddEntityFrameworkStores<DashboardDbContext>();
-
-        services.Configure<SecurityStampValidatorOptions>(options =>
-            options.ValidationInterval = TimeSpan.FromMinutes(2));
+        services.AddOptions<PasswordHasherOptions>();
+        services.AddSingleton<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
+        services.AddSingleton<LocalAccountService>();
 
         services.AddAuthentication(options =>
             {
@@ -82,13 +68,20 @@ public static class AuthenticationServiceCollectionExtensions
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     return Task.CompletedTask;
                 };
-                options.Events.OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync;
-            })
-            .AddCookie(IdentityConstants.TwoFactorRememberMeScheme, options =>
-            {
-                options.Cookie.Name = "SpeedtestDashboard.TwoFactor";
-                options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Events.OnValidatePrincipal = async context =>
+                {
+                    var idValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var stamp = context.Principal?.FindFirstValue(LocalAuthenticationClaims.SecurityStamp);
+                    if (!Guid.TryParse(idValue, out var id) || stamp is null)
+                    {
+                        context.RejectPrincipal();
+                        return;
+                    }
+                    var account = context.HttpContext.RequestServices.GetRequiredService<LocalAccountService>();
+                    var user = await account.FindByIdAsync(id, context.HttpContext.RequestAborted);
+                    if (user is null || !string.Equals(user.SecurityStamp, stamp, StringComparison.Ordinal))
+                        context.RejectPrincipal();
+                };
             })
             .AddScheme<AuthenticationSchemeOptions, DisabledAuthenticationHandler>(
                 DisabledAuthenticationHandler.SchemeName, _ => { });
@@ -98,12 +91,6 @@ public static class AuthenticationServiceCollectionExtensions
                 cookie.Cookie.SecurePolicy = auth.Value.AllowInsecureHttp
                     ? CookieSecurePolicy.SameAsRequest
                     : CookieSecurePolicy.Always);
-        services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.TwoFactorRememberMeScheme)
-            .Configure<IOptions<DashboardAuthenticationOptions>>((cookie, auth) =>
-                cookie.Cookie.SecurePolicy = auth.Value.AllowInsecureHttp
-                    ? CookieSecurePolicy.SameAsRequest
-                    : CookieSecurePolicy.Always);
-
         services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build());

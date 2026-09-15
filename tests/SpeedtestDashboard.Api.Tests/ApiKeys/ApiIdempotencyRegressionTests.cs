@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SpeedtestDashboard.Api.Endpoints;
@@ -44,7 +43,7 @@ public sealed class ApiIdempotencyRegressionTests
         {
             services.RemoveAll<IApiIdempotencyStore>();
             services.AddSingleton<IApiIdempotencyStore>(provider => store = new BarrierStore(new ApiIdempotencyStore(
-                provider.GetRequiredService<IDbContextFactory<DashboardDbContext>>(), TimeProvider.System)));
+                provider.GetRequiredService<SqliteConnectionFactory>(), TimeProvider.System)));
         }));
         var key = await ApiKeyTestHelpers.ProvisionApiKeyAsync(factory);
         using var client = ApiKeyTestHelpers.AuthorizedClient(factory, key);
@@ -81,9 +80,14 @@ public sealed class ApiIdempotencyRegressionTests
             var secondBody = await secondResponse.Content.ReadFromJsonAsync<CreateTestResponse>();
             Assert.Equal(firstBody!.Id, secondBody!.Id);
         }
-        await using var database = await factory.Services.GetRequiredService<IDbContextFactory<DashboardDbContext>>().CreateDbContextAsync();
-        Assert.Equal(1, await database.SpeedTestJobs.CountAsync());
-        Assert.Equal(1, await database.ApiIdempotencyRecords.CountAsync());
+        var connectionFactory = factory.Services.GetRequiredService<SqliteConnectionFactory>();
+        await using var database = await connectionFactory.OpenConnectionAsync();
+        await using var command = connectionFactory.CreateCommand(database,
+            "SELECT (SELECT COUNT(*) FROM SpeedTestJobs), (SELECT COUNT(*) FROM ApiIdempotencyRecords);");
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(1, reader.GetInt32(0));
+        Assert.Equal(1, reader.GetInt32(1));
     }
 
     private sealed class BarrierStore(IApiIdempotencyStore inner) : IApiIdempotencyStore

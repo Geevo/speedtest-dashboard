@@ -108,9 +108,10 @@ dotnet publish "$repo_root/src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csp
   -p:DebugSymbols=false \
   -p:DebugType=None \
   -p:IsTransformWebConfigDisabled=true \
-  -p:PublishSingleFile=false \
+  -p:PublishAot=true \
   -p:SourceRevisionId="$commit" \
   -p:Version="$version"
+rm -f "$publish_dir"/*.dbg
 
 TARGETARCH="$architecture" OUTPUT_DIR="$librespeed_dir" "$repo_root/packaging/providers/build-librespeed.sh"
 TARGETARCH="$architecture" OUTPUT_DIR="$fastcom_dir" "$repo_root/packaging/providers/download-fast-cli.sh"

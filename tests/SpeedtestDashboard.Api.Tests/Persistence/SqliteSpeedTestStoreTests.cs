@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Api.Tests.Orchestration;
@@ -30,18 +30,16 @@ public sealed class SqliteSpeedTestStoreTests
         using var database = await TestDatabase.CreateAsync();
 
         Assert.True(File.Exists(database.Path));
-        await using var context = database.Factory.CreateDbContext();
-        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
-        var tables = await context.Database.SqlQueryRaw<string>(
-            "SELECT name AS Value FROM sqlite_master WHERE type='table'").ToListAsync();
+        await using var connection = await database.Factory.OpenConnectionAsync();
+        var tables = new List<string>();
+        await using (var tableCommand = database.Factory.CreateCommand(connection, "SELECT name FROM sqlite_master WHERE type='table';"))
+        await using (var reader = await tableCommand.ExecuteReaderAsync())
+            while (await reader.ReadAsync()) tables.Add(reader.GetString(0));
         Assert.Contains("SpeedTestJobs", tables);
         Assert.Contains("SpeedTestResults", tables);
-        Assert.Contains("__EFMigrationsHistory", tables);
+        Assert.DoesNotContain("__EFMigrationsHistory", tables);
 
-        var connection = context.Database.GetDbConnection();
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA journal_mode;";
+        await using var command = database.Factory.CreateCommand(connection, "PRAGMA journal_mode;");
         var mode = Convert.ToString(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal("wal", mode, ignoreCase: true);
     }
@@ -194,21 +192,19 @@ public sealed class SqliteSpeedTestStoreTests
     public async Task StartupReconciliationFailsInterruptedJobsWithoutMutatingTerminalRows()
     {
         using var database = await TestDatabase.CreateAsync();
-        await using (var context = database.Factory.CreateDbContext())
+        await using (var connection = await database.Factory.OpenConnectionAsync())
         {
             foreach (var status in new[] { "queued", "starting", "running", "processingResult" })
             {
-                context.SpeedTestJobs.Add(new SpeedTestJobEntity
-                {
-                    Id = Guid.NewGuid(),
-                    ProviderId = "ookla",
-                    Status = status,
-                    Stage = status,
-                    Version = 2,
-                    CreatedAtUtc = database.Clock.GetUtcNow().UtcDateTime
-                });
+                await using var command = database.Factory.CreateCommand(connection, """
+                    INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+                    VALUES (@id, 'ookla', @status, 2, @status, @created);
+                    """);
+                command.Parameters.AddWithValue("@id", Guid.NewGuid());
+                command.Parameters.AddWithValue("@status", status);
+                command.Parameters.AddWithValue("@created", database.Clock.GetUtcNow().UtcDateTime);
+                await command.ExecuteNonQueryAsync();
             }
-            await context.SaveChangesAsync();
         }
         var completed = CreateCompleted(database, ProviderId.Parse("provider-a"));
         var completedBefore = await database.Store.GetTerminalJobAsync(completed.Id, default);
@@ -230,8 +226,7 @@ public sealed class SqliteSpeedTestStoreTests
         var terminal = await database.Store.GetTerminalJobAsync(job.Id, default);
 
         Assert.Throws<SpeedTestPersistenceException>(() => database.Store.PersistTransition(terminal!));
-        await using var context = database.Factory.CreateDbContext();
-        Assert.Equal(1, await context.SpeedTestResults.CountAsync(result => result.JobId == job.Id));
+        Assert.Equal(1L, await database.ScalarAsync("SELECT COUNT(*) FROM SpeedTestResults WHERE JobId = @id;", job.Id));
     }
 
     [Fact]
@@ -247,10 +242,8 @@ public sealed class SqliteSpeedTestStoreTests
 
         Assert.Equal(JobMutationResult.PersistenceFailed, outcome);
         Assert.Equal(SpeedTestFailureCodes.PersistenceFailed, failed?.Failure?.Code);
-        await using var context = database.Factory.CreateDbContext();
-        var persistedJob = await context.SpeedTestJobs.SingleAsync(entity => entity.Id == job.Id);
-        Assert.Equal("processingResult", persistedJob.Status);
-        Assert.False(await context.SpeedTestResults.AnyAsync(entity => entity.JobId == job.Id));
+        Assert.Equal("processingResult", await database.ScalarAsync("SELECT Status FROM SpeedTestJobs WHERE Id = @id;", job.Id));
+        Assert.Equal(0L, await database.ScalarAsync("SELECT COUNT(*) FROM SpeedTestResults WHERE JobId = @id;", job.Id));
     }
 
     private static SpeedTestJob CreateCompleted(TestDatabase database, ProviderId providerId)
@@ -290,17 +283,14 @@ public sealed class SqliteSpeedTestStoreTests
         public string Path { get; }
         public ManualTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero));
         public NetworkIdentity Identity { get; } = SqliteSpeedTestStoreTests.Identity();
-        public IDbContextFactory<DashboardDbContext> Factory { get; }
+        public SqliteConnectionFactory Factory { get; }
         public SqliteSpeedTestStore Store { get; }
 
         private TestDatabase(string directory)
         {
             _directory = directory;
             Path = System.IO.Path.Combine(directory, "speedtest.db");
-            var options = new DbContextOptionsBuilder<DashboardDbContext>()
-                .UseSqlite($"Data Source={Path};Mode=ReadWriteCreate;Foreign Keys=True;Default Timeout=10")
-                .Options;
-            Factory = new TestContextFactory(options);
+            Factory = new SqliteConnectionFactory(Options.Create(new StorageOptions { DatabasePath = Path, CommandTimeoutSeconds = 10 }));
             Store = new SqliteSpeedTestStore(Factory, Clock, NullLogger<SqliteSpeedTestStore>.Instance);
         }
 
@@ -320,6 +310,14 @@ public sealed class SqliteSpeedTestStoreTests
 
         public SqliteSpeedTestStore CreateReplacementStore() => new(Factory, Clock, NullLogger<SqliteSpeedTestStore>.Instance);
 
+        public async Task<object?> ScalarAsync(string sql, Guid id)
+        {
+            await using var connection = await Factory.OpenConnectionAsync();
+            await using var command = Factory.CreateCommand(connection, sql);
+            command.Parameters.AddWithValue("@id", id);
+            return await command.ExecuteScalarAsync();
+        }
+
         public void Dispose()
         {
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
@@ -327,8 +325,4 @@ public sealed class SqliteSpeedTestStoreTests
         }
     }
 
-    private sealed class TestContextFactory(DbContextOptions<DashboardDbContext> options) : IDbContextFactory<DashboardDbContext>
-    {
-        public DashboardDbContext CreateDbContext() => new(options);
-    }
 }

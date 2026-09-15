@@ -1,11 +1,10 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
 
 public sealed class DashboardDatabaseInitializer(
-    IDbContextFactory<DashboardDbContext> contextFactory,
+    SqliteConnectionFactory connectionFactory,
     SqliteSpeedTestStore store,
     IOptions<StorageOptions> options,
     ILogger<DashboardDatabaseInitializer> logger)
@@ -16,12 +15,24 @@ public sealed class DashboardDatabaseInitializer(
             ?? throw new InvalidOperationException("The storage database directory is invalid.");
         Directory.CreateDirectory(directory);
 
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        await context.Database.MigrateAsync(cancellationToken);
-        var connection = context.Database.GetDbConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA journal_mode=WAL;";
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        var schemaVersion = await GetSchemaVersionAsync(connection, cancellationToken);
+        if (schemaVersion == 0 && await HasApplicationTablesAsync(connection, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "The database uses the retired EF Core schema. This NativeAOT build requires a fresh database.");
+        }
+        if (schemaVersion > 1)
+        {
+            throw new InvalidOperationException($"The database schema version {schemaVersion} is newer than this application supports.");
+        }
+
+        await using (var schema = connectionFactory.CreateCommand(connection, DashboardSchema.Sql))
+        {
+            await schema.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using var command = connectionFactory.CreateCommand(connection, "PRAGMA journal_mode=WAL;");
         var journalMode = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken),
             System.Globalization.CultureInfo.InvariantCulture);
         if (!IsWalEnabled(journalMode))
@@ -40,4 +51,20 @@ public sealed class DashboardDatabaseInitializer(
 
     internal static bool IsWalEnabled(string? journalMode) =>
         string.Equals(journalMode, "wal", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<long> GetSchemaVersionAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connectionFactory.CreateCommand(connection, "PRAGMA user_version;");
+        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
+    private async Task<bool> HasApplicationTablesAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connectionFactory.CreateCommand(connection, """
+            SELECT EXISTS(
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name IN ('SpeedTestJobs', 'SpeedTestResults', 'Users', 'DashboardSettings'));
+            """);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
+    }
 }

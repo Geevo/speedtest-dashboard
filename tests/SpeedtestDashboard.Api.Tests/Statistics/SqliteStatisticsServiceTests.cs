@@ -1,4 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Api.Tests.Orchestration;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Statistics;
@@ -184,13 +186,14 @@ public sealed class SqliteStatisticsServiceTests
     private sealed class TestDatabase : IDisposable
     {
         private readonly string _directory;
-        private readonly DashboardDbContext _context;
+        private readonly SqliteConnectionFactory _factory;
+        private readonly List<SpeedTestResultEntity> _pending = [];
         private int _sequence;
 
-        private TestDatabase(string directory, DashboardDbContext context, SqliteStatisticsService service)
+        private TestDatabase(string directory, SqliteConnectionFactory factory, SqliteStatisticsService service)
         {
             _directory = directory;
-            _context = context;
+            _factory = factory;
             Service = service;
         }
 
@@ -200,14 +203,12 @@ public sealed class SqliteStatisticsServiceTests
         {
             var directory = Path.Combine(Path.GetTempPath(), "speedtest-statistics-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            var options = new DbContextOptionsBuilder<DashboardDbContext>()
-                .UseSqlite($"Data Source={Path.Combine(directory, "statistics.db")};Foreign Keys=True")
-                .Options;
-            var context = new DashboardDbContext(options);
-            await context.Database.EnsureCreatedAsync();
-            var factory = new TestContextFactory(options);
+            var storage = Options.Create(new StorageOptions { DatabasePath = Path.Combine(directory, "statistics.db") });
+            var factory = new SqliteConnectionFactory(storage);
             var clock = new ManualTimeProvider(Now);
-            return new TestDatabase(directory, context, new SqliteStatisticsService(factory, clock));
+            var store = new SqliteSpeedTestStore(factory, clock, NullLogger<SqliteSpeedTestStore>.Instance);
+            await new DashboardDatabaseInitializer(factory, store, storage, NullLogger<DashboardDatabaseInitializer>.Instance).InitializeAsync();
+            return new TestDatabase(directory, factory, new SqliteStatisticsService(factory, clock));
         }
 
         public void Add(
@@ -233,7 +234,7 @@ public sealed class SqliteStatisticsServiceTests
                 StartedAtUtc = completed.AddSeconds(-30),
                 CompletedAtUtc = completed
             };
-            _context.SpeedTestResults.Add(new SpeedTestResultEntity
+            _pending.Add(new SpeedTestResultEntity
             {
                 Id = ++_sequence,
                 JobId = id,
@@ -251,18 +252,47 @@ public sealed class SqliteStatisticsServiceTests
             });
         }
 
-        public Task SaveAsync() => _context.SaveChangesAsync();
+        public async Task SaveAsync()
+        {
+            await using var connection = await _factory.OpenConnectionAsync();
+            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync();
+            foreach (var result in _pending)
+            {
+                await using (var job = _factory.CreateCommand(connection, """
+                    INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc, StartedAtUtc, CompletedAtUtc)
+                    VALUES (@id, @provider, @status, 1, @status, @created, @started, @completed);
+                    """, transaction))
+                {
+                    job.Parameters.AddWithValue("@id", result.JobId); job.Parameters.AddWithValue("@provider", result.ProviderId);
+                    job.Parameters.AddWithValue("@status", result.Status); job.Parameters.AddWithValue("@created", result.QueuedAtUtc);
+                    job.Parameters.AddWithValue("@started", result.StartedAtUtc!); job.Parameters.AddWithValue("@completed", result.CompletedAtUtc);
+                    await job.ExecuteNonQueryAsync();
+                }
+                await using var row = _factory.CreateCommand(connection, """
+                    INSERT INTO SpeedTestResults (Id, JobId, ProviderId, Status, QueuedAtUtc, StartedAtUtc, CompletedAtUtc,
+                        DownloadMbps, UploadMbps, LatencyMs, JitterMs, PacketLossPercent, NetworkIsStale)
+                    VALUES (@sequence, @jobId, @provider, @status, @queued, @started, @completed,
+                        @download, @upload, @latency, @jitter, @loss, 0);
+                    """, transaction);
+                Add(row, "@sequence", result.Id); Add(row, "@jobId", result.JobId); Add(row, "@provider", result.ProviderId);
+                Add(row, "@status", result.Status); Add(row, "@queued", result.QueuedAtUtc); Add(row, "@started", result.StartedAtUtc);
+                Add(row, "@completed", result.CompletedAtUtc); Add(row, "@download", result.DownloadMbps);
+                Add(row, "@upload", result.UploadMbps); Add(row, "@latency", result.LatencyMs);
+                Add(row, "@jitter", result.JitterMs); Add(row, "@loss", result.PacketLossPercent);
+                await row.ExecuteNonQueryAsync();
+            }
+            await transaction.CommitAsync();
+            _pending.Clear();
+        }
+
+        private static void Add(SqliteCommand command, string name, object? value) =>
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
 
         public void Dispose()
         {
-            _context.Dispose();
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
         }
     }
 
-    private sealed class TestContextFactory(DbContextOptions<DashboardDbContext> options) : IDbContextFactory<DashboardDbContext>
-    {
-        public DashboardDbContext CreateDbContext() => new(options);
-    }
 }
