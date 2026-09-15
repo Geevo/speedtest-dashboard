@@ -25,7 +25,7 @@ public sealed class SqliteSpeedTestStoreTests
     }
 
     [Fact]
-    public async Task InitialMigrationCreatesFileSchemaAndWalMode()
+    public async Task InitialSchemaCreatesFileTablesAndWalMode()
     {
         using var database = await TestDatabase.CreateAsync();
 
@@ -37,7 +37,6 @@ public sealed class SqliteSpeedTestStoreTests
             while (await reader.ReadAsync()) tables.Add(reader.GetString(0));
         Assert.Contains("SpeedTestJobs", tables);
         Assert.Contains("SpeedTestResults", tables);
-        Assert.DoesNotContain("__EFMigrationsHistory", tables);
 
         await using var command = database.Factory.CreateCommand(connection, "PRAGMA journal_mode;");
         var mode = Convert.ToString(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);

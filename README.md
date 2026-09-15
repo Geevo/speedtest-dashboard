@@ -264,8 +264,6 @@ When `ReverseProxy__TrustForwardedHeaders=true`, the app trusts forwarded header
 
 Back up before changing versions. The current NativeAOT storage schema is versioned by the application; downgrades are not supported.
 
-This branch intentionally starts a new schema because no released deployment used the retired EF Core schema. If an old development database is present, startup rejects it with a clear error; remove that development database to initialize a fresh one.
-
 - Docker/Podman: stop the container before copying `/data`, then recreate it with the new image while keeping the same volume.
 - Proxmox: use normal PVE backup/snapshot tooling, or stop `speedtest-dashboard` before copying `/var/lib/speedtest-dashboard`.
 

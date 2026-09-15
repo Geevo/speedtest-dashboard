@@ -17,11 +17,6 @@ public sealed class DashboardDatabaseInitializer(
 
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         var schemaVersion = await GetSchemaVersionAsync(connection, cancellationToken);
-        if (schemaVersion == 0 && await HasApplicationTablesAsync(connection, cancellationToken))
-        {
-            throw new InvalidOperationException(
-                "The database uses the retired EF Core schema. This NativeAOT build requires a fresh database.");
-        }
         if (schemaVersion > 1)
         {
             throw new InvalidOperationException($"The database schema version {schemaVersion} is newer than this application supports.");
@@ -58,13 +53,4 @@ public sealed class DashboardDatabaseInitializer(
         return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
     }
 
-    private async Task<bool> HasApplicationTablesAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken cancellationToken)
-    {
-        await using var command = connectionFactory.CreateCommand(connection, """
-            SELECT EXISTS(
-                SELECT 1 FROM sqlite_master
-                WHERE type = 'table' AND name IN ('SpeedTestJobs', 'SpeedTestResults', 'Users', 'DashboardSettings'));
-            """);
-        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
-    }
 }
