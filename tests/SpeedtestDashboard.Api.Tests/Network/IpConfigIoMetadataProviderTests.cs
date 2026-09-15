@@ -93,6 +93,26 @@ public sealed class IpConfigIoMetadataProviderTests
         Assert.Null(metadata.CountryName);
     }
 
+    [Theory]
+    [InlineData("gb", "GB")]
+    [InlineData("JP", "JP")]
+    [InlineData("za", "ZA")]
+    public async Task AssignedCountryCodes_AreAcceptedWithoutRuntimeCultureData(
+        string returnedCode,
+        string expectedCode)
+    {
+        using var factory = CreateFactory((_, _) => Task.FromResult(JsonResponse(
+            $$"""{"ip":"8.8.8.8","country_iso":"{{returnedCode}}","country":"Fixture country"}""")));
+
+        var metadata = await CreateProvider(factory).GetMetadataAsync(
+            IPAddress.Parse("8.8.8.8"),
+            CancellationToken.None);
+
+        Assert.NotNull(metadata);
+        Assert.Equal(expectedCode, metadata.CountryCode);
+        Assert.Equal("Fixture country", metadata.CountryName);
+    }
+
     [Fact]
     public async Task MalformedJson_ReturnsNull()
     {
