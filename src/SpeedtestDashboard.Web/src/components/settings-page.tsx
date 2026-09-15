@@ -43,9 +43,9 @@ export function SettingsPage({ theme, onThemeChange, session, onSessionChange }:
   const tabs = ['general', 'database', 'api'] as const
 
   return (
-    <div className="page-enter">
-      <header className="border-b border-line pb-6">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Settings</h1>
+    <div className="settings-page page-enter">
+      <header>
+        <h1 className="page-title">Settings</h1>
       </header>
       <div role="tablist" aria-label="Settings" className="mt-6 flex gap-1 border-b border-line">
         {tabs.map((id) => (
@@ -190,7 +190,7 @@ function DatabaseSection() {
         </Button>
       </div>
 
-      <div className="mt-6 border-y border-line py-5">
+      <div className="mt-6 rounded-xl bg-canvas/65 p-4">
         <DatabaseSize storage={storage.data} loading={storage.isLoading} error={storage.isError} />
       </div>
       {storage.isError && (

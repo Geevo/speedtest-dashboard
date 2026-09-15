@@ -77,12 +77,12 @@ export function ResultsPage() {
   }
   return (
     <div className="page-enter">
-      <header className="mb-7 border-b border-line pb-6 lg:mb-9">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Results</h1>
+      <header className="mb-7 lg:mb-9">
+        <h1 className="page-title">Results</h1>
         <p className="mt-2 text-sm text-ink-muted">Individual speed-test runs and their captured measurements.</p>
       </header>
 
-      <section aria-label="Results filters" className="grid gap-3 pb-6 sm:grid-cols-3 xl:grid-cols-[13rem_13rem_1fr]">
+      <section aria-label="Results filters" className="page-card grid gap-3 p-4 sm:grid-cols-3 sm:p-5 xl:grid-cols-[13rem_13rem_1fr]">
         <FilterSelect label="Provider" value={provider} onChange={(value) => { setProvider(value); resetPagination() }}>
           <option value="all">All providers</option>
           {providers.data?.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
@@ -114,7 +114,7 @@ export function ResultsPage() {
       {history.isLoading ? (
         <div className="grid min-h-72 place-items-center text-sm text-ink-muted"><LoaderCircle className="mb-3 size-5 animate-spin" />Loading results</div>
       ) : history.isError ? (
-        <div role="alert" className="my-8 border-y border-line py-10 text-sm text-ink-muted">Results could not be loaded.</div>
+        <div role="alert" className="page-card-muted my-8 px-5 py-10 text-sm text-ink-muted">Results could not be loaded.</div>
       ) : !history.data || history.data.items.length === 0 ? (
         <EmptyResults />
       ) : (
@@ -178,7 +178,7 @@ function ResultsRecords({ items, selectedId, onSelect, detailProps }: {
 }) {
   return (
     <>
-      <div className="hidden overflow-hidden rounded-xl border border-line bg-paper min-[1440px]:block">
+      <div className="page-card hidden overflow-hidden min-[1440px]:block">
         <div className="grid grid-cols-[9rem_6rem_minmax(10rem,1fr)_6.5rem_6.5rem_5.5rem_minmax(8rem,.7fr)_7.5rem] gap-3 border-b border-line bg-canvas px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
           <span>Time</span><span>Provider</span><span>Server</span><span>Download</span><span>Upload</span><span>Latency</span><span>Egress</span><span>Status</span>
         </div>
@@ -206,7 +206,7 @@ function ResultsRecords({ items, selectedId, onSelect, detailProps }: {
       </div>
       <div className="space-y-3 min-[1440px]:hidden">
         {items.map((item) => (
-          <div key={item.id} className={cn('overflow-hidden rounded-xl border border-line bg-paper', selectedId === item.id && 'border-signal')}>
+          <div key={item.id} className={cn('page-card overflow-hidden', selectedId === item.id && 'border-signal')}>
             <button
               type="button"
               aria-expanded={selectedId === item.id}
@@ -241,7 +241,7 @@ function ResultDetailPanel({ detail, loading, confirmingDelete, deleting, delete
           <Detail label="IPv6 egress" value={identity?.ipv6?.address ?? 'Not available'} secondary={identity?.ipv6?.asName ?? identity?.ipv6?.countryName} />
           <Detail label="Job ID" value={detail.jobId} />
         </dl>
-        {detail.result && <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-5"><DetailMetric icon={ArrowDown} label="Download" value={detail.result.downloadMbps} unit="Mbps" /><DetailMetric icon={ArrowUp} label="Upload" value={detail.result.uploadMbps} unit="Mbps" /><DetailMetric icon={Clock3} label="Latency" value={detail.result.latencyMilliseconds} unit="ms" /><DetailMetric icon={Radio} label="Jitter" value={detail.result.jitterMilliseconds} unit="ms" /><DetailMetric icon={Gauge} label="Loss" value={detail.result.packetLossPercent} unit="%" /></div>}
+        {detail.result && <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5"><DetailMetric icon={ArrowDown} label="Download" value={detail.result.downloadMbps} unit="Mbps" /><DetailMetric icon={ArrowUp} label="Upload" value={detail.result.uploadMbps} unit="Mbps" /><DetailMetric icon={Clock3} label="Latency" value={detail.result.latencyMilliseconds} unit="ms" /><DetailMetric icon={Radio} label="Jitter" value={detail.result.jitterMilliseconds} unit="ms" /><DetailMetric icon={Gauge} label="Loss" value={detail.result.packetLossPercent} unit="%" /></div>}
         {detail.failure && <div className="mt-6 text-sm"><p className="font-semibold">{detail.failure.message}</p><code className="mt-1 block text-xs text-danger">{detail.failure.code}</code></div>}
         <div className="mt-7 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
           {detail.result?.resultUrl ? <a href={detail.result.resultUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-signal underline decoration-signal/35 underline-offset-4">View verified result <ExternalLink className="size-4" /></a> : <span className="text-sm text-ink-muted">No external result link</span>}
@@ -253,12 +253,12 @@ function ResultDetailPanel({ detail, loading, confirmingDelete, deleting, delete
   )
 }
 
-function EmptyResults() { return <section className="my-8 grid min-h-72 place-items-center border-y border-line py-12 text-center"><div><ListChecks className="mx-auto size-6 text-signal" /><h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em]">No matching results</h2><p className="mt-2 text-sm text-ink-muted">Change the filters or run a speed test.</p></div></section> }
+function EmptyResults() { return <section className="page-card-muted my-8 grid min-h-72 place-items-center px-5 py-12 text-center"><div><ListChecks className="mx-auto size-6 text-signal" /><h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em]">No matching results</h2><p className="mt-2 text-sm text-ink-muted">Change the filters or run a speed test.</p></div></section> }
 function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) { return <label><span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">{label}</span><select value={value} className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-semibold outline-none focus:border-signal" onChange={(event) => onChange(event.target.value)}>{children}</select></label> }
 function StatusLabel({ status }: { status: HistoryStatus }) { const Icon = status === 'completed' ? CheckCircle2 : XCircle; return <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold capitalize', status === 'completed' ? 'bg-ok/10 text-ok' : status === 'cancelled' ? 'bg-ink/6 text-ink-muted' : 'bg-danger-soft text-danger')}><Icon className="size-3" />{status}</span> }
 function MetricText({ value, unit }: { value: number | null; unit: string }) { return <span className="tabular-nums">{value === null ? <span className="text-ink-muted">Not available</span> : <>{formatMetric(value)} <span className="text-xs text-ink-muted">{unit}</span></>}</span> }
 function MiniMetric({ label, value, unit }: { label: string; value: number | null; unit: string }) { return <div><p className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-muted">{label}</p><p className="mt-1 text-sm font-semibold tabular-nums">{value === null ? 'N/A' : `${formatMetric(value)} ${unit}`}</p></div> }
-function DetailMetric({ icon: Icon, label, value, unit }: { icon: typeof Gauge; label: string; value: number | null; unit: string }) { return <div className="bg-paper p-4"><p className="flex items-center gap-1.5 text-xs text-ink-muted"><Icon className="size-3" />{label}</p><p className="mt-4 font-semibold tabular-nums">{value === null ? 'Not available' : `${formatMetric(value)} ${unit}`}</p></div> }
+function DetailMetric({ icon: Icon, label, value, unit }: { icon: typeof Gauge; label: string; value: number | null; unit: string }) { return <div className="rounded-xl bg-paper p-4"><p className="flex items-center gap-1.5 text-xs text-ink-muted"><Icon className="size-3" />{label}</p><p className="mt-4 font-semibold tabular-nums">{value === null ? 'Not available' : `${formatMetric(value)} ${unit}`}</p></div> }
 function Detail({ label, value, secondary }: { label: string; value: string; secondary?: string | null }) { return <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-[0.13em] text-ink-muted">{label}</dt><dd className="mt-2 break-words text-sm font-semibold capitalize">{value}</dd>{secondary && <dd className="mt-1 text-xs text-ink-muted">{secondary}</dd>}</div> }
 function rangeStart(range: TimeRange) { if (range === 'all') return undefined; const hours = range === '24h' ? 24 : range === '7d' ? 24 * 7 : 24 * 30; return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString() }
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }

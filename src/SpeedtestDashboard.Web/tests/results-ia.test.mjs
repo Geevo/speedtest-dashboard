@@ -89,7 +89,9 @@ test('overview provider states adapt to the registered provider count', async ()
 
   assert.ok(providerGrid)
   assert.match(providerGrid[1], /repeat\(auto-fit,minmax\(14rem,1fr\)\)/)
-  assert.match(providerGrid[1], /\bgap-px\b/)
+  assert.match(providerGrid[1], /\bpage-card\b/)
+  assert.match(providerGrid[1], /\bgap-3\b/)
+  assert.doesNotMatch(providerGrid[1], /\bgap-px\b/)
 })
 
 test('statistics remains the sole owner of aggregates and charts', async () => {

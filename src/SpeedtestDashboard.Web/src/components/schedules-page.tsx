@@ -38,8 +38,8 @@ export function SchedulesPage() {
 
   return (
     <div className="page-enter">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Schedules</h1>
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="page-title">Schedules</h1>
         <Button type="button" onClick={() => setEditing('new')}>
           <Plus className="mr-1.5 size-4" aria-hidden="true" />
           Create schedule
@@ -59,7 +59,7 @@ export function SchedulesPage() {
           ))}
         </div>
       ) : (
-        <p className="border-b border-line py-10 text-center text-sm text-ink-muted">
+        <p className="page-card-muted px-5 py-10 text-center text-sm text-ink-muted">
           {schedules.isLoading ? 'Loading schedules…' : 'No schedules yet. Create one to run tests automatically.'}
         </p>
       )}
@@ -110,7 +110,7 @@ function ScheduleCard({ schedule, providerName, onEdit, onChanged }: { schedule:
   }
 
   return (
-    <div className="rounded-xl border border-line bg-paper p-5">
+    <div className="page-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +140,7 @@ function ScheduleCard({ schedule, providerName, onEdit, onChanged }: { schedule:
           </Button>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-canvas/65 p-4 text-sm sm:grid-cols-3">
         <div>
           <div className="text-xs font-semibold text-ink-muted">Next run</div>
           <div className="mt-0.5">{formatInTimeZone(schedule.nextRunAtUtc, schedule.timeZoneId)}</div>

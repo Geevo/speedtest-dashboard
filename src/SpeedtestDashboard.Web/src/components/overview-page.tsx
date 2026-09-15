@@ -23,8 +23,8 @@ export function OverviewPage() {
 
   return (
     <div className="page-enter">
-      <header className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Overview</h1>
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="page-title">Overview</h1>
         {nextSchedule && (
           <div className="flex items-center gap-2 text-sm text-ink-muted">
             <CalendarClock className="size-4" aria-hidden="true" />
@@ -42,7 +42,7 @@ export function OverviewPage() {
           <h2 id="snapshot-heading" className="text-2xl font-semibold tracking-[-0.035em]">7-day snapshot</h2>
           <p className="mt-1 text-sm text-ink-muted">Median performance and overall test reliability.</p>
         </div>
-        <div className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
+        <div className="page-card grid grid-cols-2 gap-3 p-3 lg:grid-cols-4 lg:gap-0">
           <Metric icon={ArrowDown} label="Median download" value={statistics.data?.download?.median ?? null} unit="Mbps" />
           <Metric icon={ArrowUp} label="Median upload" value={statistics.data?.upload?.median ?? null} unit="Mbps" />
           <Metric icon={Waves} label="Median latency" value={statistics.data?.latency?.median ?? null} unit="ms" />
@@ -59,13 +59,13 @@ export function OverviewPage() {
           {last && <time className="text-xs text-ink-muted">{formatDate(last.completedAtUtc)}</time>}
         </div>
         {last ? (
-          <div className="grid grid-cols-2 border-y border-line sm:grid-cols-3">
+          <div className="page-card grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 sm:gap-0">
             <Metric icon={ArrowDown} label="Download" value={last.downloadMbps} unit="Mbps" />
             <Metric icon={ArrowUp} label="Upload" value={last.uploadMbps} unit="Mbps" />
             <Metric icon={Waves} label="Latency" value={last.latencyMilliseconds} unit="ms" />
           </div>
         ) : (
-          <p className="border-y border-line py-8 text-sm text-ink-muted">{latest.isLoading ? 'Loading latest test…' : 'No completed tests.'}</p>
+          <p className="page-card-muted px-5 py-8 text-sm text-ink-muted">{latest.isLoading ? 'Loading latest test…' : 'No completed tests.'}</p>
         )}
       </section>
 
@@ -73,11 +73,11 @@ export function OverviewPage() {
         <section aria-labelledby="providers-heading" className="mt-12">
           <h2 id="providers-heading" className="mb-5 text-2xl font-semibold tracking-[-0.035em]">Providers</h2>
           {visibleProviders ? (
-            <div className="grid gap-px border-y border-line bg-line sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
+            <div className="page-card grid gap-3 p-3 sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
               {visibleProviders.map((provider) => <ProviderState key={provider.id} provider={provider} />)}
             </div>
           ) : (
-            <p className="border-y border-line py-8 text-sm text-ink-muted">
+            <p className="page-card-muted px-5 py-8 text-sm text-ink-muted">
               {providers.isError ? 'Provider status could not be loaded.' : 'Checking providers…'}
             </p>
           )}
@@ -89,13 +89,13 @@ export function OverviewPage() {
 
 function Metric({ icon: Icon, label, value, unit }: { icon: typeof ArrowDown; label: string; value: number | null; unit: string }) {
   const rendered = value == null ? 'Not available' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value)
-  return <div className="border-r border-line px-1 py-5 last:border-r-0 sm:py-6"><div className="mb-4 flex items-center gap-2 text-xs font-semibold text-ink-muted"><Icon className="size-3.5" />{label}</div><div className="text-xl font-semibold tabular-nums sm:text-2xl">{rendered}{value != null && <span className="ml-1 text-xs text-ink-muted">{unit}</span>}</div></div>
+  return <div className="rounded-xl bg-canvas/65 px-4 py-5 lg:rounded-none lg:bg-transparent lg:px-5 lg:first:rounded-l-xl lg:last:rounded-r-xl"><div className="mb-4 flex items-center gap-2 text-xs font-semibold text-ink-muted"><Icon className="size-3.5" />{label}</div><div className="text-xl font-semibold tabular-nums sm:text-2xl">{rendered}{value != null && <span className="ml-1 text-xs text-ink-muted">{unit}</span>}</div></div>
 }
 
 function ProviderState({ provider }: { provider: ProviderSummary }) {
   const available = provider.healthState === 'available'
   return (
-    <div className="flex min-w-0 items-start gap-3 bg-canvas px-0 py-5 sm:px-6">
+    <div className="flex min-w-0 items-start gap-3 rounded-xl bg-canvas/65 px-4 py-5">
       <span className={available ? 'mt-1.5 size-2 shrink-0 rounded-full bg-ok' : 'mt-1.5 size-2 shrink-0 rounded-full bg-ink-muted/40'} />
       <div className="min-w-0">
         <p className="font-semibold">{provider.displayName}</p>

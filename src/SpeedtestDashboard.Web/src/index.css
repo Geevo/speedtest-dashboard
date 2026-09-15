@@ -27,6 +27,8 @@
   -webkit-font-smoothing: antialiased;
   --sidebar-width: 17rem;
   --brand-tile-bg: oklch(0.91 0.006 260);
+  --page-card-radius: 1rem;
+  --page-card-line: color-mix(in oklch, var(--color-line), var(--color-paper) 28%);
   color-scheme: light;
 }
 
@@ -83,6 +85,34 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+/* Page surfaces use quiet containment; the navigation keeps its own visual language. */
+.page-card {
+  border: 1px solid var(--page-card-line);
+  border-radius: var(--page-card-radius);
+  background: var(--color-paper);
+}
+
+.page-card-muted {
+  border: 1px solid var(--page-card-line);
+  border-radius: var(--page-card-radius);
+  background: color-mix(in oklch, var(--color-paper), var(--color-canvas) 38%);
+}
+
+.page-title {
+  font-size: 1.875rem;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.032em;
+}
+
+.settings-page [role="tabpanel"] > section {
+  margin-top: 1rem;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  border: 1px solid var(--page-card-line);
+  border-radius: var(--page-card-radius);
+  background: var(--color-paper);
 }
 
 .brand-tile {

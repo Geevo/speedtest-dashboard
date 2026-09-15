@@ -50,12 +50,12 @@ export function StatisticsPage() {
 
   return (
     <div className="page-enter">
-      <header className="mb-7 border-b border-line pb-6 lg:mb-9">
-        <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Statistics</h1>
+      <header className="mb-7 lg:mb-9">
+        <h1 className="page-title">Statistics</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">Aggregate performance and reliability from saved results.</p>
       </header>
 
-      <section aria-label="Statistics filters" className="grid gap-5 border-b border-line pb-7 lg:grid-cols-[1fr_20rem] lg:items-end">
+      <section aria-label="Statistics filters" className="page-card grid gap-5 p-4 sm:p-5 lg:grid-cols-[1fr_20rem] lg:items-end">
         <fieldset>
           <legend className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">Time range</legend>
           <div className="grid grid-cols-5 overflow-hidden rounded-xl border border-line bg-paper">
@@ -85,10 +85,10 @@ export function StatisticsPage() {
       {statistics.isLoading ? (
         <div className="grid min-h-72 place-items-center text-sm text-ink-muted"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" />Calculating statistics</span></div>
       ) : statistics.isError || !data ? (
-        <div role="alert" className="my-8 border-y border-line py-10 text-sm text-ink-muted">Statistics could not be loaded.</div>
+        <div role="alert" className="page-card-muted my-8 px-5 py-10 text-sm text-ink-muted">Statistics could not be loaded.</div>
       ) : (
         <>
-          <section aria-labelledby="test-summary-heading" className="mt-9 overflow-hidden rounded-[1.25rem] border border-line bg-paper">
+          <section aria-labelledby="test-summary-heading" className="page-card mt-7 overflow-hidden">
             <div className="grid gap-7 p-5 sm:p-7 lg:grid-cols-[1.1fr_2fr] lg:items-end">
               <div>
                 <p id="test-summary-heading" className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">Tests</p>
@@ -106,7 +106,7 @@ export function StatisticsPage() {
           </section>
 
           {data.tests.total === 0 ? (
-            <section className="my-8 grid min-h-64 place-items-center border-y border-line py-12 text-center">
+            <section className="page-card-muted my-8 grid min-h-64 place-items-center px-5 py-12 text-center">
               <div><Gauge className="mx-auto size-6 text-signal" /><h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em]">No tests in this range</h2><p className="mt-2 text-sm text-ink-muted">Choose a wider window or run a speed test.</p></div>
             </section>
           ) : (
@@ -118,7 +118,7 @@ export function StatisticsPage() {
                 <MetricPanel title="Jitter" icon={Radio} metric={data.jitter} unit="ms" kind="latency" lowerBetter />
               </div>
 
-              <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-paper px-5 py-4">
+              <section className="page-card mt-5 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                 <div><p className="text-sm font-semibold">Packet loss</p><p className="mt-1 text-xs text-ink-muted">Only tests where the provider reported a measurement</p></div>
                 <div className="text-right"><p className="text-2xl font-semibold tabular-nums">{metricValue(data.packetLoss?.median, '%')}</p><p className="text-xs text-ink-muted">median · {data.packetLoss?.count ?? 0} measured</p></div>
               </section>
@@ -166,7 +166,7 @@ function MetricPanel({ title, icon: Icon, metric, unit, kind, lowerBetter = fals
   const columns = kind === 'throughput'
     ? [{ label: 'Latest', value: metric?.latest }, { label: 'Median', value: metric?.median }, { label: 'Average', value: metric?.average }, { label: 'Best', value: metric?.maximum }, { label: 'Worst', value: metric?.minimum }]
     : [{ label: 'Latest', value: metric?.latest }, { label: 'Median', value: metric?.median }, { label: 'Average', value: metric?.average }, { label: 'P95', value: metric?.p95 }, { label: 'Best', value: metric?.minimum }, { label: 'Worst', value: metric?.maximum }]
-  return <section className="min-w-0 rounded-[1.25rem] border border-line bg-paper p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="flex items-center gap-2 text-xl font-semibold tracking-[-0.03em]"><Icon className="size-4 text-signal" />{title}</h2><p className="mt-1 text-xs text-ink-muted">{metric?.count ?? 0} measured</p></div><Trend value={metric?.trendPercent} lowerBetter={lowerBetter} /></div>{metric ? <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3">{columns.map((item) => <div className="min-w-0" key={item.label}><dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">{item.label}</dt><dd className="mt-1.5 break-words text-lg font-semibold tabular-nums">{metricValue(item.value, unit)}</dd></div>)}</dl> : <p className="mt-7 border-t border-line pt-5 text-sm text-ink-muted">No measurements available.</p>}</section>
+  return <section className="page-card min-w-0 p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="flex items-center gap-2 text-xl font-semibold tracking-[-0.03em]"><Icon className="size-4 text-signal" />{title}</h2><p className="mt-1 text-xs text-ink-muted">{metric?.count ?? 0} measured</p></div><Trend value={metric?.trendPercent} lowerBetter={lowerBetter} /></div>{metric ? <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3">{columns.map((item) => <div className="min-w-0" key={item.label}><dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">{item.label}</dt><dd className="mt-1.5 break-words text-lg font-semibold tabular-nums">{metricValue(item.value, unit)}</dd></div>)}</dl> : <p className="mt-7 rounded-xl bg-canvas/65 p-4 text-sm text-ink-muted">No measurements available.</p>}</section>
 }
 
 function Trend({ value, lowerBetter }: { value: number | null | undefined; lowerBetter: boolean }) {
@@ -176,12 +176,12 @@ function Trend({ value, lowerBetter }: { value: number | null | undefined; lower
 }
 
 function ProviderComparison({ providers, providerNames }: { providers: Awaited<ReturnType<typeof getStatistics>>['providers']; providerNames: ReadonlyMap<string, string> }) {
-  return <section aria-labelledby="provider-comparison-heading" className="mt-10 border-t border-line pt-7"><div className="mb-5"><h2 id="provider-comparison-heading" className="text-2xl font-semibold tracking-[-0.035em]">Provider comparison</h2><p className="mt-1 text-sm text-ink-muted">Medians stay provider-specific because measurement support can differ.</p></div><div className="grid gap-4 lg:grid-cols-2">{providers.map((item) => <article key={item.provider} className="rounded-xl border border-line bg-paper p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold">{providerNames.get(item.provider) ?? item.provider}</h3><span className="text-xs font-semibold text-ink-muted">{item.tests.completed} successful · {metricValue(item.tests.successRate, '%')}</span></div><dl className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4"><ComparisonMetric label="Download" value={item.medianDownloadMbps} unit="Mbps" /><ComparisonMetric label="Upload" value={item.medianUploadMbps} unit="Mbps" /><ComparisonMetric label="Latency" value={item.medianLatencyMilliseconds} unit="ms" /><ComparisonMetric label="Jitter" value={item.medianJitterMilliseconds} unit="ms" /></dl></article>)}</div></section>
+  return <section aria-labelledby="provider-comparison-heading" className="mt-10"><div className="mb-5"><h2 id="provider-comparison-heading" className="text-2xl font-semibold tracking-[-0.035em]">Provider comparison</h2><p className="mt-1 text-sm text-ink-muted">Medians stay provider-specific because measurement support can differ.</p></div><div className="grid gap-4 lg:grid-cols-2">{providers.map((item) => <article key={item.provider} className="page-card p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold">{providerNames.get(item.provider) ?? item.provider}</h3><span className="text-xs font-semibold text-ink-muted">{item.tests.completed} successful · {metricValue(item.tests.successRate, '%')}</span></div><dl className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4"><ComparisonMetric label="Download" value={item.medianDownloadMbps} unit="Mbps" /><ComparisonMetric label="Upload" value={item.medianUploadMbps} unit="Mbps" /><ComparisonMetric label="Latency" value={item.medianLatencyMilliseconds} unit="ms" /><ComparisonMetric label="Jitter" value={item.medianJitterMilliseconds} unit="ms" /></dl></article>)}</div></section>
 }
 
 function ComparisonMetric({ label, value, unit }: { label: string; value: number | null; unit: string }) { return <div><dt className="text-[10px] font-bold uppercase tracking-[.12em] text-ink-muted">{label}</dt><dd className="mt-1.5 font-semibold tabular-nums">{metricValue(value, unit)}</dd></div> }
 function Count({ label, value, suffix = '', tone }: { label: string; value: number | null; suffix?: string; tone?: 'ok' | 'danger' }) { return <div><dt className="text-[10px] font-bold uppercase tracking-[.12em] text-ink-muted">{label}</dt><dd className={cn('mt-1.5 text-xl font-semibold tabular-nums', tone === 'ok' && 'text-ok', tone === 'danger' && 'text-danger')}>{value == null ? 'N/A' : `${formatNumber(value)}${suffix}`}</dd></div> }
-function ChartPanel({ title, note, children }: { title: string; note: string; children: ReactNode }) { return <section className="min-w-0 rounded-[1.25rem] border border-line bg-paper p-4 sm:p-6"><div className="mb-2"><h2 className="text-xl font-semibold tracking-[-0.03em]">{title}</h2><p className="mt-1 text-xs text-ink-muted">{note}</p></div>{children}</section> }
+function ChartPanel({ title, note, children }: { title: string; note: string; children: ReactNode }) { return <section className="page-card min-w-0 p-4 sm:p-6"><div className="mb-2"><h2 className="text-xl font-semibold tracking-[-0.03em]">{title}</h2><p className="mt-1 text-xs text-ink-muted">{note}</p></div>{children}</section> }
 function metricValue(value: number | null | undefined, unit: string) { return value == null ? 'N/A' : `${formatNumber(value)} ${unit}` }
 function formatNumber(value: number) { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value) }
 function chartLabel(value: string, range: StatisticsRange) { return new Intl.DateTimeFormat(undefined, range === '24h' ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric' }).format(new Date(value)) }

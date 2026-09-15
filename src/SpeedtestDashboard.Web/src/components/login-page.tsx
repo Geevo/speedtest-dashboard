@@ -61,7 +61,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionRespons
             <span className="font-semibold">Speedtest Dashboard</span>
           </div>
           <LockKeyhole className="mb-6 size-6 text-ink-muted" strokeWidth={1.7} aria-hidden="true" />
-          <h1 className="text-[clamp(2.25rem,7vw,3.5rem)] font-semibold leading-none tracking-[-0.055em]">Sign in</h1>
+          <h1 className="page-title">Sign in</h1>
           <p className="mt-4 text-sm leading-6 text-ink-muted">Use the local operator account for this dashboard.</p>
 
           <form className="mt-9 space-y-5" onSubmit={submit}>

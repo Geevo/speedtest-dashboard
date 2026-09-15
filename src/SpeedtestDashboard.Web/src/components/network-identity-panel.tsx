@@ -41,9 +41,9 @@ export function NetworkIdentityPanel() {
 
   if (identity.isError) {
     return (
-      <section aria-labelledby="identity-heading">
+      <section aria-labelledby="identity-heading" className="page-card p-5 sm:p-6">
         <h2 id="identity-heading" className="text-2xl font-semibold tracking-[-0.035em]">Network</h2>
-        <div className="mt-5 flex flex-col gap-4 border-y border-line py-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-5 flex flex-col gap-4 rounded-xl bg-canvas/65 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-ink-muted">Public addresses could not be loaded.</p>
           <Button variant="outline" onClick={() => void identity.refetch()}>
             <RefreshCw className="size-4" /> Try again
@@ -58,7 +58,7 @@ export function NetworkIdentityPanel() {
   const refreshError = refresh.error instanceof ApiError ? refresh.error : null
 
   return (
-    <section aria-labelledby="identity-heading">
+    <section aria-labelledby="identity-heading" className="page-card p-5 sm:p-6">
       <div className="mb-5 flex items-start justify-between gap-5">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -79,7 +79,7 @@ export function NetworkIdentityPanel() {
           </Button>
       </div>
 
-      <div className="grid border-y border-line md:grid-cols-2 md:divide-x md:divide-line">
+      <div className="grid gap-3 md:grid-cols-2">
         <AddressBlock label="IPv4" identity={data.ipv4} />
         <AddressBlock label="IPv6" identity={data.ipv6} />
       </div>
@@ -113,7 +113,7 @@ export function NetworkIdentityPanel() {
 function AddressBlock({ label, identity }: { label: string; identity: NetworkAddressIdentity | null }) {
   const location = identity ? formatLocation(identity) : null
   return (
-    <article className="py-5 md:min-h-36 md:px-6 md:first:pl-0">
+    <article className="min-w-0 rounded-xl bg-canvas/65 p-4 sm:p-5 md:min-h-36">
       <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">
         <Globe2 className="size-3.5" />
         {label}
@@ -135,11 +135,11 @@ function AddressBlock({ label, identity }: { label: string; identity: NetworkAdd
 
 function IdentityLoading() {
   return (
-    <section aria-labelledby="identity-heading" aria-busy="true">
+    <section aria-labelledby="identity-heading" aria-busy="true" className="page-card p-5 sm:p-6">
       <h2 id="identity-heading" className="text-2xl font-semibold tracking-[-0.035em]">Network</h2>
-      <div className="mt-5 grid border-y border-line md:grid-cols-2 md:divide-x md:divide-line">
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
         {[0, 1].map((item) => (
-          <div key={item} className="min-h-36 py-5 md:px-6 md:first:pl-0">
+          <div key={item} className="min-h-36 rounded-xl bg-canvas/65 p-5">
             <div className="h-3 w-10 animate-pulse rounded bg-line motion-reduce:animate-none" />
             <div className="mt-6 h-6 w-4/5 animate-pulse rounded bg-line/75 motion-reduce:animate-none" />
           </div>
