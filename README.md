@@ -307,8 +307,31 @@ FAST.com executables into the directory used by the launch profile:
 ```
 
 The bootstrap scripts verify archive checksums before installing anything.
-M-Lab remains a source-built release dependency and Ookla retains its separate
-licence-acceptance process, so both are disabled by the local debug profiles.
+M-Lab and Ookla are deliberately opt-in:
+
+```bash
+# Linux: M-Lab requires Go; Ookla also requires dpkg-deb.
+./scripts/bootstrap-providers.sh --include-mlab
+./scripts/bootstrap-providers.sh --include-ookla \
+  --accept-ookla-license --accept-ookla-gdpr
+```
+
+```powershell
+# Windows PowerShell: M-Lab requires Go; Ookla's Windows binary is x64.
+.\scripts\bootstrap-providers.ps1 -IncludeMLab
+.\scripts\bootstrap-providers.ps1 -IncludeOokla `
+  -AcceptOoklaLicense -AcceptOoklaGdpr
+```
+
+The include parameters prevent a normal debug setup from building extra source
+or downloading proprietary software. Before using the Ookla switches, review
+its [licence](https://www.speedtest.net/about/eula),
+[terms](https://www.speedtest.net/about/terms), and
+[privacy policy](https://www.speedtest.net/about/privacy). Bootstrap does not
+persist runtime consent; set `Providers__Ookla__AcceptLicense=true` and
+`Providers__Ookla__AcceptGdpr=true` in the debug environment when you run it.
+The launch profiles already contain the correct executable paths for all four
+providers; providers that have not been bootstrapped simply report unavailable.
 
 Alternatively, launch with explicit paths:
 

@@ -12,8 +12,8 @@
         "Authentication__DataProtectionPath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\dataprotection",
         "Providers__FastCom__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\fast-cli.exe",
         "Providers__LibreSpeed__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\librespeed-cli.exe",
-        "Providers__MLab__Enabled": "false",
-        "Providers__Ookla__Enabled": "false",
+        "Providers__MLab__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\mlab-ndt7-client.exe",
+        "Providers__Ookla__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\speedtest.exe",
         "Storage__DatabasePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\speedtest.db"
       }
     },
@@ -28,8 +28,8 @@
         "Authentication__DataProtectionPath": "%HOME%/.local/share/speedtest-dashboard/development/dataprotection",
         "Providers__FastCom__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/fast-cli",
         "Providers__LibreSpeed__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/librespeed-cli",
-        "Providers__MLab__Enabled": "false",
-        "Providers__Ookla__Enabled": "false",
+        "Providers__MLab__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/mlab-ndt7-client",
+        "Providers__Ookla__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/speedtest",
         "Storage__DatabasePath": "%HOME%/.local/share/speedtest-dashboard/development/speedtest.db"
       }
     }
