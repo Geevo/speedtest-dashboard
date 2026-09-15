@@ -1,6 +1,7 @@
 using System.Text.Json;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.Serialization;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.MLab;
 
@@ -40,18 +41,18 @@ public sealed class MLabResultParser
             var downloadId = OptionalBoundedString(download, "UUID", 128);
             var uploadId = OptionalBoundedString(upload, "UUID", 128);
             var retransmission = OptionalMeasurement(download, "Retransmission", "%");
-            var metadata = JsonSerializer.Serialize(new
-            {
-                measurementProtocol = "ndt7",
-                serverSelection = "mlab-managed",
-                serverIp,
-                clientIp,
-                downloadMeasurementId = downloadId,
-                uploadMeasurementId = uploadId,
-                latencyMethod = downloadLatency is not null ? "download-min-rtt" : uploadLatency is not null ? "upload-min-rtt" : null,
-                downloadRetransmissionPercent = retransmission,
-                dataPublication = "measurement-lab-public"
-            });
+            var metadata = JsonSerializer.Serialize(
+                new MLabMetadata(
+                    "ndt7",
+                    "mlab-managed",
+                    serverIp,
+                    clientIp,
+                    downloadId,
+                    uploadId,
+                    downloadLatency is not null ? "download-min-rtt" : uploadLatency is not null ? "upload-min-rtt" : null,
+                    retransmission,
+                    "measurement-lab-public"),
+                InfrastructureJsonSerializerContext.Default.MLabMetadata);
 
             return new SpeedTestResult(
                 MLabProviderDefinition.Id,

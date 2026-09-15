@@ -54,6 +54,31 @@ COPY packaging/providers/download-fast-cli.sh /usr/local/bin/download-fast-cli
 RUN chmod 0755 /usr/local/bin/download-fast-cli \
     && TARGETARCH="$TARGETARCH" OUTPUT_DIR=/out /usr/local/bin/download-fast-cli
 
+FROM alpine:3.22 AS healthcheck-build
+WORKDIR /source
+RUN apk add --no-cache build-base
+COPY packaging/containers/healthcheck.c ./
+RUN mkdir -p /out \
+    && cc -static -Os -s -o /out/healthcheck healthcheck.c
+
+FROM debian:bookworm-slim AS ookla-fetch
+ARG TARGETARCH
+ARG INSTALL_OOKLA=false
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY packaging/providers/download-ookla.sh packaging/providers/OOKLA_NOTICE.md /tmp/ookla/
+RUN set -eu; \
+    mkdir -p /out /data; \
+    if [ "$INSTALL_OOKLA" = "true" ]; then \
+      TARGETARCH="$TARGETARCH" OUTPUT_DIR=/tmp/ookla sh /tmp/ookla/download-ookla.sh; \
+      dpkg-deb --extract /tmp/ookla/ookla-speedtest.deb /out; \
+      mkdir -p /out/usr/share/doc/speedtest-dashboard; \
+      cp /tmp/ookla/OOKLA_NOTICE.md /out/usr/share/doc/speedtest-dashboard/OOKLA_NOTICE.md; \
+    elif [ "$INSTALL_OOKLA" != "false" ]; then \
+      echo "INSTALL_OOKLA must be true or false" >&2; exit 1; \
+    fi
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS api-build
 ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
@@ -79,14 +104,12 @@ RUN dotnet publish src/SpeedtestDashboard.Api/SpeedtestDashboard.Api.csproj \
     -p:IsTransformWebConfigDisabled=true \
     -p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS runtime
-ARG TARGETARCH
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-noble-chiseled-extra AS runtime
 ARG APP_VERSION=0.0.0-local
 ARG SOURCE_REVISION=unknown
 ARG BUILD_DATE=unknown
 ARG SOURCE_URL=""
 ARG DOCUMENTATION_URL=""
-ARG INSTALL_OOKLA=false
 LABEL org.opencontainers.image.title="Speedtest Dashboard" \
       org.opencontainers.image.description="A self-hosted dashboard for testing a server or container network connection." \
       org.opencontainers.image.source="$SOURCE_URL" \
@@ -95,35 +118,22 @@ LABEL org.opencontainers.image.title="Speedtest Dashboard" \
       org.opencontainers.image.revision="$SOURCE_REVISION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.licenses="MIT AND LGPL-3.0-only AND Apache-2.0"
-USER root
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /data /usr/share/doc/speedtest-dashboard /usr/share/licenses/speedtest-dashboard \
-    && chown app:app /data
-COPY packaging/providers/download-ookla.sh packaging/providers/OOKLA_NOTICE.md /tmp/ookla/
-RUN set -eu; if [ "$INSTALL_OOKLA" = "true" ]; then \
-      TARGETARCH="$TARGETARCH" OUTPUT_DIR=/tmp/ookla sh /tmp/ookla/download-ookla.sh; \
-      dpkg --install /tmp/ookla/ookla-speedtest.deb; \
-      cp /tmp/ookla/OOKLA_NOTICE.md /usr/share/doc/speedtest-dashboard/OOKLA_NOTICE.md; \
-    elif [ "$INSTALL_OOKLA" != "false" ]; then \
-      echo "INSTALL_OOKLA must be true or false" >&2; exit 1; \
-    fi; \
-    rm -rf /tmp/ookla
+COPY --from=ookla-fetch /out/ /
+COPY --from=ookla-fetch --chown=1654:1654 /data /data
 COPY --from=librespeed-build --chmod=0755 /out/librespeed-cli /usr/local/bin/librespeed-cli
 COPY --from=librespeed-build --chmod=0644 /out/LICENSE.librespeed-cli /usr/share/licenses/librespeed-cli/LICENSE
 COPY --from=fastcom-fetch --chmod=0755 /out/fast-cli /usr/local/bin/fast-cli
 COPY --from=fastcom-fetch --chmod=0644 /out/LICENSE.fast-cli /usr/share/licenses/fast-cli/LICENSE
 COPY --from=mlab-build --chmod=0755 /out/mlab-ndt7-client /usr/local/bin/mlab-ndt7-client
 COPY --from=mlab-build --chmod=0644 /out/LICENSE.mlab-ndt7-client /usr/share/licenses/mlab-ndt7-client/LICENSE
+COPY --from=healthcheck-build --chmod=0755 /out/healthcheck /usr/local/bin/healthcheck
 WORKDIR /app
 COPY --from=api-build --chown=app:app /app/publish/ ./
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/speedtest-dashboard/THIRD_PARTY_NOTICES.md
 COPY LICENSE /usr/share/licenses/speedtest-dashboard/LICENSE
-USER app
 ENV DASHBOARD_PORT=8080
 EXPOSE 8080
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail --silent --show-error "http://127.0.0.1:${DASHBOARD_PORT:-8080}/api/health"
+    CMD ["/usr/local/bin/healthcheck"]
 ENTRYPOINT ["dotnet", "SpeedtestDashboard.Api.dll"]

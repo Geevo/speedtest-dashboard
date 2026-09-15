@@ -1,16 +1,19 @@
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
 
-internal readonly record struct HistoryCursor(DateTime CompletedAtUtc, long Id)
+internal readonly partial record struct HistoryCursor(DateTime CompletedAtUtc, long Id)
 {
     private const int MaximumEncodedLength = 256;
 
     public string Encode()
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new CursorPayload(CompletedAtUtc.ToString("O"), Id));
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new CursorPayload(CompletedAtUtc.ToString("O"), Id),
+            CursorJsonSerializerContext.Default.CursorPayload);
         return Convert.ToBase64String(payload).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
@@ -28,7 +31,9 @@ internal readonly record struct HistoryCursor(DateTime CompletedAtUtc, long Id)
             var normalized = encoded.Replace('-', '+').Replace('_', '/');
             normalized = normalized.PadRight(normalized.Length + ((4 - normalized.Length % 4) % 4), '=');
             var bytes = Convert.FromBase64String(normalized);
-            var payload = JsonSerializer.Deserialize<CursorPayload>(bytes);
+            var payload = JsonSerializer.Deserialize(
+                bytes,
+                CursorJsonSerializerContext.Default.CursorPayload);
             if (payload is null || payload.Id <= 0 ||
                 !DateTime.TryParseExact(
                     payload.CompletedAtUtc,
@@ -50,4 +55,7 @@ internal readonly record struct HistoryCursor(DateTime CompletedAtUtc, long Id)
     }
 
     private sealed record CursorPayload(string CompletedAtUtc, long Id);
+
+    [JsonSerializable(typeof(CursorPayload))]
+    private sealed partial class CursorJsonSerializerContext : JsonSerializerContext;
 }

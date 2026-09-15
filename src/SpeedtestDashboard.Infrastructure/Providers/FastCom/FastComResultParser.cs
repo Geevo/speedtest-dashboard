@@ -1,6 +1,7 @@
 using System.Text.Json;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.Serialization;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.FastCom;
 
@@ -38,11 +39,9 @@ public sealed class FastComResultParser
             var downloadMbps = RequireNonNegativeDecimal(root, "download_mbps");
             var uploadMbps = RequireNonNegativeDecimal(root, "upload_mbps");
             var latencyMilliseconds = GetOptionalNonNegativeDecimal(root, "ping_ms");
-            var metadata = JsonSerializer.Serialize(new
-            {
-                latencyMethod = "http-head",
-                serverSelection = "fast.com-managed"
-            });
+            var metadata = JsonSerializer.Serialize(
+                new FastComMetadata("http-head", "fast.com-managed"),
+                InfrastructureJsonSerializerContext.Default.FastComMetadata);
 
             return new SpeedTestResult(
                 FastComProviderDefinition.Id,

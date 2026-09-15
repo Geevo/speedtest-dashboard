@@ -83,7 +83,7 @@ public sealed class SqliteSpeedTestStore(
         }
 
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var records = context.SpeedTestResults.AsNoTracking().AsQueryable();
+        var records = context.SpeedTestResults.AsNoTracking();
 
         if (query.ProviderId is not null)
         {

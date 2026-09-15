@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.Serialization;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.LibreSpeed;
 
@@ -60,16 +61,16 @@ public sealed class LibreSpeedResultParser
             var serverId = requestedServerId ?? matchedServer?.Server.Id;
             var client = GetOptionalObject(root, "client");
 
-            var metadata = JsonSerializer.Serialize(new
-            {
-                timestamp = GetOptionalTimestamp(root),
-                bytesSent = GetOptionalUnsignedInteger(root, "bytes_sent"),
-                bytesReceived = GetOptionalUnsignedInteger(root, "bytes_received"),
-                libreSpeedReportedClientIp = client is null ? null : GetOptionalText(client.Value, "ip"),
-                libreSpeedReportedClientOrganization = client is null ? null : GetOptionalText(client.Value, "org"),
-                serverUrl = resultServerUri.AbsoluteUri,
-                httpPing = true
-            });
+            var metadata = JsonSerializer.Serialize(
+                new LibreSpeedMetadata(
+                    GetOptionalTimestamp(root),
+                    GetOptionalUnsignedInteger(root, "bytes_sent"),
+                    GetOptionalUnsignedInteger(root, "bytes_received"),
+                    client is null ? null : GetOptionalText(client.Value, "ip"),
+                    client is null ? null : GetOptionalText(client.Value, "org"),
+                    resultServerUri.AbsoluteUri,
+                    HttpPing: true),
+                InfrastructureJsonSerializerContext.Default.LibreSpeedMetadata);
 
             return new SpeedTestResult(
                 LibreSpeedProviderDefinition.Id,

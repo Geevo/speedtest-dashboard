@@ -1,6 +1,7 @@
 using System.Text.Json;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.Serialization;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.Ookla;
 
@@ -51,26 +52,26 @@ public sealed class OoklaResultParser
             }
 
             var resultUrl = result is null ? null : ValidateResultUrl(GetOptionalText(result.Value, "url"));
-            var metadata = JsonSerializer.Serialize(new
-            {
-                timestamp = GetOptionalTimestamp(root),
-                isp = GetOptionalText(root, "isp"),
-                pingLow = GetOptionalNonNegativeDecimal(ping, "low"),
-                pingHigh = GetOptionalNonNegativeDecimal(ping, "high"),
-                downloadBytes = GetOptionalNonNegativeDecimal(download, "bytes"),
-                downloadElapsedMilliseconds = GetOptionalNonNegativeDecimal(download, "elapsed"),
-                downloadLatency = ParseLatency(GetOptionalObject(download, "latency")),
-                uploadBytes = GetOptionalNonNegativeDecimal(upload, "bytes"),
-                uploadElapsedMilliseconds = GetOptionalNonNegativeDecimal(upload, "elapsed"),
-                uploadLatency = ParseLatency(GetOptionalObject(upload, "latency")),
-                internalIp = networkInterface is null ? null : GetOptionalText(networkInterface.Value, "internalIp"),
-                ooklaReportedExternalIp = networkInterface is null ? null : GetOptionalText(networkInterface.Value, "externalIp"),
-                serverHost = GetOptionalText(server, "host"),
-                serverPort = GetOptionalNonNegativeDecimal(server, "port"),
-                serverIp = GetOptionalText(server, "ip"),
-                resultId = result is null ? null : GetOptionalText(result.Value, "id"),
-                resultPersisted = result is null ? null : GetOptionalBoolean(result.Value, "persisted")
-            });
+            var metadata = JsonSerializer.Serialize(
+                new OoklaMetadata(
+                    GetOptionalTimestamp(root),
+                    GetOptionalText(root, "isp"),
+                    GetOptionalNonNegativeDecimal(ping, "low"),
+                    GetOptionalNonNegativeDecimal(ping, "high"),
+                    GetOptionalNonNegativeDecimal(download, "bytes"),
+                    GetOptionalNonNegativeDecimal(download, "elapsed"),
+                    ParseLatency(GetOptionalObject(download, "latency")),
+                    GetOptionalNonNegativeDecimal(upload, "bytes"),
+                    GetOptionalNonNegativeDecimal(upload, "elapsed"),
+                    ParseLatency(GetOptionalObject(upload, "latency")),
+                    networkInterface is null ? null : GetOptionalText(networkInterface.Value, "internalIp"),
+                    networkInterface is null ? null : GetOptionalText(networkInterface.Value, "externalIp"),
+                    GetOptionalText(server, "host"),
+                    GetOptionalNonNegativeDecimal(server, "port"),
+                    GetOptionalText(server, "ip"),
+                    result is null ? null : GetOptionalText(result.Value, "id"),
+                    result is null ? null : GetOptionalBoolean(result.Value, "persisted")),
+                InfrastructureJsonSerializerContext.Default.OoklaMetadata);
 
             return new SpeedTestResult(
                 OoklaProviderDefinition.Id,
@@ -219,20 +220,18 @@ public sealed class OoklaResultParser
         };
     }
 
-    private static object? ParseLatency(JsonElement? latency)
+    private static OoklaLatencyMetadata? ParseLatency(JsonElement? latency)
     {
         if (latency is null)
         {
             return null;
         }
 
-        return new
-        {
-            iqm = GetOptionalNonNegativeDecimal(latency.Value, "iqm"),
-            low = GetOptionalNonNegativeDecimal(latency.Value, "low"),
-            high = GetOptionalNonNegativeDecimal(latency.Value, "high"),
-            jitter = GetOptionalNonNegativeDecimal(latency.Value, "jitter")
-        };
+        return new OoklaLatencyMetadata(
+            GetOptionalNonNegativeDecimal(latency.Value, "iqm"),
+            GetOptionalNonNegativeDecimal(latency.Value, "low"),
+            GetOptionalNonNegativeDecimal(latency.Value, "high"),
+            GetOptionalNonNegativeDecimal(latency.Value, "jitter"));
     }
 
     private static string? ValidateResultUrl(string? value)

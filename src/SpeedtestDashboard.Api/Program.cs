@@ -3,6 +3,7 @@ using SpeedtestDashboard.Api.ApiKeys;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Api.Endpoints;
 using SpeedtestDashboard.Api.Hosting;
+using SpeedtestDashboard.Api.Serialization;
 using SpeedtestDashboard.Core;
 using SpeedtestDashboard.Infrastructure;
 using SpeedtestDashboard.Infrastructure.ApiKeys;
@@ -10,6 +11,9 @@ using SpeedtestDashboard.Infrastructure.Network;
 using SpeedtestDashboard.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, ApiJsonSerializerContext.Default));
 
 var dashboardListenUrl = DashboardPortConfiguration.GetListenUrl(
     Environment.GetEnvironmentVariable(DashboardPortConfiguration.EnvironmentVariableName));
