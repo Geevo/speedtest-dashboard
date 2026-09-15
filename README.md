@@ -262,7 +262,9 @@ When `ReverseProxy__TrustForwardedHeaders=true`, the app trusts forwarded header
 
 ## Backups and updates
 
-Back up before changing versions. The current NativeAOT storage schema is versioned by the application; downgrades are not supported.
+Back up before changing versions. DbUp applies the application's embedded,
+append-only SQLite migrations before the web server starts; downgrades are not
+supported.
 
 - Docker/Podman: stop the container before copying `/data`, then recreate it with the new image while keeping the same volume.
 - Proxmox: use normal PVE backup/snapshot tooling, or stop `speedtest-dashboard` before copying `/var/lib/speedtest-dashboard`.

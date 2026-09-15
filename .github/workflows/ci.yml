@@ -23,12 +23,10 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.400
-      - run: dotnet tool restore
       - run: dotnet restore SpeedtestDashboard.sln --locked-mode -p:AuditPipeline=true
       - run: dotnet format SpeedtestDashboard.sln --verify-no-changes --no-restore
       - run: dotnet build SpeedtestDashboard.sln --configuration Release --no-restore -p:AuditPipeline=true
       - run: dotnet test SpeedtestDashboard.sln --configuration Release --no-build
-      - run: dotnet ef migrations has-pending-model-changes --project src/SpeedtestDashboard.Infrastructure --startup-project src/SpeedtestDashboard.Api --configuration Release --no-build
 
   frontend:
     name: Frontend

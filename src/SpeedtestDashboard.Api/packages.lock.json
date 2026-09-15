@@ -2,6 +2,20 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "dbup-core": {
+        "type": "Transitive",
+        "resolved": "6.0.15",
+        "contentHash": "w0eaoyVitzgBiHTILEnj23smrbrxZ1nLF7K8uOyG6rvrctRtC0NTuSYHoB/3aq+B9hi9E/DiW9pOtNto5V9P3g=="
+      },
+      "dbup-sqlite": {
+        "type": "Transitive",
+        "resolved": "6.0.4",
+        "contentHash": "eEUr/hCvQHzvPjCSqV6Ic5cZTFiKXLse2k9e5ji8KDgIBD12BCvDdq2E6+C8GbYCZ8GEqlF7uRxVcyvYfrebQg==",
+        "dependencies": {
+          "Microsoft.Data.Sqlite.Core": "9.0.10",
+          "dbup-core": "6.0.15"
+        }
+      },
       "Microsoft.Data.Sqlite": {
         "type": "Transitive",
         "resolved": "10.0.11",
@@ -54,7 +68,8 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.11, )",
-          "SpeedtestDashboard.Core": "[0.12.0-rc.1, )"
+          "SpeedtestDashboard.Core": "[0.12.0-rc.1, )",
+          "dbup-sqlite": "[6.0.4, )"
         }
       }
     },

@@ -9,24 +9,33 @@ public sealed class DashboardDatabaseInitializer(
     IOptions<StorageOptions> options,
     ILogger<DashboardDatabaseInitializer> logger)
 {
+    private const string MigrationResourcePrefix =
+        "SpeedtestDashboard.Infrastructure.Persistence.Migrations.";
+
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         var directory = Path.GetDirectoryName(options.Value.DatabasePath)
             ?? throw new InvalidOperationException("The storage database directory is invalid.");
         Directory.CreateDirectory(directory);
 
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = DbUp.DeployChanges.To
+            .SqliteDatabase(PersistenceServiceCollectionExtensions.BuildConnectionString(options.Value))
+            .WithScriptsEmbeddedInAssembly(
+                typeof(DashboardDatabaseInitializer).Assembly,
+                name => name.StartsWith(MigrationResourcePrefix, StringComparison.Ordinal))
+            .WithTransaction()
+            .WithExecutionTimeout(TimeSpan.FromSeconds(options.Value.CommandTimeoutSeconds))
+            .LogTo(logger)
+            .Build()
+            .PerformUpgrade();
+
+        if (!result.Successful)
+        {
+            throw new InvalidOperationException("Database migration failed.", result.Error);
+        }
+
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
-        var schemaVersion = await GetSchemaVersionAsync(connection, cancellationToken);
-        if (schemaVersion > 1)
-        {
-            throw new InvalidOperationException($"The database schema version {schemaVersion} is newer than this application supports.");
-        }
-
-        await using (var schema = connectionFactory.CreateCommand(connection, DashboardSchema.Sql))
-        {
-            await schema.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         await using var command = connectionFactory.CreateCommand(connection, "PRAGMA journal_mode=WAL;");
         var journalMode = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken),
             System.Globalization.CultureInfo.InvariantCulture);
@@ -46,11 +55,4 @@ public sealed class DashboardDatabaseInitializer(
 
     internal static bool IsWalEnabled(string? journalMode) =>
         string.Equals(journalMode, "wal", StringComparison.OrdinalIgnoreCase);
-
-    private async Task<long> GetSchemaVersionAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken cancellationToken)
-    {
-        await using var command = connectionFactory.CreateCommand(connection, "PRAGMA user_version;");
-        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
-    }
-
 }

@@ -308,6 +308,6 @@ docker compose -f packaging/containers/compose.yml pull
 docker compose -f packaging/containers/compose.yml up -d
 ```
 
-The application validates and initializes its versioned SQLite schema before the web server starts. Back up before each version change; downgrades are not supported. Published tags include the full semantic version, major/minor, major, `latest`, and `sha-<short>`. Moving stable tags advance only for stable releases.
+The application applies pending, embedded SQLite migrations before the web server starts. Back up before each version change; downgrades are not supported. Published tags include the full semantic version, major/minor, major, `latest`, and `sha-<short>`. Moving stable tags advance only for stable releases.
 
 [Back to the main README](../../README.md) · [Configuration](../../docs/configuration.md)

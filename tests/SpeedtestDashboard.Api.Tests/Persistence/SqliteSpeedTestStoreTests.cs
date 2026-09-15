@@ -25,7 +25,7 @@ public sealed class SqliteSpeedTestStoreTests
     }
 
     [Fact]
-    public async Task InitialSchemaCreatesFileTablesAndWalMode()
+    public async Task InitialMigrationCreatesSchemaJournalAndWalMode()
     {
         using var database = await TestDatabase.CreateAsync();
 
@@ -37,10 +37,32 @@ public sealed class SqliteSpeedTestStoreTests
             while (await reader.ReadAsync()) tables.Add(reader.GetString(0));
         Assert.Contains("SpeedTestJobs", tables);
         Assert.Contains("SpeedTestResults", tables);
+        Assert.Contains("SchemaVersions", tables);
+
+        await using (var journalCommand = database.Factory.CreateCommand(connection,
+                         "SELECT ScriptName FROM SchemaVersions ORDER BY SchemaVersionID;"))
+        await using (var reader = await journalCommand.ExecuteReaderAsync())
+        {
+            Assert.True(await reader.ReadAsync());
+            Assert.EndsWith("0001_initial.sql", reader.GetString(0), StringComparison.Ordinal);
+            Assert.False(await reader.ReadAsync());
+        }
 
         await using var command = database.Factory.CreateCommand(connection, "PRAGMA journal_mode;");
         var mode = Convert.ToString(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal("wal", mode, ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task InitialMigrationIsNotAppliedAgainOnRestart()
+    {
+        using var database = await TestDatabase.CreateAsync();
+
+        await database.InitializeAsync();
+
+        await using var connection = await database.Factory.OpenConnectionAsync();
+        await using var command = database.Factory.CreateCommand(connection, "SELECT COUNT(*) FROM SchemaVersions;");
+        Assert.Equal(1L, Convert.ToInt64(await command.ExecuteScalarAsync()));
     }
 
     [Theory]
@@ -298,13 +320,18 @@ public sealed class SqliteSpeedTestStoreTests
             var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "speedtest-dashboard-persistence-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             var database = new TestDatabase(directory);
-            var initializer = new DashboardDatabaseInitializer(
-                database.Factory,
-                database.Store,
-                Options.Create(new StorageOptions { DatabasePath = database.Path, CommandTimeoutSeconds = 10 }),
-                NullLogger<DashboardDatabaseInitializer>.Instance);
-            await initializer.InitializeAsync();
+            await database.InitializeAsync();
             return database;
+        }
+
+        public Task InitializeAsync()
+        {
+            var initializer = new DashboardDatabaseInitializer(
+                Factory,
+                Store,
+                Options.Create(new StorageOptions { DatabasePath = Path, CommandTimeoutSeconds = 10 }),
+                NullLogger<DashboardDatabaseInitializer>.Instance);
+            return initializer.InitializeAsync();
         }
 
         public SqliteSpeedTestStore CreateReplacementStore() => new(Factory, Clock, NullLogger<SqliteSpeedTestStore>.Instance);

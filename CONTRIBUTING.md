@@ -7,14 +7,10 @@ Install .NET SDK 10, Node.js 22+, and npm. Follow the development commands in [R
 ## Before opening a pull request
 
 ```bash
-dotnet tool restore
 dotnet restore SpeedtestDashboard.sln --locked-mode -p:AuditPipeline=true
 dotnet format SpeedtestDashboard.sln --verify-no-changes --no-restore
 dotnet build SpeedtestDashboard.sln --configuration Release --no-restore -p:AuditPipeline=true
 dotnet test SpeedtestDashboard.sln --configuration Release --no-build
-dotnet ef migrations has-pending-model-changes \
-  --project src/SpeedtestDashboard.Infrastructure \
-  --startup-project src/SpeedtestDashboard.Api
 npm ci --prefix src/SpeedtestDashboard.Web
 npm run verify:dependencies --prefix src/SpeedtestDashboard.Web
 npm run check --prefix src/SpeedtestDashboard.Web
@@ -23,6 +19,18 @@ npm run build --prefix src/SpeedtestDashboard.Web
 ```
 
 Tests must not run a public bandwidth test. Use fixtures and fake providers.
+
+## Database migrations
+
+Database changes are append-only SQL scripts in
+`src/SpeedtestDashboard.Infrastructure/Persistence/Migrations`. Name each new
+script with the next zero-padded number, for example `0002_add_example.sql`.
+Never edit or rename a migration after release: DbUp orders scripts by name and
+records completed names in SQLite's `SchemaVersions` table.
+
+Every schema change must test both a fresh database and an upgrade from the
+previous schema. Migrations run in a transaction during application startup,
+before the web server accepts traffic.
 
 ## Provider safety
 
