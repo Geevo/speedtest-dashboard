@@ -1,22 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "http": {
+    "Windows": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "http://localhost:5063",
+      "applicationUrl": "http://localhost:5080",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Authentication__AllowInsecureHttp": "true",
+        "Authentication__DataProtectionPath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\dataprotection",
+        "Storage__DatabasePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\speedtest.db"
       }
     },
-    "https": {
+    "Linux": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "https://localhost:7285;http://localhost:5063",
+      "applicationUrl": "http://localhost:5080",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Authentication__AllowInsecureHttp": "true",
+        "Authentication__DataProtectionPath": "%HOME%/.local/share/speedtest-dashboard/development/dataprotection",
+        "Storage__DatabasePath": "%HOME%/.local/share/speedtest-dashboard/development/speedtest.db"
       }
     }
   }

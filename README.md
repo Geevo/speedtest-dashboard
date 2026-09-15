@@ -286,6 +286,17 @@ artifact, see [Build it yourself](#build-it-yourself) above.
 
 You will need .NET SDK 10, Node.js 22+, and npm.
 
+Visual Studio, Visual Studio Code with C# Dev Kit, and `dotnet run` can use the
+`Windows` or `Linux` launch profile. Both run the API on port `5080`, use an
+OS-appropriate per-user data directory, and support normal managed breakpoint
+debugging. For example:
+
+```bash
+dotnet run --project src/SpeedtestDashboard.Api --launch-profile Linux
+```
+
+Alternatively, launch with explicit paths:
+
 ```bash
 mkdir -p .data
 Storage__DatabasePath="$PWD/.data/speedtest.db" \
