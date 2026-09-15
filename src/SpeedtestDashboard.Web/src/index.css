@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Instrument Sans Variable", "Avenir Next", sans-serif;
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", "Segoe UI", sans-serif;
   --color-ink: oklch(0.19 0.006 260);
   --color-ink-muted: oklch(0.47 0.008 260);
   --color-canvas: oklch(0.97 0.003 260);
