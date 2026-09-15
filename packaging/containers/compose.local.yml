@@ -6,7 +6,7 @@ services:
       context: ../..
       dockerfile: packaging/containers/Dockerfile
       args:
-        APP_VERSION: "${APP_VERSION:-0.0.0-local}"
+        APP_VERSION: "${APP_VERSION:-}"
         SOURCE_REVISION: "${SOURCE_REVISION:-unknown}"
         INSTALL_OOKLA: "${INSTALL_OOKLA:-false}"
     image: ${SPEEDTEST_DASHBOARD_IMAGE:-speedtest-dashboard:local}

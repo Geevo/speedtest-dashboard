@@ -258,6 +258,7 @@ Both targets exclude Ookla by default. Useful overrides:
 | --- | --- |
 | `ENGINE=podman` | Force an engine instead of preferring `docker` |
 | `TAG=speedtest-dashboard:test` | Name the built image something else |
+| `VERSION=1.2.3` | Explicitly override the version from `Directory.Build.props` |
 | `INSTALL_OOKLA=true` | Include the proprietary Ookla CLI |
 | `ALLOW_INSECURE_HTTP=true` | Read by `make run` for login over trusted local HTTP |
 
@@ -269,6 +270,10 @@ docker build -f packaging/containers/Dockerfile -t speedtest-dashboard:local .
 # or
 podman build -f packaging/containers/Dockerfile -t speedtest-dashboard:local .
 ```
+
+When `APP_VERSION` is not supplied, direct Docker and Podman builds use the
+version in `Directory.Build.props`. Release automation can override it with
+`--build-arg APP_VERSION=1.2.3`.
 
 See [Enable Ookla](../../docs/ookla.md) if you want a local image containing the proprietary CLI.
 

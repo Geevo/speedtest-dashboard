@@ -15,7 +15,8 @@ MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 ENGINE ?= $(shell for engine in docker podman; do command -v $$engine >/dev/null 2>&1 && { echo $$engine; break; }; done)
 ARCH ?= $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
-VERSION ?= $(shell if [ -z "$$(git status --porcelain 2>/dev/null)" ]; then v=$$(git describe --tags --exact-match 2>/dev/null); fi; echo "$${v:-0.0.0-local}" | sed 's/^v//')
+PROJECT_VERSION := $(shell sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' Directory.Build.props | head -n 1)
+VERSION ?= $(shell if [ -z "$$(git status --porcelain 2>/dev/null)" ]; then v=$$(git describe --tags --exact-match 2>/dev/null); fi; echo "$${v:-$(PROJECT_VERSION)}" | sed 's/^v//')
 COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
 TAG ?= speedtest-dashboard:local

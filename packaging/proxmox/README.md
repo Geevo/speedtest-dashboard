@@ -138,7 +138,8 @@ make proxmox-template
 ```
 
 That targets your host architecture and stamps the version for a clean checkout
-of a tagged commit, falling back to `0.0.0-local` otherwise. Override either:
+of a tagged commit, falling back to the version in `Directory.Build.props`
+otherwise. Override either:
 
 ```bash
 make proxmox-template ARCH=arm64 VERSION=0.12.0-rc.1

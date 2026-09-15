@@ -80,7 +80,8 @@ RUN set -eu; \
     fi
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23 AS api-build
-ARG APP_VERSION=0.0.0-local
+# Empty means use Version from Directory.Build.props. Release builds can explicitly override it.
+ARG APP_VERSION=""
 ARG SOURCE_REVISION=unknown
 ARG TARGETARCH
 WORKDIR /source
@@ -115,7 +116,7 @@ RUN case "$TARGETARCH" in \
     --no-restore \
     --output /app/publish \
     -p:FrontendDist=/source/web-dist \
-    -p:Version="$APP_VERSION" \
+    -p:BuildVersion="$APP_VERSION" \
     -p:SourceRevisionId="$SOURCE_REVISION" \
     -p:DebugSymbols=false \
     -p:DebugType=None \
@@ -124,7 +125,7 @@ RUN case "$TARGETARCH" in \
     && rm -f /app/publish/*.dbg
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0.11-alpine3.23 AS runtime
-ARG APP_VERSION=0.0.0-local
+ARG APP_VERSION=""
 ARG SOURCE_REVISION=unknown
 ARG BUILD_DATE=unknown
 ARG SOURCE_URL=""

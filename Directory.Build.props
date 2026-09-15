@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <Version>0.12.0-rc.1</Version>
+    <Version Condition="'$(BuildVersion)' != ''">$(BuildVersion)</Version>
     <Authors>Speedtest Dashboard contributors</Authors>
     <Description>A self-hosted dashboard for testing a server or container network connection.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
