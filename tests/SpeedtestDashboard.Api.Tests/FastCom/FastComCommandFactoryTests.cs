@@ -13,8 +13,8 @@ public sealed class FastComCommandFactoryTests
         Assert.Equal("/opt/fixture/fast-cli", command.Executable);
         Assert.Equal(["--help"], command.ArgumentList);
         Assert.Equal(TimeSpan.FromSeconds(5), command.Timeout);
-        Assert.Equal("/tmp", command.WorkingDirectory);
-        Assert.Equal("/tmp", command.EnvironmentVariables?["HOME"]);
+        Assert.Equal(Path.GetTempPath(), command.WorkingDirectory);
+        Assert.Equal(Path.GetTempPath(), command.EnvironmentVariables?["HOME"]);
     }
 
     [Fact]

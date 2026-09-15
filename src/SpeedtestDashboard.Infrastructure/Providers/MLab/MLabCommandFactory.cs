@@ -31,12 +31,12 @@ public sealed class MLabCommandFactory(IOptions<MLabOptions> options)
         options.Value.ExecutablePath,
         arguments,
         timeout,
-        WorkingDirectory: "/tmp",
+        WorkingDirectory: Path.GetTempPath(),
         MaximumStandardOutputBytes: stdoutLimit,
         MaximumStandardErrorBytes: ErrorOutputLimitBytes,
         EnvironmentVariables: new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["HOME"] = "/tmp",
-            ["XDG_CONFIG_HOME"] = "/tmp"
+            ["HOME"] = Path.GetTempPath(),
+            ["XDG_CONFIG_HOME"] = Path.GetTempPath()
         });
 }

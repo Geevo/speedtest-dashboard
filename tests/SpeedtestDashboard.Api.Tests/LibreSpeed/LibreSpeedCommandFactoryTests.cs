@@ -13,8 +13,8 @@ public sealed class LibreSpeedCommandFactoryTests
         Assert.Equal("/opt/fixture/librespeed-cli", command.Executable);
         Assert.Equal(["--version"], command.ArgumentList);
         Assert.Equal(TimeSpan.FromSeconds(5), command.Timeout);
-        Assert.Equal("/tmp", command.WorkingDirectory);
-        Assert.Equal("/tmp", command.EnvironmentVariables?["HOME"]);
+        Assert.Equal(Path.GetTempPath(), command.WorkingDirectory);
+        Assert.Equal(Path.GetTempPath(), command.EnvironmentVariables?["HOME"]);
     }
 
     [Fact]

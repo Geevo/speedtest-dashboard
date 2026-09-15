@@ -295,6 +295,21 @@ debugging. For example:
 dotnet run --project src/SpeedtestDashboard.Api --launch-profile Linux
 ```
 
+Before running provider tests locally, bootstrap the pinned LibreSpeed and
+FAST.com executables into the directory used by the launch profile:
+
+```bash
+# Linux
+./scripts/bootstrap-providers.sh
+
+# Windows PowerShell
+.\scripts\bootstrap-providers.ps1
+```
+
+The bootstrap scripts verify archive checksums before installing anything.
+M-Lab remains a source-built release dependency and Ookla retains its separate
+licence-acceptance process, so both are disabled by the local debug profiles.
+
 Alternatively, launch with explicit paths:
 
 ```bash

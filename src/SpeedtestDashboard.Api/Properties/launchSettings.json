@@ -4,24 +4,32 @@
     "Windows": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchBrowser": true,
+      "launchBrowser": false,
       "applicationUrl": "http://localhost:5080",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Authentication__AllowInsecureHttp": "true",
         "Authentication__DataProtectionPath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\dataprotection",
+        "Providers__FastCom__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\fast-cli.exe",
+        "Providers__LibreSpeed__ExecutablePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\providers\\librespeed-cli.exe",
+        "Providers__MLab__Enabled": "false",
+        "Providers__Ookla__Enabled": "false",
         "Storage__DatabasePath": "%LOCALAPPDATA%\\SpeedtestDashboard\\development\\speedtest.db"
       }
     },
     "Linux": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchBrowser": true,
+      "launchBrowser": false,
       "applicationUrl": "http://localhost:5080",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Authentication__AllowInsecureHttp": "true",
         "Authentication__DataProtectionPath": "%HOME%/.local/share/speedtest-dashboard/development/dataprotection",
+        "Providers__FastCom__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/fast-cli",
+        "Providers__LibreSpeed__ExecutablePath": "%HOME%/.local/share/speedtest-dashboard/development/providers/librespeed-cli",
+        "Providers__MLab__Enabled": "false",
+        "Providers__Ookla__Enabled": "false",
         "Storage__DatabasePath": "%HOME%/.local/share/speedtest-dashboard/development/speedtest.db"
       }
     }
