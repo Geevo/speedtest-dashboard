@@ -67,6 +67,143 @@ public sealed class SqliteSpeedTestStoreTests
     }
 
     [Fact]
+    public async Task ApplicationTablesUseStrictSQLiteTyping()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        var expected = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "SpeedTestJobs",
+            "SpeedTestResults",
+            "Users",
+            "DashboardSettings",
+            "ApiCredentials",
+            "ApiIdempotencyRecords",
+            "SpeedTestSchedules",
+            "ScheduleRuns"
+        };
+
+        await using var connection = await database.Factory.OpenConnectionAsync();
+        await using var command = database.Factory.CreateCommand(connection, "PRAGMA table_list;");
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            if (expected.Remove(reader.GetString(1)))
+            {
+                Assert.Equal(1L, reader.GetInt64(5));
+            }
+        }
+
+        Assert.Empty(expected);
+    }
+
+    [Fact]
+    public async Task SchemaRejectsInvalidDomainValuesAndOrphanedReferences()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        await database.ExecuteAsync("""
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000010', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+            """);
+        await database.ExecuteAsync("""
+            INSERT INTO Users (Id, UserName, NormalizedUserName, PasswordHash, SecurityStamp, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000020', 'first', 'FIRST', 'hash', 'stamp', '2026-09-04T10:00:00Z');
+            """);
+
+        var invalidStatements = new[]
+        {
+            """
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000011', 'fixture', 'unknown', 1, 'Unknown', '2026-09-04T10:00:00Z');
+            """,
+            """
+            INSERT INTO SpeedTestResults
+                (JobId, ProviderId, Status, QueuedAtUtc, CompletedAtUtc, DownloadMbps, NetworkIsStale)
+            VALUES
+                ('00000000-0000-0000-0000-000000000010', 'fixture', 'completed',
+                 '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z', -1, 0);
+            """,
+            """
+            INSERT INTO SpeedTestResults
+                (JobId, ProviderId, Status, QueuedAtUtc, CompletedAtUtc, ProviderMetadataJson, NetworkIsStale)
+            VALUES
+                ('00000000-0000-0000-0000-000000000010', 'fixture', 'completed',
+                 '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z', 'not-json', 0);
+            """,
+            "UPDATE DashboardSettings SET AuthenticationEnabled = 2 WHERE Id = 1;",
+            """
+            INSERT INTO SpeedTestSchedules
+                (Id, Name, ProviderId, RecurrenceKind, TimeZoneId, Enabled, CreatedAtUtc, UpdatedAtUtc)
+            VALUES
+                ('00000000-0000-0000-0000-000000000030', 'Invalid interval', 'fixture',
+                 'interval', 'UTC', 1, '2026-09-04T10:00:00Z', '2026-09-04T10:00:00Z');
+            """,
+            """
+            INSERT INTO ScheduleRuns (Id, ScheduleId, ScheduledForUtc, AttemptedAtUtc, Status)
+            VALUES ('00000000-0000-0000-0000-000000000040',
+                    '00000000-0000-0000-0000-000000000099',
+                    '2026-09-04T10:00:00Z', '2026-09-04T10:00:00Z', 'pending');
+            """,
+            """
+            INSERT INTO ApiIdempotencyRecords (Key, RequestHash, JobId, CreatedAtUtc)
+            VALUES ('orphan', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                    '00000000-0000-0000-0000-000000000099', '2026-09-04T10:00:00Z');
+            """,
+            """
+            INSERT INTO Users (Id, UserName, NormalizedUserName, PasswordHash, SecurityStamp, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000021', 'second', 'SECOND', 'hash', 'stamp', '2026-09-04T10:00:00Z');
+            """
+        };
+
+        foreach (var sql in invalidStatements)
+        {
+            var exception = await Assert.ThrowsAsync<SqliteException>(() => database.ExecuteAsync(sql));
+            Assert.Equal(19, exception.SqliteErrorCode);
+        }
+    }
+
+    [Fact]
+    public async Task ForeignKeyActionsFollowRecordOwnership()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        await database.ExecuteAsync("""
+            INSERT INTO SpeedTestJobs
+                (Id, ProviderId, Status, Version, Stage, CreatedAtUtc, CompletedAtUtc)
+            VALUES
+                ('00000000-0000-0000-0000-000000000050', 'fixture', 'completed', 2, 'Completed',
+                 '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z');
+            INSERT INTO SpeedTestSchedules
+                (Id, Name, ProviderId, RecurrenceKind, IntervalMinutes, TimeZoneId, Enabled,
+                 CreatedAtUtc, UpdatedAtUtc, LastJobId, LastRunStatus)
+            VALUES
+                ('00000000-0000-0000-0000-000000000051', 'Hourly', 'fixture', 'interval', 60, 'UTC', 1,
+                 '2026-09-04T09:00:00Z', '2026-09-04T09:00:00Z',
+                 '00000000-0000-0000-0000-000000000050', 'queued');
+            INSERT INTO ScheduleRuns
+                (Id, ScheduleId, ScheduledForUtc, AttemptedAtUtc, JobId, Status)
+            VALUES
+                ('00000000-0000-0000-0000-000000000052',
+                 '00000000-0000-0000-0000-000000000051',
+                 '2026-09-04T10:00:00Z', '2026-09-04T10:00:00Z',
+                 '00000000-0000-0000-0000-000000000050', 'queued');
+            INSERT INTO ApiIdempotencyRecords (Key, RequestHash, JobId, CreatedAtUtc)
+            VALUES ('request-1', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                    '00000000-0000-0000-0000-000000000050', '2026-09-04T10:00:00Z');
+            """);
+
+        await database.ExecuteAsync(
+            "DELETE FROM SpeedTestJobs WHERE Id = '00000000-0000-0000-0000-000000000050';");
+
+        Assert.Equal(0L, Convert.ToInt64(await database.ScalarAsync("SELECT COUNT(*) FROM ApiIdempotencyRecords;")));
+        Assert.Equal(DBNull.Value, await database.ScalarAsync("SELECT LastJobId FROM SpeedTestSchedules LIMIT 1;"));
+        Assert.Equal(DBNull.Value, await database.ScalarAsync("SELECT JobId FROM ScheduleRuns LIMIT 1;"));
+
+        await database.ExecuteAsync(
+            "DELETE FROM SpeedTestSchedules WHERE Id = '00000000-0000-0000-0000-000000000051';");
+
+        Assert.Equal(0L, Convert.ToInt64(await database.ScalarAsync("SELECT COUNT(*) FROM ScheduleRuns;")));
+    }
+
+    [Fact]
     public async Task PendingMigrationCreatesRestorableBackupBeforeUpgradeAttempt()
     {
         using var database = await TestDatabase.CreateAsync();
@@ -126,10 +263,10 @@ public sealed class SqliteSpeedTestStoreTests
             await using var command = connection.CreateCommand();
             command.CommandText = """
                 INSERT INTO SpeedTestResults (
-                    JobId, ProviderId, Status, QueuedAtUtc, CompletedAtUtc, NetworkIsStale)
+                    JobId, ProviderId, Status, QueuedAtUtc, CompletedAtUtc, FailureCode, NetworkIsStale)
                 VALUES (
                     '00000000-0000-0000-0000-000000000001', 'fixture', 'failed',
-                    '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z', 0);
+                    '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z', 'fixture_failure', 0);
                 """;
             await command.ExecuteNonQueryAsync();
         }
@@ -425,6 +562,13 @@ public sealed class SqliteSpeedTestStoreTests
             await using var connection = await Factory.OpenConnectionAsync();
             await using var command = Factory.CreateCommand(connection, sql);
             command.Parameters.AddWithValue("@id", id);
+            return await command.ExecuteScalarAsync();
+        }
+
+        public async Task<object?> ScalarAsync(string sql)
+        {
+            await using var connection = await Factory.OpenConnectionAsync();
+            await using var command = Factory.CreateCommand(connection, sql);
             return await command.ExecuteScalarAsync();
         }
 

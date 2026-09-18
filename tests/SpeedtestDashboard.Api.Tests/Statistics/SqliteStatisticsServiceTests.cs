@@ -232,7 +232,8 @@ public sealed class SqliteStatisticsServiceTests
                 Version = 1,
                 CreatedAtUtc = completed.AddMinutes(-1),
                 StartedAtUtc = completed.AddSeconds(-30),
-                CompletedAtUtc = completed
+                CompletedAtUtc = completed,
+                FailureCode = status == "completed" ? null : "fixture_failure"
             };
             _pending.Add(new SpeedTestResultEntity
             {
@@ -248,7 +249,8 @@ public sealed class SqliteStatisticsServiceTests
                 UploadMbps = upload,
                 LatencyMs = latency,
                 JitterMs = jitter,
-                PacketLossPercent = packetLoss
+                PacketLossPercent = packetLoss,
+                FailureCode = status == "completed" ? null : "fixture_failure"
             });
         }
 
@@ -259,26 +261,28 @@ public sealed class SqliteStatisticsServiceTests
             foreach (var result in _pending)
             {
                 await using (var job = _factory.CreateCommand(connection, """
-                    INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc, StartedAtUtc, CompletedAtUtc)
-                    VALUES (@id, @provider, @status, 1, @status, @created, @started, @completed);
+                    INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc, StartedAtUtc, CompletedAtUtc, FailureCode)
+                    VALUES (@id, @provider, @status, 1, @status, @created, @started, @completed, @failureCode);
                     """, transaction))
                 {
                     job.Parameters.AddWithValue("@id", result.JobId); job.Parameters.AddWithValue("@provider", result.ProviderId);
                     job.Parameters.AddWithValue("@status", result.Status); job.Parameters.AddWithValue("@created", result.QueuedAtUtc);
                     job.Parameters.AddWithValue("@started", result.StartedAtUtc!); job.Parameters.AddWithValue("@completed", result.CompletedAtUtc);
+                    job.Parameters.AddWithValue("@failureCode", (object?)result.FailureCode ?? DBNull.Value);
                     await job.ExecuteNonQueryAsync();
                 }
                 await using var row = _factory.CreateCommand(connection, """
                     INSERT INTO SpeedTestResults (Id, JobId, ProviderId, Status, QueuedAtUtc, StartedAtUtc, CompletedAtUtc,
-                        DownloadMbps, UploadMbps, LatencyMs, JitterMs, PacketLossPercent, NetworkIsStale)
+                        DownloadMbps, UploadMbps, LatencyMs, JitterMs, PacketLossPercent, FailureCode, NetworkIsStale)
                     VALUES (@sequence, @jobId, @provider, @status, @queued, @started, @completed,
-                        @download, @upload, @latency, @jitter, @loss, 0);
+                        @download, @upload, @latency, @jitter, @loss, @failureCode, 0);
                     """, transaction);
                 Add(row, "@sequence", result.Id); Add(row, "@jobId", result.JobId); Add(row, "@provider", result.ProviderId);
                 Add(row, "@status", result.Status); Add(row, "@queued", result.QueuedAtUtc); Add(row, "@started", result.StartedAtUtc);
                 Add(row, "@completed", result.CompletedAtUtc); Add(row, "@download", result.DownloadMbps);
                 Add(row, "@upload", result.UploadMbps); Add(row, "@latency", result.LatencyMs);
                 Add(row, "@jitter", result.JitterMs); Add(row, "@loss", result.PacketLossPercent);
+                Add(row, "@failureCode", result.FailureCode);
                 await row.ExecuteNonQueryAsync();
             }
             await transaction.CommitAsync();
