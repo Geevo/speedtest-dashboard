@@ -6,6 +6,7 @@ using SpeedtestDashboard.Core.History;
 using SpeedtestDashboard.Core.Network;
 using SpeedtestDashboard.Core.Providers;
 using SpeedtestDashboard.Core.Tests;
+using SpeedtestDashboard.Infrastructure.ApiKeys;
 using SpeedtestDashboard.Infrastructure.Persistence;
 using SpeedtestDashboard.Infrastructure.Persistence.Entities;
 using SpeedtestDashboard.Infrastructure.Tests;
@@ -456,9 +457,101 @@ public sealed class SqliteSpeedTestStoreTests
         using var database = await TestDatabase.CreateAsync();
         var job = CreateCompleted(database, ProviderId.Parse("provider-a"));
         var terminal = await database.Store.GetTerminalJobAsync(job.Id, default);
+        var duplicate = terminal! with { Stage = "Duplicate terminal write", Version = terminal.Version + 1 };
 
-        Assert.Throws<SpeedTestPersistenceException>(() => database.Store.PersistTransition(terminal!));
+        Assert.Throws<SpeedTestPersistenceException>(() => database.Store.PersistTransition(duplicate));
         Assert.Equal(1L, await database.ScalarAsync("SELECT COUNT(*) FROM SpeedTestResults WHERE JobId = @id;", job.Id));
+        var persisted = await database.Store.GetTerminalJobAsync(job.Id, default);
+        Assert.Equal(terminal.Stage, persisted!.Stage);
+        Assert.Equal(terminal.Version, persisted.Version);
+    }
+
+    [Fact]
+    public async Task IdempotencyConstraintFailureRollsBackExpiredRecordCleanup()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        var jobId = Guid.NewGuid();
+        await database.ExecuteAsync($"""
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('{jobId}', 'fixture', 'queued', 1, 'Queued', '2026-09-02T10:00:00Z');
+            INSERT INTO ApiIdempotencyRecords (Key, RequestHash, JobId, CreatedAtUtc)
+            VALUES ('expired', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                    '{jobId}', '2026-09-02T10:00:00Z');
+            """);
+        var store = new ApiIdempotencyStore(database.Factory, database.Clock);
+
+        await Assert.ThrowsAsync<SqliteException>(() =>
+            store.SaveAsync("replacement", "invalid-hash", jobId));
+
+        Assert.Equal(1L, Convert.ToInt64(await database.ScalarAsync(
+            "SELECT COUNT(*) FROM ApiIdempotencyRecords WHERE Key = 'expired';")));
+        Assert.Equal(0L, Convert.ToInt64(await database.ScalarAsync(
+            "SELECT COUNT(*) FROM ApiIdempotencyRecords WHERE Key = 'replacement';")));
+    }
+
+    [Fact]
+    public async Task WriteLockUsesConfiguredTimeoutAndDatabaseRecoversAfterRelease()
+    {
+        using var database = await TestDatabase.CreateAsync(commandTimeoutSeconds: 1);
+        await using var lockConnection = await database.Factory.OpenConnectionAsync();
+        await using var transaction = lockConnection.BeginTransaction(deferred: false);
+        await using (var lockedWrite = database.Factory.CreateCommand(lockConnection, """
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000060', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+            """, transaction))
+        {
+            await lockedWrite.ExecuteNonQueryAsync();
+        }
+
+        await using var contender = await database.Factory.OpenConnectionAsync();
+        await using (var blockedWrite = database.Factory.CreateCommand(contender, """
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000061', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+            """))
+        {
+            Assert.Equal(1, blockedWrite.CommandTimeout);
+            var exception = await Assert.ThrowsAsync<SqliteException>(() => blockedWrite.ExecuteNonQueryAsync());
+            Assert.Equal(5, exception.SqliteErrorCode);
+        }
+
+        await transaction.RollbackAsync();
+        await using (var recoveredWrite = database.Factory.CreateCommand(contender, """
+            INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+            VALUES ('00000000-0000-0000-0000-000000000061', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+            """))
+        {
+            Assert.Equal(1, await recoveredWrite.ExecuteNonQueryAsync());
+        }
+        Assert.Equal(1L, Convert.ToInt64(await database.ScalarAsync("SELECT COUNT(*) FROM SpeedTestJobs;")));
+    }
+
+    [Fact]
+    public async Task CancelledTransactionRollsBackEarlierWrites()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        using var cancellation = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await using var connection = await database.Factory.OpenConnectionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            await using (var firstWrite = database.Factory.CreateCommand(connection, """
+                INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+                VALUES ('00000000-0000-0000-0000-000000000062', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+                """, (SqliteTransaction)transaction))
+            {
+                await firstWrite.ExecuteNonQueryAsync();
+            }
+
+            cancellation.Cancel();
+            await using var cancelledWrite = database.Factory.CreateCommand(connection, """
+                INSERT INTO SpeedTestJobs (Id, ProviderId, Status, Version, Stage, CreatedAtUtc)
+                VALUES ('00000000-0000-0000-0000-000000000063', 'fixture', 'queued', 1, 'Queued', '2026-09-04T10:00:00Z');
+                """, (SqliteTransaction)transaction);
+            await cancelledWrite.ExecuteNonQueryAsync(cancellation.Token);
+        });
+
+        Assert.Equal(0L, Convert.ToInt64(await database.ScalarAsync("SELECT COUNT(*) FROM SpeedTestJobs;")));
     }
 
     [Fact]
@@ -521,25 +614,27 @@ public sealed class SqliteSpeedTestStoreTests
 
         private readonly StorageOptions _options;
 
-        private TestDatabase(string directory, int migrationBackupRetentionCount)
+        private TestDatabase(string directory, int migrationBackupRetentionCount, int commandTimeoutSeconds)
         {
             _directory = directory;
             Path = System.IO.Path.Combine(directory, "speedtest.db");
             _options = new StorageOptions
             {
                 DatabasePath = Path,
-                CommandTimeoutSeconds = 10,
+                CommandTimeoutSeconds = commandTimeoutSeconds,
                 MigrationBackupRetentionCount = migrationBackupRetentionCount
             };
             Factory = new SqliteConnectionFactory(Options.Create(_options));
             Store = new SqliteSpeedTestStore(Factory, Clock, NullLogger<SqliteSpeedTestStore>.Instance);
         }
 
-        public static async Task<TestDatabase> CreateAsync(int migrationBackupRetentionCount = 3)
+        public static async Task<TestDatabase> CreateAsync(
+            int migrationBackupRetentionCount = 3,
+            int commandTimeoutSeconds = 10)
         {
             var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "speedtest-dashboard-persistence-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            var database = new TestDatabase(directory, migrationBackupRetentionCount);
+            var database = new TestDatabase(directory, migrationBackupRetentionCount, commandTimeoutSeconds);
             await database.InitializeAsync();
             return database;
         }

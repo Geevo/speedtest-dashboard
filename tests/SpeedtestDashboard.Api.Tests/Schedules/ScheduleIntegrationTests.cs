@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using SpeedtestDashboard.Api.Endpoints;
 using SpeedtestDashboard.Api.Tests.Orchestration;
 using SpeedtestDashboard.Core.Schedules;
+using SpeedtestDashboard.Infrastructure.Persistence;
 using SpeedtestDashboard.Infrastructure.Schedules;
 
 namespace SpeedtestDashboard.Api.Tests.Schedules;
@@ -84,7 +86,7 @@ public sealed class ScheduleIntegrationTests
     }
 
     [Fact]
-    public async Task DueOccurrence_CanOnlyBeClaimedOnce()
+    public async Task ConcurrentDueOccurrence_CanOnlyBeClaimedOnce()
     {
         using var factory = new ScheduleWebApplicationFactory(new FakeSpeedTestProvider());
         using var client = factory.CreateClient();
@@ -106,13 +108,65 @@ public sealed class ScheduleIntegrationTests
             JobId: null, ScheduleRunStatus.Pending, FailureCode: null);
         var secondRun = firstRun with { Id = Guid.NewGuid() };
 
-        var firstClaim = await store.TryClaimRunAsync(
-            schedule.Id, scheduledFor, firstRun, scheduledFor.AddMinutes(30), CancellationToken.None);
-        var secondClaim = await store.TryClaimRunAsync(
-            schedule.Id, scheduledFor, secondRun, scheduledFor.AddMinutes(30), CancellationToken.None);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<bool> ClaimAsync(ScheduleRun run) => Task.Run(async () =>
+        {
+            await start.Task;
+            return await store.TryClaimRunAsync(
+                schedule.Id, scheduledFor, run, scheduledFor.AddMinutes(30), CancellationToken.None);
+        });
+        var firstClaim = ClaimAsync(firstRun);
+        var secondClaim = ClaimAsync(secondRun);
 
-        Assert.True(firstClaim);
-        Assert.False(secondClaim);
+        start.SetResult();
+        var claims = await Task.WhenAll(firstClaim, secondClaim);
+
+        Assert.Single(claims, claimed => claimed);
+        Assert.Single(claims, claimed => !claimed);
         Assert.Single(await store.ListRunsAsync(schedule.Id, 10, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task FailedRunInsertRollsBackScheduleClaim()
+    {
+        using var factory = new ScheduleWebApplicationFactory(new FakeSpeedTestProvider());
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/schedules", new
+        {
+            name = "Rollback claim",
+            providerId = "fixture",
+            recurrenceKind = "interval",
+            intervalMinutes = 30,
+            timeZoneId = "Etc/UTC",
+            enabled = true
+        });
+        var created = await response.Content.ReadFromJsonAsync<ScheduleResponse>();
+        var store = factory.Services.GetRequiredService<ISpeedTestScheduleStore>();
+        var before = await store.GetAsync(created!.Id, CancellationToken.None);
+        var scheduledFor = before!.NextRunAtUtc!.Value;
+        var connectionFactory = factory.Services.GetRequiredService<SqliteConnectionFactory>();
+        await using (var connection = await connectionFactory.OpenConnectionAsync())
+        await using (var trigger = connectionFactory.CreateCommand(connection, """
+            CREATE TRIGGER RejectScheduleRunInsert
+            BEFORE INSERT ON ScheduleRuns
+            BEGIN
+                SELECT RAISE(ABORT, 'forced schedule-run failure');
+            END;
+            """))
+        {
+            await trigger.ExecuteNonQueryAsync();
+        }
+        var run = new ScheduleRun(
+            Guid.NewGuid(), before.Id, scheduledFor, DateTimeOffset.UtcNow,
+            JobId: null, ScheduleRunStatus.Pending, FailureCode: null);
+
+        await Assert.ThrowsAsync<SqliteException>(() => store.TryClaimRunAsync(
+            before.Id, scheduledFor, run, scheduledFor.AddMinutes(30), CancellationToken.None));
+
+        var after = await store.GetAsync(before.Id, CancellationToken.None);
+        Assert.Equal(before.NextRunAtUtc, after!.NextRunAtUtc);
+        Assert.Null(after.LastRunAtUtc);
+        Assert.Null(after.LastRunStatus);
+        Assert.Empty(await store.ListRunsAsync(before.Id, 10, CancellationToken.None));
     }
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -102,6 +103,50 @@ public sealed class AuthenticationRegressionTests
         Assert.Contains("; secure", httpsCsrf.Headers.GetValues("Set-Cookie").Single(), StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ConcurrentFailedLoginsReachLockoutWithoutLostUpdates()
+    {
+        using var parent = new AuthWebApplicationFactory();
+        using var factory = parent.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IPasswordHasher<ApplicationUser>>();
+            services.AddSingleton<IPasswordHasher<ApplicationUser>, CoordinatedPasswordHasher>();
+        }));
+        using var client = factory.CreateClient(new()
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
+        });
+        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        using var setup = await client.PostAsJsonAsync("/api/auth/setup", new
+        {
+            username = "admin",
+            password = "review-password"
+        });
+        Assert.Equal(HttpStatusCode.OK, setup.StatusCode);
+        var accounts = factory.Services.GetRequiredService<LocalAccountService>();
+
+        var attempts = Enumerable.Range(0, 5)
+            .Select(_ => Task.Run(() => accounts.AuthenticateAsync("admin", CoordinatedPasswordHasher.InvalidPassword)))
+            .ToArray();
+        var results = await Task.WhenAll(attempts);
+
+        Assert.Equal(4, results.Count(result => result.Status == LocalLoginStatus.InvalidCredentials));
+        Assert.Single(results, result => result.Status == LocalLoginStatus.LockedOut);
+        var locked = await accounts.AuthenticateAsync("admin", "review-password");
+        Assert.Equal(LocalLoginStatus.LockedOut, locked.Status);
+
+        var connectionFactory = factory.Services.GetRequiredService<SqliteConnectionFactory>();
+        await using var connection = await connectionFactory.OpenConnectionAsync();
+        await using var command = connectionFactory.CreateCommand(connection,
+            "SELECT AccessFailedCount, LockoutEndUtc IS NOT NULL FROM Users WHERE NormalizedUserName = 'ADMIN';");
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(0, reader.GetInt32(0));
+        Assert.True(reader.GetBoolean(1));
+    }
+
     private sealed class ObservedAuthenticationState : DashboardAuthenticationState
     {
         private int _mutationCalls;
@@ -123,6 +168,34 @@ public sealed class AuthenticationRegressionTests
                 FirstMutationEntered.TrySetResult();
                 await ReleaseFirstMutation.Task.WaitAsync(cancellationToken);
             }
+        }
+    }
+
+    private sealed class CoordinatedPasswordHasher : IPasswordHasher<ApplicationUser>
+    {
+        public const string InvalidPassword = "wrong-password";
+        private readonly PasswordHasher<ApplicationUser> _inner = new();
+        private readonly ManualResetEventSlim _release = new();
+        private int _invalidVerifications;
+
+        public string HashPassword(ApplicationUser user, string password) =>
+            _inner.HashPassword(user, password);
+
+        public PasswordVerificationResult VerifyHashedPassword(
+            ApplicationUser user,
+            string hashedPassword,
+            string providedPassword)
+        {
+            if (providedPassword == InvalidPassword)
+            {
+                if (Interlocked.Increment(ref _invalidVerifications) >= 2)
+                {
+                    _release.Set();
+                }
+                _release.Wait(TimeSpan.FromMilliseconds(250));
+            }
+
+            return _inner.VerifyHashedPassword(user, hashedPassword, providedPassword);
         }
     }
 }
