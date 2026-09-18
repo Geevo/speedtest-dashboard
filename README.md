@@ -255,6 +255,7 @@ Environment variables use double underscores for nested settings. These are the 
 | `Scheduler__PollIntervalSeconds` | `30` | Change how often due schedules are checked |
 | `SpeedTests__QueueCapacity` | `4` | Change the number of waiting test jobs |
 | `Storage__DatabasePath` | `/data/speedtest.db` | Move the SQLite database inside the mounted data path |
+| `Storage__MigrationBackupRetentionCount` | `3` | Change how many automatic pre-migration database backups are retained |
 
 The full set of process, provider, caching, and queue options is documented in [Configuration reference](docs/configuration.md).
 
@@ -262,12 +263,18 @@ When `ReverseProxy__TrustForwardedHeaders=true`, the app trusts forwarded header
 
 ## Backups and updates
 
-Back up before changing versions. DbUp applies the application's embedded,
-append-only SQLite migrations before the web server starts; downgrades are not
-supported.
+When an existing database needs a migration, the application creates and
+validates a consistent SQLite backup in the database directory's `backups`
+subdirectory before DbUp changes the schema. It retains the latest three by
+default. DbUp migrations are append-only and schema downgrades are not
+supported; operational rollback means restoring the matching pre-migration
+backup and then starting the previous application version.
 
-- Docker/Podman: stop the container before copying `/data`, then recreate it with the new image while keeping the same volume.
+- Docker/Podman: keep `/data` mounted, including `/data/backups`. Stop the container before restoring a backup or making a filesystem-level copy.
 - Proxmox: use normal PVE backup/snapshot tooling, or stop `speedtest-dashboard` before copying `/var/lib/speedtest-dashboard`.
+
+Automatic migration backups protect version rollback, but they live on the
+same volume and do not replace normal off-host backups or Proxmox snapshots.
 
 The [container guide](packaging/containers/README.md#storage-backups-and-updates) has copy/paste update commands. Native LXC templates are currently intended for new containers rather than in-place package upgrades.
 

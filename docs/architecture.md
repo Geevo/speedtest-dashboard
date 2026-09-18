@@ -42,7 +42,9 @@ Ookla CLI package `1.2.0.84-1.ea6b6773cf` is optional. Public artifacts do not i
 
 ## Persistence
 
-SQLite is the only database. OCI uses `/data/speedtest.db`; native LXC uses `/var/lib/speedtest-dashboard/speedtest.db`. Persistence uses `Microsoft.Data.Sqlite` directly so the application can be compiled with NativeAOT. Before serving HTTP, DbUp applies numbered SQL resources from `Persistence/Migrations` and records completed scripts in `SchemaVersions`. Released migrations are append-only and downgrades are not supported.
+SQLite is the only database. OCI uses `/data/speedtest.db`; native LXC uses `/var/lib/speedtest-dashboard/speedtest.db`. Persistence uses `Microsoft.Data.Sqlite` directly so the application can be compiled with NativeAOT. Before serving HTTP, DbUp applies numbered SQL resources from `Persistence/Migrations` and records completed scripts in `SchemaVersions`. Released migrations are append-only and schema downgrades are not supported.
+
+When DbUp reports pending work for an existing application schema, startup first creates a consistent SQLite backup with the SQLite backup API. The backup is validated and retained in the configured migration-backup directory; failure to create or validate it prevents migration. After migration, startup runs SQLite quick-integrity and foreign-key checks before accepting traffic. Operational rollback uses the previous application version together with its pre-migration database backup rather than reverse migrations.
 
 Startup attempts WAL and continues with a warning if the filesystem cannot support it. A terminal job update and its result insert share a transaction. Startup reconciliation marks interrupted jobs as `failed/application_restarted`; it never resumes or re-enqueues them.
 

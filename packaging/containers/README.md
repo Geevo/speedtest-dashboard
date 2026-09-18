@@ -313,6 +313,10 @@ docker compose -f packaging/containers/compose.yml pull
 docker compose -f packaging/containers/compose.yml up -d
 ```
 
-The application applies pending, embedded SQLite migrations before the web server starts. Back up before each version change; downgrades are not supported. Published tags include the full semantic version, major/minor, major, `latest`, and `sha-<short>`. Moving stable tags advance only for stable releases.
+The application applies pending, embedded SQLite migrations before the web server starts. If an existing database needs migration, it first creates and validates a consistent backup under `/data/backups`; the latest three are retained by default. These backups share the data volume, so continue to make off-host backups or volume snapshots.
+
+Schema downgrades are not supported. To roll back a release, stop the container, replace `speedtest.db` with the matching `speedtest.pre-migration-*.db`, remove stale `speedtest.db-wal` and `speedtest.db-shm` files, and then start the previous image. Never restore while a dashboard container is using the volume.
+
+Published tags include the full semantic version, major/minor, major, `latest`, and `sha-<short>`. Moving stable tags advance only for stable releases.
 
 [Back to the main README](../../README.md) · [Configuration](../../docs/configuration.md)

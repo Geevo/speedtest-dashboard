@@ -22,6 +22,13 @@ public static class PersistenceServiceCollectionExtensions
                 "Storage database path must be an absolute file path.")
             .Validate(options => options.CommandTimeoutSeconds is >= 1 and <= 60,
                 "Storage command timeout must be between 1 and 60 seconds.")
+            .Validate(
+                options => string.IsNullOrWhiteSpace(options.MigrationBackupDirectory) ||
+                           (Path.IsPathFullyQualified(options.MigrationBackupDirectory) &&
+                            options.MigrationBackupDirectory.IndexOfAny(['\r', '\n', '\0']) < 0),
+                "Storage migration backup directory must be an absolute path when configured.")
+            .Validate(options => options.MigrationBackupRetentionCount is >= 1 and <= 100,
+                "Storage migration backup retention count must be between 1 and 100.")
             .ValidateOnStart();
 
         services.AddSingleton<SqliteConnectionFactory>();

@@ -16,6 +16,9 @@ Docker users can put the values under `environment:` in Compose. Native Proxmox 
 | `ReverseProxy__TrustForwardedHeaders` | `false` |
 | `Storage__DatabasePath` | `/data/speedtest.db` |
 | `Storage__CommandTimeoutSeconds` | `10` |
+| `Storage__CreateMigrationBackups` | `true` |
+| `Storage__MigrationBackupDirectory` | `<database directory>/backups` |
+| `Storage__MigrationBackupRetentionCount` | `3` |
 | `Scheduler__PollIntervalSeconds` | `30` |
 | `SpeedTests__QueueCapacity` | `4` |
 | `SpeedTests__QueueFullRetryAfterSeconds` | `5` |

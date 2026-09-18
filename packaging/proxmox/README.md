@@ -126,6 +126,8 @@ systemctl start speedtest-dashboard
 
 Release templates are currently intended for new containers. There is no native package repository or in-place update command yet. Before attempting a manual replacement, back up the CT and `/var/lib/speedtest-dashboard`. Database downgrades are not supported.
 
+If a future in-place update has pending database migrations, the service creates a validated pre-migration backup under `/var/lib/speedtest-dashboard/backups` before changing the schema. Operational rollback requires stopping the service, restoring the matching database backup, removing stale `speedtest.db-wal` and `speedtest.db-shm` files, and then restoring the previous application version. The local migration backups do not replace a Proxmox backup or snapshot.
+
 ## Build a template from source
 
 Make and Docker or Podman on a Linux host are the only prerequisites. The .NET,

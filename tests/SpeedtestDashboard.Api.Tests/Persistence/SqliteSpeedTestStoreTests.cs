@@ -51,6 +51,7 @@ public sealed class SqliteSpeedTestStoreTests
         await using var command = database.Factory.CreateCommand(connection, "PRAGMA journal_mode;");
         var mode = Convert.ToString(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal("wal", mode, ignoreCase: true);
+        Assert.False(Directory.Exists(database.BackupDirectory));
     }
 
     [Fact]
@@ -63,6 +64,79 @@ public sealed class SqliteSpeedTestStoreTests
         await using var connection = await database.Factory.OpenConnectionAsync();
         await using var command = database.Factory.CreateCommand(connection, "SELECT COUNT(*) FROM SchemaVersions;");
         Assert.Equal(1L, Convert.ToInt64(await command.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task PendingMigrationCreatesRestorableBackupBeforeUpgradeAttempt()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        var job = CreateCompleted(database, ProviderId.Parse("provider-a"));
+        await database.ExecuteAsync("DELETE FROM SchemaVersions;");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => database.InitializeAsync());
+
+        var backupPath = Assert.Single(Directory.GetFiles(database.BackupDirectory, "*.db"));
+        await using var backup = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = backupPath,
+            Mode = SqliteOpenMode.ReadOnly,
+            ForeignKeys = true
+        }.ToString());
+        await backup.OpenAsync();
+
+        await using (var jobCommand = backup.CreateCommand())
+        {
+            jobCommand.CommandText = "SELECT COUNT(*) FROM SpeedTestJobs WHERE Id = @id;";
+            jobCommand.Parameters.AddWithValue("@id", job.Id);
+            Assert.Equal(1L, Convert.ToInt64(await jobCommand.ExecuteScalarAsync()));
+        }
+
+        await using var integrityCommand = backup.CreateCommand();
+        integrityCommand.CommandText = "PRAGMA quick_check;";
+        Assert.Equal("ok", Convert.ToString(await integrityCommand.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task MigrationBackupRetentionOnlyDeletesManagedBackups()
+    {
+        using var database = await TestDatabase.CreateAsync(migrationBackupRetentionCount: 2);
+        await database.ExecuteAsync("DELETE FROM SchemaVersions;");
+        Directory.CreateDirectory(database.BackupDirectory);
+        var userBackup = System.IO.Path.Combine(database.BackupDirectory, "user-created.db");
+        await File.WriteAllTextAsync(userBackup, "preserve me");
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            database.Clock.Advance(TimeSpan.FromSeconds(1));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => database.InitializeAsync());
+        }
+
+        Assert.Equal(2, Directory.GetFiles(database.BackupDirectory, "speedtest.pre-migration-*.db").Length);
+        Assert.True(File.Exists(userBackup));
+    }
+
+    [Fact]
+    public async Task StartupRejectsForeignKeyViolationsBeforeServingTraffic()
+    {
+        using var database = await TestDatabase.CreateAsync();
+        SqliteConnection.ClearAllPools();
+        await using (var connection = new SqliteConnection($"Data Source={database.Path};Foreign Keys=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO SpeedTestResults (
+                    JobId, ProviderId, Status, QueuedAtUtc, CompletedAtUtc, NetworkIsStale)
+                VALUES (
+                    '00000000-0000-0000-0000-000000000001', 'fixture', 'failed',
+                    '2026-09-04T10:00:00Z', '2026-09-04T10:01:00Z', 0);
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => database.InitializeAsync());
+
+        Assert.Contains("foreign key check failed", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -306,20 +380,29 @@ public sealed class SqliteSpeedTestStoreTests
         public NetworkIdentity Identity { get; } = SqliteSpeedTestStoreTests.Identity();
         public SqliteConnectionFactory Factory { get; }
         public SqliteSpeedTestStore Store { get; }
+        public string BackupDirectory => System.IO.Path.Combine(_directory, "backups");
 
-        private TestDatabase(string directory)
+        private readonly StorageOptions _options;
+
+        private TestDatabase(string directory, int migrationBackupRetentionCount)
         {
             _directory = directory;
             Path = System.IO.Path.Combine(directory, "speedtest.db");
-            Factory = new SqliteConnectionFactory(Options.Create(new StorageOptions { DatabasePath = Path, CommandTimeoutSeconds = 10 }));
+            _options = new StorageOptions
+            {
+                DatabasePath = Path,
+                CommandTimeoutSeconds = 10,
+                MigrationBackupRetentionCount = migrationBackupRetentionCount
+            };
+            Factory = new SqliteConnectionFactory(Options.Create(_options));
             Store = new SqliteSpeedTestStore(Factory, Clock, NullLogger<SqliteSpeedTestStore>.Instance);
         }
 
-        public static async Task<TestDatabase> CreateAsync()
+        public static async Task<TestDatabase> CreateAsync(int migrationBackupRetentionCount = 3)
         {
             var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "speedtest-dashboard-persistence-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            var database = new TestDatabase(directory);
+            var database = new TestDatabase(directory, migrationBackupRetentionCount);
             await database.InitializeAsync();
             return database;
         }
@@ -329,7 +412,8 @@ public sealed class SqliteSpeedTestStoreTests
             var initializer = new DashboardDatabaseInitializer(
                 Factory,
                 Store,
-                Options.Create(new StorageOptions { DatabasePath = Path, CommandTimeoutSeconds = 10 }),
+                Options.Create(_options),
+                Clock,
                 NullLogger<DashboardDatabaseInitializer>.Instance);
             return initializer.InitializeAsync();
         }
@@ -342,6 +426,13 @@ public sealed class SqliteSpeedTestStoreTests
             await using var command = Factory.CreateCommand(connection, sql);
             command.Parameters.AddWithValue("@id", id);
             return await command.ExecuteScalarAsync();
+        }
+
+        public async Task ExecuteAsync(string sql)
+        {
+            await using var connection = await Factory.OpenConnectionAsync();
+            await using var command = Factory.CreateCommand(connection, sql);
+            await command.ExecuteNonQueryAsync();
         }
 
         public void Dispose()

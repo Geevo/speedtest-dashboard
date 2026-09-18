@@ -207,7 +207,7 @@ public sealed class SqliteStatisticsServiceTests
             var factory = new SqliteConnectionFactory(storage);
             var clock = new ManualTimeProvider(Now);
             var store = new SqliteSpeedTestStore(factory, clock, NullLogger<SqliteSpeedTestStore>.Instance);
-            await new DashboardDatabaseInitializer(factory, store, storage, NullLogger<DashboardDatabaseInitializer>.Instance).InitializeAsync();
+            await new DashboardDatabaseInitializer(factory, store, storage, clock, NullLogger<DashboardDatabaseInitializer>.Instance).InitializeAsync();
             return new TestDatabase(directory, factory, new SqliteStatisticsService(factory, clock));
         }
 

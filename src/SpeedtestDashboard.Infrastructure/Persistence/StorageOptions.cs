@@ -8,4 +8,10 @@ public sealed class StorageOptions
     public string DatabasePath { get; set; } = "/data/speedtest.db";
 
     public int CommandTimeoutSeconds { get; set; } = 10;
+
+    public bool CreateMigrationBackups { get; set; } = true;
+
+    public string? MigrationBackupDirectory { get; set; }
+
+    public int MigrationBackupRetentionCount { get; set; } = 3;
 }
