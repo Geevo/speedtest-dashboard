@@ -43,3 +43,72 @@ jobs:
       - run: npm run check --prefix src/SpeedtestDashboard.Web
       - run: npm test --prefix src/SpeedtestDashboard.Web
       - run: npm run build --prefix src/SpeedtestDashboard.Web
+
+  native-aot:
+    name: NativeAOT image
+    if: github.event_name != 'workflow_call'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - name: Build amd64 image without a version override
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: packaging/containers/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: speedtest-dashboard:ci-native-aot
+          build-args: INSTALL_OOKLA=false
+      - name: Smoke test image and persisted database
+        shell: bash
+        run: |
+          set -euo pipefail
+          container=speedtest-aot-ci
+          volume=speedtest-aot-ci-data
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+            docker volume rm "$volume" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          image_size_bytes=$(docker image inspect --format '{{.Size}}' speedtest-dashboard:ci-native-aot)
+          echo "NativeAOT image size: $image_size_bytes bytes"
+          test "$image_size_bytes" -lt 75000000
+          docker volume create "$volume"
+          run_container() {
+            docker run -d --name "$container" \
+              --read-only \
+              --tmpfs /tmp:rw,size=64m,mode=1777 \
+              --cap-drop ALL \
+              --security-opt no-new-privileges \
+              -p 18080:8080 \
+              -v "$volume:/data" \
+              speedtest-dashboard:ci-native-aot
+          }
+          wait_for_health() {
+            for attempt in {1..30}; do
+              if curl -fsS http://127.0.0.1:18080/api/health; then return; fi
+              sleep 1
+            done
+            docker logs "$container"
+            return 1
+          }
+          run_container
+          health=$(wait_for_health)
+          expected_version=$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' Directory.Build.props | head -n 1)
+          grep -Fq "\"version\":\"$expected_version\"" <<< "$health"
+          test "$(docker inspect --format '{{.Config.User}}' "$container")" = app
+          docker exec "$container" sh -ec '
+            test -x /app/SpeedtestDashboard.Api
+            test -x /usr/local/bin/librespeed-cli
+            test -x /usr/local/bin/fast-cli
+            test -x /usr/local/bin/mlab-ndt7-client
+            test -s /data/speedtest.db
+            ! command -v dotnet
+            ! command -v node
+            ! command -v go
+          '
+          docker rm -f "$container"
+          run_container
+          wait_for_health
+          docker exec "$container" test -s /data/speedtest.db
