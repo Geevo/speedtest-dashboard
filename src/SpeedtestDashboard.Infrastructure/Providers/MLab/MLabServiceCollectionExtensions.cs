@@ -6,9 +6,7 @@ namespace SpeedtestDashboard.Infrastructure.Providers.MLab;
 
 public static class MLabServiceCollectionExtensions
 {
-    public static IServiceCollection AddMLabProvider(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddMLabProvider(this IServiceCollection services, IConfiguration configuration)
     {
         var processMaximumTimeout = configuration.GetValue<int?>("Processes:MaxTimeoutSeconds") ?? 600;
         services.AddOptions<MLabOptions>()

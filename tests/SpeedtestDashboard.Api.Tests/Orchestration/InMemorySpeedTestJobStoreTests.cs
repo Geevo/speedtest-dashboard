@@ -18,9 +18,7 @@ public sealed class InMemorySpeedTestJobStoreTests
     [InlineData(SpeedTestJobStatus.ProcessingResult, SpeedTestJobStatus.Completed)]
     [InlineData(SpeedTestJobStatus.ProcessingResult, SpeedTestJobStatus.Failed)]
     [InlineData(SpeedTestJobStatus.ProcessingResult, SpeedTestJobStatus.Cancelled)]
-    public void ValidTransitions_AreCentralizedAndIncrementVersion(
-        SpeedTestJobStatus source,
-        SpeedTestJobStatus target)
+    public void ValidTransitions_AreCentralizedAndIncrementVersion(SpeedTestJobStatus source, SpeedTestJobStatus target)
     {
         var store = CreateStore();
         var job = store.Create(CreateRequest());
@@ -40,9 +38,7 @@ public sealed class InMemorySpeedTestJobStoreTests
     [InlineData(SpeedTestJobStatus.Starting, SpeedTestJobStatus.Completed)]
     [InlineData(SpeedTestJobStatus.Running, SpeedTestJobStatus.Completed)]
     [InlineData(SpeedTestJobStatus.ProcessingResult, SpeedTestJobStatus.Running)]
-    public void InvalidTransitions_DoNotMutateJob(
-        SpeedTestJobStatus source,
-        SpeedTestJobStatus target)
+    public void InvalidTransitions_DoNotMutateJob(SpeedTestJobStatus source, SpeedTestJobStatus target)
     {
         var store = CreateStore();
         var job = store.Create(CreateRequest());
@@ -156,10 +152,7 @@ public sealed class InMemorySpeedTestJobStoreTests
         return store.Transition(jobId, target, target.ToString(), out updated, result: result, failure: failure);
     }
 
-    internal static void MoveTo(
-        InMemorySpeedTestJobStore store,
-        Guid jobId,
-        SpeedTestJobStatus target)
+    internal static void MoveTo(InMemorySpeedTestJobStore store, Guid jobId, SpeedTestJobStatus target)
     {
         if (target == SpeedTestJobStatus.Queued)
         {

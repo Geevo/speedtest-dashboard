@@ -164,9 +164,7 @@ public sealed class OoklaSpeedTestProviderTests
     [InlineData(ProcessTerminationReason.TimedOut, OoklaFailureCodes.Timeout)]
     [InlineData(ProcessTerminationReason.OutputLimitExceeded, OoklaFailureCodes.InvalidOutput)]
     [InlineData(ProcessTerminationReason.FailedToStart, OoklaFailureCodes.NotInstalled)]
-    public async Task RunMapsProcessTerminationToStableFailures(
-        ProcessTerminationReason reason,
-        string expectedCode)
+    public async Task RunMapsProcessTerminationToStableFailures(ProcessTerminationReason reason, string expectedCode)
     {
         var provider = OoklaTestFactory.Provider(RunnerReturning(reason: reason, exitCode: null));
 

@@ -92,9 +92,7 @@ public sealed partial class OoklaSpeedTestProvider(
         return ProviderRequestValidationResult.Valid;
     }
 
-    public async Task<SpeedTestResult> RunAsync(
-        SpeedTestExecution execution,
-        CancellationToken cancellationToken)
+    public async Task<SpeedTestResult> RunAsync(SpeedTestExecution execution, CancellationToken cancellationToken)
     {
         EnsureOperational();
         var validation = ValidateRequest(execution.Request);

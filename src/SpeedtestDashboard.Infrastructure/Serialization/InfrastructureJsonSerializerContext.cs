@@ -9,9 +9,7 @@ namespace SpeedtestDashboard.Infrastructure.Serialization;
 [JsonSerializable(typeof(OoklaMetadata))]
 internal sealed partial class InfrastructureJsonSerializerContext : JsonSerializerContext;
 
-internal sealed record FastComMetadata(
-    string LatencyMethod,
-    string ServerSelection);
+internal sealed record FastComMetadata(string LatencyMethod, string ServerSelection);
 
 internal sealed record LibreSpeedMetadata(
     DateTimeOffset? Timestamp,
@@ -33,11 +31,7 @@ internal sealed record MLabMetadata(
     decimal? DownloadRetransmissionPercent,
     string DataPublication);
 
-internal sealed record OoklaLatencyMetadata(
-    decimal? Iqm,
-    decimal? Low,
-    decimal? High,
-    decimal? Jitter);
+internal sealed record OoklaLatencyMetadata(decimal? Iqm, decimal? Low, decimal? High, decimal? Jitter);
 
 internal sealed record OoklaMetadata(
     DateTimeOffset? Timestamp,

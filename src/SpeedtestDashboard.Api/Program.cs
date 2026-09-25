@@ -105,10 +105,6 @@ app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();
 
-public sealed record HealthResponse(
-    string Status,
-    string Service,
-    string Version,
-    DateTimeOffset CheckedAt);
+public sealed record HealthResponse(string Status, string Service, string Version, DateTimeOffset CheckedAt);
 
 public partial class Program;

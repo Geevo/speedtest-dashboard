@@ -72,9 +72,7 @@ public sealed class FastComSpeedTestProviderTests
     [InlineData(ProcessTerminationReason.TimedOut, FastComFailureCodes.Timeout)]
     [InlineData(ProcessTerminationReason.OutputLimitExceeded, FastComFailureCodes.InvalidOutput)]
     [InlineData(ProcessTerminationReason.FailedToStart, FastComFailureCodes.NotInstalled)]
-    public async Task RunMapsProcessTerminationToStableFailures(
-        ProcessTerminationReason reason,
-        string expectedCode)
+    public async Task RunMapsProcessTerminationToStableFailures(ProcessTerminationReason reason, string expectedCode)
     {
         var exception = await Assert.ThrowsAsync<ProviderExecutionException>(() =>
             FastComTestFactory.Provider(RunnerReturning(exitCode: null, reason: reason))

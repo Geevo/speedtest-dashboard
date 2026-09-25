@@ -2,17 +2,12 @@ using Microsoft.Extensions.Options;
 
 namespace SpeedtestDashboard.Infrastructure.Persistence;
 
-public sealed record DatabaseStorageInfo(
-    long DatabaseBytes,
-    long WriteAheadLogBytes,
-    long SharedMemoryBytes)
+public sealed record DatabaseStorageInfo(long DatabaseBytes, long WriteAheadLogBytes, long SharedMemoryBytes)
 {
     public long TotalBytes => checked(DatabaseBytes + WriteAheadLogBytes + SharedMemoryBytes);
 }
 
-public sealed record DatabaseCompactionResult(
-    DatabaseStorageInfo Before,
-    DatabaseStorageInfo After);
+public sealed record DatabaseCompactionResult(DatabaseStorageInfo Before, DatabaseStorageInfo After);
 
 public sealed class DatabaseMaintenanceService(
     SqliteConnectionFactory connectionFactory,

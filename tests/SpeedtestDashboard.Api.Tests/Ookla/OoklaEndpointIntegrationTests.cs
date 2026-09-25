@@ -243,9 +243,7 @@ public sealed class OoklaEndpointIntegrationTests : IClassFixture<DashboardWebAp
         return (await response.Content.ReadFromJsonAsync<CreateTestResponse>())!;
     }
 
-    private static async Task<SpeedTestJobResponse> WaitForTerminalAsync(
-        HttpClient client,
-        CreateTestResponse created)
+    private static async Task<SpeedTestJobResponse> WaitForTerminalAsync(HttpClient client, CreateTestResponse created)
     {
         SpeedTestJobResponse? job = null;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));

@@ -47,12 +47,7 @@ export class ApiError extends Error {
   readonly retryAfterSeconds?: number
   readonly code?: string
 
-  constructor(
-    message: string,
-    status: number,
-    retryAfterSeconds?: number,
-    code?: string,
-  ) {
+  constructor(message: string, status: number, retryAfterSeconds?: number, code?: string) {
     super(message)
     this.status = status
     this.retryAfterSeconds = retryAfterSeconds

@@ -65,9 +65,7 @@ public sealed partial class FastComSpeedTestProvider(
                 "FAST.com does not support explicit server selection.");
     }
 
-    public async Task<SpeedTestResult> RunAsync(
-        SpeedTestExecution execution,
-        CancellationToken cancellationToken)
+    public async Task<SpeedTestResult> RunAsync(SpeedTestExecution execution, CancellationToken cancellationToken)
     {
         EnsureOperational();
         var validation = ValidateRequest(execution.Request);

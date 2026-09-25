@@ -48,6 +48,4 @@ public sealed record DatabaseStorageResponse(
         storage.TotalBytes);
 }
 
-public sealed record DatabaseCompactionResponse(
-    DatabaseStorageResponse Before,
-    DatabaseStorageResponse After);
+public sealed record DatabaseCompactionResponse(DatabaseStorageResponse Before, DatabaseStorageResponse After);

@@ -13,12 +13,7 @@ public enum StatisticsRange
 
 public sealed record StatisticsQuery(StatisticsRange Range, ProviderId? ProviderId);
 
-public sealed record TestCountStatistics(
-    int Total,
-    int Completed,
-    int Failed,
-    int Cancelled,
-    decimal? SuccessRate);
+public sealed record TestCountStatistics(int Total, int Completed, int Failed, int Cancelled, decimal? SuccessRate);
 
 public sealed record MetricStatistics(
     int Count,

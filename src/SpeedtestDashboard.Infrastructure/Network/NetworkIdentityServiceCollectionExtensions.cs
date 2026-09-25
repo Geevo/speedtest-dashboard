@@ -9,9 +9,7 @@ namespace SpeedtestDashboard.Infrastructure.Network;
 
 public static class NetworkIdentityServiceCollectionExtensions
 {
-    public static IServiceCollection AddNetworkIdentity(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddNetworkIdentity(this IServiceCollection services, IConfiguration configuration)
     {
         var section = configuration.GetSection(NetworkIdentityOptions.SectionName);
         services.AddOptions<NetworkIdentityOptions>()

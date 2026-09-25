@@ -1,9 +1,6 @@
 namespace SpeedtestDashboard.Core.Providers;
 
-public sealed record ProviderDisclosure(
-    string Kind,
-    string Message,
-    string? Url = null);
+public sealed record ProviderDisclosure(string Kind, string Message, string? Url = null);
 
 public sealed record ProviderDescriptor(
     ProviderId Id,

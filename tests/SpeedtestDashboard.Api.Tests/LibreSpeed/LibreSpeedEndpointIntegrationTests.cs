@@ -254,9 +254,7 @@ public sealed class LibreSpeedEndpointIntegrationTests : IClassFixture<Dashboard
         return (await response.Content.ReadFromJsonAsync<CreateTestResponse>())!;
     }
 
-    private static async Task<SpeedTestJobResponse> WaitForTerminalAsync(
-        HttpClient client,
-        CreateTestResponse created)
+    private static async Task<SpeedTestJobResponse> WaitForTerminalAsync(HttpClient client, CreateTestResponse created)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (!timeout.IsCancellationRequested)

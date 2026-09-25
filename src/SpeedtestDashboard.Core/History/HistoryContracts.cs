@@ -35,9 +35,7 @@ public sealed record SpeedTestHistoryRecord(
     NetworkIdentity? EgressIdentity,
     string? ProviderMetadataJson);
 
-public sealed record HistoryPage(
-    IReadOnlyList<SpeedTestHistoryRecord> Items,
-    string? NextCursor);
+public sealed record HistoryPage(IReadOnlyList<SpeedTestHistoryRecord> Items, string? NextCursor);
 
 public sealed record HistoryDeleteResult(bool Deleted, Guid? JobId);
 

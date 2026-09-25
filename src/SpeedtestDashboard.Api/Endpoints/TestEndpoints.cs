@@ -329,9 +329,7 @@ public static class TestEndpoints
     }
 }
 
-public sealed record CreateTestRequest(
-    string? ProviderId,
-    string? ServerId);
+public sealed record CreateTestRequest(string? ProviderId, string? ServerId);
 
 public sealed record CreateTestResponse(
     Guid Id,
@@ -414,7 +412,4 @@ public sealed record SpeedTestResultResponse(
 
 public sealed record SpeedTestFailureResponse(string Code, string Message);
 
-public sealed record SpeedTestEventResponse(
-    long Version,
-    DateTimeOffset EmittedAtUtc,
-    SpeedTestJobResponse? Job);
+public sealed record SpeedTestEventResponse(long Version, DateTimeOffset EmittedAtUtc, SpeedTestJobResponse? Job);

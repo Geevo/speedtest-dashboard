@@ -11,10 +11,7 @@ namespace SpeedtestDashboard.Api.Tests.Schedules;
 
 internal sealed class ScheduleWorkerHarness
 {
-    public ScheduleWorkerHarness(
-        FakeSpeedTestProvider provider,
-        ManualTimeProvider timeProvider,
-        int queueCapacity = 4)
+    public ScheduleWorkerHarness(FakeSpeedTestProvider provider, ManualTimeProvider timeProvider, int queueCapacity = 4)
     {
         TimeProvider = timeProvider;
         JobStore = new InMemorySpeedTestJobStore(timeProvider);

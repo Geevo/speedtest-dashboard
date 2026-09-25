@@ -63,9 +63,7 @@ internal sealed class FakeSpeedTestProvider : ISpeedTestProvider, ISpeedTestServ
     public ProviderRequestValidationResult ValidateRequest(SpeedTestRequest request) =>
         ProviderRequestValidationResult.Valid;
 
-    public async Task<SpeedTestResult> RunAsync(
-        SpeedTestExecution execution,
-        CancellationToken cancellationToken)
+    public async Task<SpeedTestResult> RunAsync(SpeedTestExecution execution, CancellationToken cancellationToken)
     {
         var call = Interlocked.Increment(ref _runCalls);
         var active = Interlocked.Increment(ref _activeRuns);

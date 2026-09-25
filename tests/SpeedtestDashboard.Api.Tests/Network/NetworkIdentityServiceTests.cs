@@ -276,8 +276,7 @@ public sealed class NetworkIdentityServiceTests
         }
     }
 
-    private sealed class FakeMetadataProvider(
-        Func<IPAddress, Task<IpMetadata?>> handler) : IIpMetadataProvider
+    private sealed class FakeMetadataProvider(Func<IPAddress, Task<IpMetadata?>> handler) : IIpMetadataProvider
     {
         private readonly ConcurrentDictionary<IPAddress, int> _calls = new();
 

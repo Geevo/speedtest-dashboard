@@ -120,10 +120,7 @@ export async function getProvider(providerId: string, signal?: AbortSignal): Pro
   return requestJson<ProviderSummary>(`/api/providers/${encodeURIComponent(providerId)}`, { signal })
 }
 
-export async function getProviderServers(
-  providerId: string,
-  signal?: AbortSignal,
-): Promise<SpeedTestServer[]> {
+export async function getProviderServers(providerId: string, signal?: AbortSignal): Promise<SpeedTestServer[]> {
   return requestJson<SpeedTestServer[]>(
     `/api/providers/${encodeURIComponent(providerId)}/servers?limit=100`,
     { signal },
@@ -146,11 +143,7 @@ export async function cancelSpeedTest(jobId: string): Promise<SpeedTestJob> {
   return requestJson<SpeedTestJob>(`/api/tests/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
 }
 
-export function subscribeToSpeedTest(
-  jobId: string,
-  onEvent: (event: SpeedTestEvent) => void,
-  onError: () => void,
-) {
+export function subscribeToSpeedTest(jobId: string, onEvent: (event: SpeedTestEvent) => void, onError: () => void) {
   const source = new EventSource(`/api/tests/${encodeURIComponent(jobId)}/events`)
   const eventTypes = ['snapshot', 'state', 'result', 'error', 'heartbeat'] as const
 

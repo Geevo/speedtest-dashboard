@@ -221,10 +221,7 @@ public sealed record ProviderResponse(
     DateTimeOffset CheckedAtUtc,
     string? Message);
 
-public sealed record ProviderDisclosureResponse(
-    string Kind,
-    string Message,
-    string? Url)
+public sealed record ProviderDisclosureResponse(string Kind, string Message, string? Url)
 {
     public static ProviderDisclosureResponse From(ProviderDisclosure disclosure) => new(
         Sanitize(disclosure.Kind, 40),

@@ -6,9 +6,7 @@ namespace SpeedtestDashboard.Infrastructure.Providers.Ookla;
 
 public static class OoklaServiceCollectionExtensions
 {
-    public static IServiceCollection AddOoklaProvider(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddOoklaProvider(this IServiceCollection services, IConfiguration configuration)
     {
         var processMaximumTimeout = configuration.GetValue<int?>("Processes:MaxTimeoutSeconds") ?? 600;
         services.AddOptions<OoklaOptions>()

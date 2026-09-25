@@ -4,10 +4,7 @@ using SpeedtestDashboard.Core.Providers;
 
 namespace SpeedtestDashboard.Infrastructure.Providers.LibreSpeed;
 
-public sealed record LibreSpeedServerDefinition(
-    SpeedTestServer Server,
-    string CatalogName,
-    Uri ServerUri);
+public sealed record LibreSpeedServerDefinition(SpeedTestServer Server, string CatalogName, Uri ServerUri);
 
 public sealed class LibreSpeedServerCatalogParser
 {

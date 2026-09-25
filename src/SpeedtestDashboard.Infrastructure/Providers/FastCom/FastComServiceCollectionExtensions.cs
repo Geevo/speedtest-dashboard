@@ -6,9 +6,7 @@ namespace SpeedtestDashboard.Infrastructure.Providers.FastCom;
 
 public static class FastComServiceCollectionExtensions
 {
-    public static IServiceCollection AddFastComProvider(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddFastComProvider(this IServiceCollection services, IConfiguration configuration)
     {
         var processMaximumTimeout = configuration.GetValue<int?>("Processes:MaxTimeoutSeconds") ?? 600;
         services.AddOptions<FastComOptions>()

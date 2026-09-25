@@ -17,8 +17,7 @@ public sealed class LibreSpeedServerCatalogClient(
     private static readonly Uri CatalogUri = new(LibreSpeedOptions.ServerCatalogUrl);
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    public async Task<IReadOnlyList<LibreSpeedServerDefinition>> GetServersAsync(
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<LibreSpeedServerDefinition>> GetServersAsync(CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.ServerListTimeoutSeconds));

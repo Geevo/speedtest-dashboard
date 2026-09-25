@@ -168,9 +168,7 @@ public sealed class SpeedTestWorkerTests
     {
         private readonly SpeedTestWorker _worker;
 
-        public WorkerHarness(
-            FakeSpeedTestProvider provider,
-            INetworkIdentityService? networkIdentityService = null)
+        public WorkerHarness(FakeSpeedTestProvider provider, INetworkIdentityService? networkIdentityService = null)
         {
             Store = new InMemorySpeedTestJobStore(TimeProvider.System);
             Queue = SpeedTestQueueTests.CreateQueue();

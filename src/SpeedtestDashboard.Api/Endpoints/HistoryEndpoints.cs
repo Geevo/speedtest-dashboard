@@ -124,10 +124,7 @@ public static class HistoryEndpoints
         return Results.Ok(new HistoryDeleteAllResponse(result.DeletedCount));
     }
 
-    private static bool TryParseQuery(
-        IQueryCollection values,
-        out HistoryQuery query,
-        out string error)
+    private static bool TryParseQuery(IQueryCollection values, out HistoryQuery query, out string error)
     {
         query = null!;
         error = string.Empty;
@@ -180,11 +177,7 @@ public static class HistoryEndpoints
         return true;
     }
 
-    private static bool TryParseUtc(
-        IQueryCollection values,
-        string name,
-        out DateTimeOffset? parsed,
-        out string error)
+    private static bool TryParseUtc(IQueryCollection values, string name, out DateTimeOffset? parsed, out string error)
     {
         parsed = null;
         error = string.Empty;
@@ -212,9 +205,7 @@ public static class HistoryEndpoints
 
 public sealed record HistoryDeleteAllResponse(int DeletedCount);
 
-public sealed record HistoryListResponse(
-    IReadOnlyList<HistoryListItemResponse> Items,
-    string? NextCursor);
+public sealed record HistoryListResponse(IReadOnlyList<HistoryListItemResponse> Items, string? NextCursor);
 
 public sealed record HistoryListItemResponse(
     long Id,

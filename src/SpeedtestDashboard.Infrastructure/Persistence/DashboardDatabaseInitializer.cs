@@ -176,9 +176,7 @@ public sealed class DashboardDatabaseInitializer(
         }
     }
 
-    private static async Task ValidateDatabaseAsync(
-        SqliteConnection connection,
-        CancellationToken cancellationToken)
+    private static async Task ValidateDatabaseAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         await using (var integrity = connection.CreateCommand())
         {
