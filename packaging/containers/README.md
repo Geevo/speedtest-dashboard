@@ -48,14 +48,7 @@ volumes:
 
 Start it with `docker compose up -d`, then open `http://<docker-host>:8008`. Change both occurrences of `8008` to use another free port.
 
-Fresh installs allow anonymous access. Put the dashboard behind HTTPS before enabling login protection. If this really is an isolated, trusted, HTTP-only LAN, add the following environment setting:
-
-```yaml
-environment:
-  Authentication__AllowInsecureHttp: "true"
-```
-
-That exception is only needed for login; anonymous mode works over HTTP without it.
+Fresh installs allow anonymous access.
 
 ## Plain Docker
 
@@ -260,7 +253,6 @@ Both targets exclude Ookla by default. Useful overrides:
 | `TAG=speedtest-dashboard:test` | Name the built image something else |
 | `VERSION=1.2.3` | Explicitly override the version from `Directory.Build.props` |
 | `INSTALL_OOKLA=true` | Include the proprietary Ookla CLI |
-| `ALLOW_INSECURE_HTTP=true` | Read by `make run` for login over trusted local HTTP |
 
 Run `make doctor` if a build fails before it starts, and `make help` for the full
 list. The underlying commands are still there if you prefer them:

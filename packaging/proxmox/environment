@@ -4,7 +4,6 @@ ASPNETCORE_ENVIRONMENT=Production
 Storage__DatabasePath=/var/lib/speedtest-dashboard/speedtest.db
 Storage__CommandTimeoutSeconds=10
 
-Authentication__AllowInsecureHttp=false
 Authentication__DataProtectionPath=/var/lib/speedtest-dashboard/dataprotection
 
 ReverseProxy__TrustForwardedHeaders=false

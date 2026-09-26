@@ -16,7 +16,6 @@ services:
       - speedtest-data:/data
     environment:
       DASHBOARD_PORT: "${DASHBOARD_PORT:-8080}"
-      Authentication__AllowInsecureHttp: "${ALLOW_INSECURE_HTTP:-false}"
       Providers__Ookla__AcceptLicense: "${OOKLA_ACCEPT_LICENSE:-false}"
       Providers__Ookla__AcceptGdpr: "${OOKLA_ACCEPT_GDPR:-false}"
     read_only: true

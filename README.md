@@ -152,8 +152,6 @@ On Windows, run these from WSL or use the Compose files directly.
 
 Fresh installs open without a login so you can make sure networking works. Run a test, check that the displayed exit IP belongs to the route you expected, then add a schedule or two.
 
-If the dashboard is reachable beyond a trusted LAN, put it behind HTTPS and enable login protection in Settings. For a deliberately isolated HTTP-only lab, set `Authentication__AllowInsecureHttp=true` before configuring a login.
-
 The container itself is disposable; `/data` is not. That directory holds SQLite, schedules, login state, the protected API credential, and session keys. Keep it mounted, do not point two dashboard containers at the same database, and stop the container before making a filesystem-level copy.
 
 ## A few more screenshots
@@ -249,7 +247,6 @@ Environment variables use double underscores for nested settings. These are the 
 
 | Variable | Default | Why change it |
 | --- | --- | --- |
-| `Authentication__AllowInsecureHttp` | `false` | Allow login cookies on a trusted HTTP-only LAN |
 | `DASHBOARD_PORT` | `8080` | Avoid a clash with another app, especially behind Gluetun |
 | `ReverseProxy__TrustForwardedHeaders` | `false` | Enable only behind a trusted reverse proxy |
 | `Scheduler__PollIntervalSeconds` | `30` | Change how often due schedules are checked |
@@ -346,7 +343,6 @@ Alternatively, launch with explicit paths:
 mkdir -p .data
 Storage__DatabasePath="$PWD/.data/speedtest.db" \
 Authentication__DataProtectionPath="$PWD/.data/dataprotection" \
-Authentication__AllowInsecureHttp=true \
   dotnet run --project src/SpeedtestDashboard.Api --urls http://localhost:5080
 ```
 

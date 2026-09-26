@@ -5,7 +5,6 @@ namespace SpeedtestDashboard.Api.Authentication;
 internal sealed class CsrfValidationFilter(
     IAntiforgery antiforgery,
     DashboardAuthenticationState state,
-    Microsoft.Extensions.Options.IOptions<DashboardAuthenticationOptions> options,
     ILogger<CsrfValidationFilter> logger) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
@@ -16,17 +15,6 @@ internal sealed class CsrfValidationFilter(
         if (!state.IsEnabled && !alwaysValidate)
         {
             return await next(context);
-        }
-
-        if ((path.Equals("/api/auth/login") || isSetup) &&
-            !options.Value.AllowInsecureHttp &&
-            !context.HttpContext.Request.IsHttps)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid request",
-                detail: "This dashboard accepts login credentials over HTTPS only.",
-                extensions: new Dictionary<string, object?> { ["code"] = "https_required" });
         }
 
         try

@@ -87,10 +87,7 @@ public static class AuthenticationServiceCollectionExtensions
                 DisabledAuthenticationHandler.SchemeName, _ => { });
 
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
-            .Configure<IOptions<DashboardAuthenticationOptions>>((cookie, auth) =>
-                cookie.Cookie.SecurePolicy = auth.Value.AllowInsecureHttp
-                    ? CookieSecurePolicy.SameAsRequest
-                    : CookieSecurePolicy.Always);
+            .Configure(cookie => cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest);
         services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build());
@@ -101,8 +98,7 @@ public static class AuthenticationServiceCollectionExtensions
             options.Cookie.Name = "SpeedtestDashboard.Antiforgery";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
-            // Anonymous dashboards support HTTP. Session cookies and credential endpoints
-            // retain their separate HTTPS requirements.
+            // Antiforgery cookies follow the request scheme so browser mutations work over HTTP and HTTPS.
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
 

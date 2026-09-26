@@ -24,7 +24,6 @@ BUILDER_TAG ?= speedtest-dashboard-proxmox-builder:local
 OUTPUT ?= artifacts
 DASHBOARD_PORT ?= 8080
 INSTALL_OOKLA ?= false
-ALLOW_INSECURE_HTTP ?= false
 OOKLA_ACCEPT_LICENSE ?= false
 OOKLA_ACCEPT_GDPR ?= false
 
@@ -57,7 +56,6 @@ help:
 	@echo '  VERSION=1.2.3           Version stamp           (detected: $(VERSION))'
 	@echo '  DASHBOARD_PORT=8008     Host port for `make run`'
 	@echo '  INSTALL_OOKLA=true      Include the proprietary Ookla CLI - see docs/ookla.md'
-	@echo '  ALLOW_INSECURE_HTTP=true  Allow login over plain HTTP for local testing'
 	@echo
 	@echo 'Installing what you built: packaging/containers/README.md, packaging/proxmox/README.md'
 
@@ -97,7 +95,6 @@ run: doctor
 	APP_VERSION=$(VERSION) \
 	SOURCE_REVISION=$(COMMIT) \
 	INSTALL_OOKLA=$(INSTALL_OOKLA) \
-	ALLOW_INSECURE_HTTP=$(ALLOW_INSECURE_HTTP) \
 	OOKLA_ACCEPT_LICENSE=$(OOKLA_ACCEPT_LICENSE) \
 	OOKLA_ACCEPT_GDPR=$(OOKLA_ACCEPT_GDPR) \
 	  $(ENGINE) compose --file $(COMPOSE_LOCAL) up --build --detach

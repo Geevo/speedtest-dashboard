@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using SpeedtestDashboard.Api.Authentication;
 using SpeedtestDashboard.Infrastructure.Authentication;
 
@@ -77,17 +76,9 @@ public static partial class AuthenticationEndpoints
 
     private static IResult GetCsrf(
         HttpContext context,
-        IAntiforgery antiforgery,
-        DashboardAuthenticationState state,
-        IOptions<DashboardAuthenticationOptions> options)
+        IAntiforgery antiforgery)
     {
         context.Response.Headers.CacheControl = "no-store";
-        if (state.IsEnabled && !options.Value.AllowInsecureHttp && !context.Request.IsHttps)
-        {
-            return Problem(StatusCodes.Status400BadRequest, "https_required",
-                "Use HTTPS to initialize request protection while login protection is enabled.");
-        }
-
         var tokens = antiforgery.GetAndStoreTokens(context);
         return Results.Ok(new CsrfResponse(tokens.RequestToken!));
     }
@@ -96,7 +87,6 @@ public static partial class AuthenticationEndpoints
         LoginRequest request,
         HttpContext context,
         LocalAccountService accounts,
-        IOptions<DashboardAuthenticationOptions> options,
         DashboardAuthenticationState state,
         ILogger<Program> logger)
     {
@@ -105,11 +95,6 @@ public static partial class AuthenticationEndpoints
         {
             return Problem(StatusCodes.Status409Conflict, "authentication_disabled",
                 "Local authentication is disabled for this instance.");
-        }
-        if (!options.Value.AllowInsecureHttp && !context.Request.IsHttps)
-        {
-            return Problem(StatusCodes.Status400BadRequest, "https_required",
-                "This dashboard accepts login credentials over HTTPS only.");
         }
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrEmpty(request.Password) ||
             request.Username.Length > 64 || request.Password.Length > 128)
@@ -135,7 +120,6 @@ public static partial class AuthenticationEndpoints
         HttpContext context,
         LocalAccountService accounts,
         DashboardAuthenticationState state,
-        IOptions<DashboardAuthenticationOptions> options,
         ILogger<Program> logger)
     {
         await state.WaitForMutationAsync(context.RequestAborted);
@@ -146,11 +130,6 @@ public static partial class AuthenticationEndpoints
             {
                 return Problem(StatusCodes.Status409Conflict, "authentication_enabled",
                     "Login protection is already enabled.");
-            }
-            if (!options.Value.AllowInsecureHttp && !context.Request.IsHttps)
-            {
-                return Problem(StatusCodes.Status400BadRequest, "https_required",
-                    "This dashboard accepts credentials over HTTPS only.");
             }
             if (!UsernameRegex().IsMatch(request.Username) || !IsValidPasswordMaterial(request.Password))
             {

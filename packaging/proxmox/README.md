@@ -79,7 +79,7 @@ pct enter 120
 
 The app listens on port `8080` by default. To use another port, change `DASHBOARD_PORT` in `/etc/speedtest-dashboard/environment`, restart the service, and open that port in the Proxmox firewall. The template does not install SSH; `pct console`, `pct enter`, and `pct exec` are the intended starting points.
 
-Fresh installs open anonymously. Put the dashboard behind HTTPS before enabling login protection. For an isolated HTTP-only lab, edit `/etc/speedtest-dashboard/environment`, set `Authentication__AllowInsecureHttp=true`, and restart the service before creating the login.
+Fresh installs open anonymously.
 
 ## Pointing the LXC through a VPN
 

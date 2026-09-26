@@ -110,29 +110,32 @@ public sealed class AuthenticationEndpointTests
     }
 
     [Fact]
-    public async Task HttpCredentialSetupRequiresExplicitLanOverride()
+    public async Task HttpSetupAndLoginAreAllowedAndUseNonSecureSessionCookies()
     {
-        using var secureFactory = new AuthWebApplicationFactory();
-        using var insecureClient = secureFactory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        using var factory = new AuthWebApplicationFactory();
+        using var setupClient = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("http://localhost"),
             AllowAutoRedirect = false
         });
-        using var rejected = await insecureClient.PostAsJsonAsync("/api/auth/setup",
-            new { username = "admin", password = Password });
-        Assert.Equal("https_required", await ProblemCodeAsync(rejected));
-
-        using var lanFactory = new AuthWebApplicationFactory(allowInsecureHttp: true);
-        using var lanClient = lanFactory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("http://localhost"),
-            AllowAutoRedirect = false
-        });
-        using var accepted = await SetupAsync(lanClient);
+        using var accepted = await SetupAsync(setupClient);
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
-        var cookie = accepted.Headers.GetValues("Set-Cookie")
+        var setupCookie = accepted.Headers.GetValues("Set-Cookie")
             .Single(value => value.StartsWith("SpeedtestDashboard.Session=", StringComparison.Ordinal));
-        Assert.DoesNotContain("secure", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secure", setupCookie, StringComparison.OrdinalIgnoreCase);
+
+        using var loginClient = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            AllowAutoRedirect = false
+        });
+        var csrf = await GetCsrfAsync(loginClient);
+        using var login = await PostWithCsrfAsync(loginClient, "/api/auth/login", csrf,
+            new { username = "admin", password = Password });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var loginCookie = login.Headers.GetValues("Set-Cookie")
+            .Single(value => value.StartsWith("SpeedtestDashboard.Session=", StringComparison.Ordinal));
+        Assert.DoesNotContain("secure", loginCookie, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

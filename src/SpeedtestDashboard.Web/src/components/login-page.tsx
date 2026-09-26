@@ -18,12 +18,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (session: SessionRespons
     try {
       onSignedIn(await login(username, password))
     } catch (reason) {
-      if (reason instanceof ApiError && reason.code === 'https_required') {
-        setError({
-          title: 'Secure access required',
-          message: 'Open this dashboard through its HTTPS reverse proxy. Insecure HTTP can only be enabled explicitly for a trusted network.',
-        })
-      } else if (reason instanceof ApiError && reason.status === 401) {
+      if (reason instanceof ApiError && reason.status === 401) {
         setError({ title: 'Sign in failed', message: 'Check the username and password, then try again.' })
       } else if (reason instanceof ApiError && reason.status === 429) {
         setError({ title: 'Too many attempts', message: 'Wait a minute before trying again.' })

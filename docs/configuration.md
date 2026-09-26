@@ -11,7 +11,6 @@ Docker users can put the values under `environment:` in Compose. Native Proxmox 
 | Variable | Default |
 | --- | --- |
 | `DASHBOARD_PORT` | `8080` in packaged installs |
-| `Authentication__AllowInsecureHttp` | `false` |
 | `Authentication__DataProtectionPath` | `/data/dataprotection` |
 | `ReverseProxy__TrustForwardedHeaders` | `false` |
 | `Storage__DatabasePath` | `/data/speedtest.db` |
@@ -125,7 +124,7 @@ Login protection starts off. Settings can create one local operator account and 
 
 Usernames are 3–64 characters using letters, digits, `.`, `_`, or `-`. Passwords are 6–128 characters. Five failed logins lock the account for 15 minutes; login requests are also limited to 10 per minute per source IP.
 
-Sessions use an `HttpOnly`, `SameSite=Lax` cookie with a 12-hour sliding lifetime. Cookies are Secure unless `Authentication__AllowInsecureHttp=true`. Keep that override for trusted HTTP-only networks; prefer HTTPS anywhere else.
+Sessions use an `HttpOnly`, `SameSite=Lax` cookie with a 12-hour sliding lifetime.
 
 The bearer key generated in Settings is separate from the browser login. A browser session does not authenticate `/api/v1`, and an API key does not sign into the dashboard.
 

@@ -14,7 +14,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 - included the Debian interface, DHCP, route, and ping tooling required for Proxmox-managed LXC networking
 - serialized authentication settings changes so concurrent preferences cannot turn off newly enabled login protection
-- restored browser mutations on anonymous HTTP installations while retaining HTTPS requirements for credentials
+- restored browser mutations on anonymous HTTP installations
 - serialized API idempotency lookup, submission, and recording so concurrent retries return one job
 - made native-template checksum files portable between the build host and the receiving Proxmox node
 - required signed Debian archive verification when bootstrapping native templates

@@ -33,9 +33,7 @@ public sealed class AuthenticationRegressionTests
         using var preference = await client.PostAsJsonAsync("/api/auth/preferences", new { showDisabledWarning = false });
         Assert.Equal(HttpStatusCode.OK, preference.StatusCode);
         using var setup = await client.PostAsJsonAsync("/api/auth/setup", new { username = "admin", password = "review-password" });
-        Assert.Equal(HttpStatusCode.BadRequest, setup.StatusCode);
-        var problem = await setup.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("https_required", problem.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, setup.StatusCode);
     }
 
     [Fact]
@@ -95,9 +93,8 @@ public sealed class AuthenticationRegressionTests
         Assert.False(settings.ShowDisabledWarning);
         using var httpClient = factory.CreateClient();
         using var httpCsrf = await httpClient.GetAsync("/api/auth/csrf");
-        Assert.Equal(HttpStatusCode.BadRequest, httpCsrf.StatusCode);
-        var httpProblem = await httpCsrf.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("https_required", httpProblem.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, httpCsrf.StatusCode);
+        Assert.DoesNotContain("; secure", httpCsrf.Headers.GetValues("Set-Cookie").Single(), StringComparison.OrdinalIgnoreCase);
         using var httpsCsrf = await anonymous.GetAsync("/api/auth/csrf");
         Assert.Equal(HttpStatusCode.OK, httpsCsrf.StatusCode);
         Assert.Contains("; secure", httpsCsrf.Headers.GetValues("Set-Cookie").Single(), StringComparison.OrdinalIgnoreCase);

@@ -12,16 +12,12 @@ internal sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
     private readonly string _root;
     private readonly bool _ownsRoot;
     private readonly bool _validateSecurityStampImmediately;
-    private readonly bool _allowInsecureHttp;
-
     public AuthWebApplicationFactory(
         string? root = null,
-        bool validateSecurityStampImmediately = false,
-        bool allowInsecureHttp = false)
+        bool validateSecurityStampImmediately = false)
     {
         _ownsRoot = root is null;
         _validateSecurityStampImmediately = validateSecurityStampImmediately;
-        _allowInsecureHttp = allowInsecureHttp;
         _root = root ?? Path.Combine(Path.GetTempPath(), "speedtest-auth-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
     }
@@ -35,7 +31,6 @@ internal sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Storage:DatabasePath"] = DatabasePath,
-                ["Authentication:AllowInsecureHttp"] = _allowInsecureHttp.ToString(),
                 ["Authentication:DataProtectionPath"] = Path.Combine(_root, "dataprotection")
             }));
         builder.ConfigureTestServices(services =>
