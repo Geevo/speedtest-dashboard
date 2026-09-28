@@ -119,7 +119,8 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           docker save speedtest-dashboard:ci-native-aot | gzip -9 > artifacts/speedtest-dashboard_linux-amd64.tar.gz
-          sha256sum artifacts/speedtest-dashboard_linux-amd64.tar.gz > artifacts/speedtest-dashboard_linux-amd64.tar.gz.sha256
+          cd artifacts
+          sha256sum speedtest-dashboard_linux-amd64.tar.gz > speedtest-dashboard_linux-amd64.tar.gz.sha256
       - name: Upload tested image
         uses: actions/upload-artifact@v6
         with:
