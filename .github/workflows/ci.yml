@@ -47,6 +47,7 @@ jobs:
   native-aot:
     name: NativeAOT image
     if: github.event_name != 'workflow_call'
+    needs: [backend, frontend]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -112,3 +113,20 @@ jobs:
           run_container
           wait_for_health
           docker exec "$container" test -s /data/speedtest.db
+      - name: Package tested image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          docker save speedtest-dashboard:ci-native-aot | gzip -9 > artifacts/speedtest-dashboard_linux-amd64.tar.gz
+          sha256sum artifacts/speedtest-dashboard_linux-amd64.tar.gz > artifacts/speedtest-dashboard_linux-amd64.tar.gz.sha256
+      - name: Upload tested image
+        uses: actions/upload-artifact@v6
+        with:
+          name: speedtest-dashboard-linux-amd64-${{ github.sha }}
+          path: |
+            artifacts/speedtest-dashboard_linux-amd64.tar.gz
+            artifacts/speedtest-dashboard_linux-amd64.tar.gz.sha256
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
