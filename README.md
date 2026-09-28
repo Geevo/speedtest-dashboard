@@ -29,7 +29,7 @@ The tests run wherever the dashboard is installed. Put it behind Gluetun and it 
 
 Pick whichever flavour fits your lab. The examples use `latest` to keep the first run simple; pin a release tag once you are happy with it.
 
-Images are published from the [`Geevo/speedtest-app`](https://github.com/Geevo/speedtest-app)
+Images are published from the [`Geevo/speedtest-dashboard`](https://github.com/Geevo/speedtest-dashboard)
 repository.
 
 ### Docker command
@@ -112,7 +112,7 @@ Already running Gluetun elsewhere? The equivalent Docker flag is `--network cont
 Download the template matching your host, verify it, and create an unprivileged container. On the Proxmox host that looks roughly like this:
 
 ```bash
-wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
+wget https://github.com/Geevo/speedtest-dashboard/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst \
   -O /var/lib/vz/template/cache/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
 
 pct create 120 \

@@ -7,7 +7,7 @@ client IP and test time; review its [privacy policy](https://www.measurementlab.
 before use.
 
 Release builds are published as `ghcr.io/geevo/speedtest-dashboard` from the
-[`Geevo/speedtest-app`](https://github.com/Geevo/speedtest-app) repository.
+[`Geevo/speedtest-dashboard`](https://github.com/Geevo/speedtest-dashboard) repository.
 
 ## Docker Compose
 

@@ -18,8 +18,8 @@ local template storage:
 ```bash
 cd /var/lib/vz/template/cache
 
-wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
-wget https://github.com/Geevo/speedtest-app/releases/download/v0.12.0-rc.1/SHA256SUMS
+wget https://github.com/Geevo/speedtest-dashboard/releases/download/v0.12.0-rc.1/speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst
+wget https://github.com/Geevo/speedtest-dashboard/releases/download/v0.12.0-rc.1/SHA256SUMS
 
 grep 'speedtest-dashboard_0.12.0-rc.1_amd64.tar.zst$' SHA256SUMS \
   | sha256sum --check -
