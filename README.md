@@ -32,6 +32,14 @@ Pick whichever flavour fits your lab. The examples use `latest` to keep the firs
 Images are published from the [`Geevo/speedtest-dashboard`](https://github.com/Geevo/speedtest-dashboard)
 repository.
 
+Every successful CI run on `main` publishes the tested `linux/amd64` image as
+`ghcr.io/geevo/speedtest-dashboard:main`:
+
+```bash
+docker pull ghcr.io/geevo/speedtest-dashboard:main
+podman pull ghcr.io/geevo/speedtest-dashboard:main
+```
+
 ### Docker command
 
 ```bash

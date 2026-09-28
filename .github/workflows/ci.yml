@@ -49,6 +49,9 @@ jobs:
     if: github.event_name != 'workflow_call'
     needs: [backend, frontend]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
@@ -60,7 +63,11 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: speedtest-dashboard:ci-native-aot
-          build-args: INSTALL_OOKLA=false
+          build-args: |
+            SOURCE_REVISION=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            DOCUMENTATION_URL=${{ github.server_url }}/${{ github.repository }}#readme
+            INSTALL_OOKLA=false
       - name: Smoke test image and persisted database
         shell: bash
         run: |
@@ -113,21 +120,23 @@ jobs:
           run_container
           wait_for_health
           docker exec "$container" test -s /data/speedtest.db
-      - name: Package tested image
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/speedtest-dashboard
         run: |
           set -euo pipefail
-          mkdir -p artifacts
-          docker save speedtest-dashboard:ci-native-aot | gzip -9 > artifacts/speedtest-dashboard_linux-amd64.tar.gz
-          cd artifacts
-          sha256sum speedtest-dashboard_linux-amd64.tar.gz > speedtest-dashboard_linux-amd64.tar.gz.sha256
-      - name: Upload tested image
-        uses: actions/upload-artifact@v6
-        with:
-          name: speedtest-dashboard-linux-amd64-${{ github.sha }}
-          path: |
-            artifacts/speedtest-dashboard_linux-amd64.tar.gz
-            artifacts/speedtest-dashboard_linux-amd64.tar.gz.sha256
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 14
+          image_name="${IMAGE_NAME,,}"
+          revision_tag="sha-${GITHUB_SHA::7}"
+          docker tag speedtest-dashboard:ci-native-aot "$image_name:main"
+          docker tag speedtest-dashboard:ci-native-aot "$image_name:$revision_tag"
+          docker push "$image_name:main"
+          docker push "$image_name:$revision_tag"

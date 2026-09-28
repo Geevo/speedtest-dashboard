@@ -8,6 +8,12 @@ before use.
 
 Release builds are published as `ghcr.io/geevo/speedtest-dashboard` from the
 [`Geevo/speedtest-dashboard`](https://github.com/Geevo/speedtest-dashboard) repository.
+Successful CI runs on `main` also publish the tested `linux/amd64` image:
+
+```bash
+docker pull ghcr.io/geevo/speedtest-dashboard:main
+podman pull ghcr.io/geevo/speedtest-dashboard:main
+```
 
 ## Docker Compose
 
